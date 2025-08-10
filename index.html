@@ -40,7 +40,7 @@
       <h2>Üdv, <span id="uname"></span>! 😎</h2>
       <p>Figyelj a hangra…</p>
 
-      <!-- A hangfájlt a repó gyökerébe töltsd fel "prank.mp3" néven -->
+      <!-- Hangfájl -->
       <audio id="prank" src="prank.mp3" preload="auto"></audio>
 
       <p class="small">
@@ -61,11 +61,9 @@
     const playManual = document.getElementById('playManual');
     const back = document.getElementById('back');
 
-    function validEmail(e){ return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(e); }
-
     async function playSound() {
       try {
-        prank.volume = 1.0;      // ha túl hangos, 0.5-re veheted
+        prank.volume = 1.0;
         prank.currentTime = 0;
         await prank.play();
       } catch (e) {
@@ -82,15 +80,13 @@
       const dob = form.dob.value;
 
       if (!name) { err.textContent = 'Kérlek, add meg a neved!'; return; }
-      if (!validEmail(email)) { err.textContent = 'Az email formátuma nem oké.'; return; }
+      if (!form.email.checkValidity()) { err.textContent = 'Az email formátuma nem helyes.'; return; }
       if (!dob) { err.textContent = 'Add meg a születési dátumod!'; return; }
 
       uname.textContent = name;
-
       form.style.display = 'none';
       success.style.display = 'block';
 
-      // A submit gomb kattintása user-gesture, így a legtöbb böngésző engedi az azonnali lejátszást:
       playSound();
     });
 
@@ -104,7 +100,6 @@
       success.style.display = 'none';
       form.reset();
       form.style.display = 'block';
-      // leállítás, ha még szól
       try { prank.pause(); } catch {}
     });
   </script>
