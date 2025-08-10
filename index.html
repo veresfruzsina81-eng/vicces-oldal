@@ -17,21 +17,25 @@
     .btn:hover { filter:brightness(1.05); }
     .error { margin-top:10px; color:#fca5a5; font-weight:600; }
     .success { text-align:center; }
-    .small { font-size:12px; color:var(--muted); margin-top:10px; }
+    .small { font-size:12px; color:#94a3b8; margin-top:10px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Regisztráció / Belépés</h1>
-    <p class="small">Belépés után automatikusan lejátszunk egy rövid vicces hangot. (Nincs adatmentés.)</p>
+    <p class="small">Belépés után egy rövid vicces hang szól. (Nincs adatmentés.)</p>
 
-    <form id="form">
+    <form id="form" novalidate>
       <label for="name">Név</label>
       <input id="name" name="name" type="text" placeholder="Pl. Kiss Pista" required />
+
       <label for="email">Email</label>
-      <input id="email" name="email" type="email" placeholder="valami@pelda.hu" required />
+      <input id="email" name="email" type="email" autocomplete="email" inputmode="email"
+             placeholder="valaki@pelda.hu" required />
+
       <label for="dob">Születési dátum</label>
       <input id="dob" name="dob" type="date" required />
+
       <button class="btn" type="submit">Belépek</button>
       <div id="err" class="error" aria-live="polite"></div>
     </form>
@@ -39,63 +43,54 @@
     <div id="success" class="success" style="display:none">
       <h2>Üdv, <span id="uname"></span>! 😎</h2>
       <p>Figyelj a hangra…</p>
-
-      <!-- Hangfájl -->
       <audio id="prank" src="prank.mp3" preload="auto"></audio>
-
-      <p class="small">
-        Ha nem szól: katt ide a lejátszáshoz →
-        <a href="#" id="playManual">lejátszás</a>
-      </p>
-
+      <p class="small"><a href="#" id="playManual">lejátszás, ha nem indult</a></p>
       <p class="small"><a href="#" id="back">Vissza</a></p>
     </div>
   </div>
 
   <script>
     const form = document.getElementById('form');
-    const err = document.getElementById('err');
-    const success = document.getElementById('success');
+    const err  = document.getElementById('err');
     const uname = document.getElementById('uname');
+    const success = document.getElementById('success');
     const prank = document.getElementById('prank');
     const playManual = document.getElementById('playManual');
     const back = document.getElementById('back');
 
-    async function playSound() {
-      try {
-        prank.volume = 1.0;
-        prank.currentTime = 0;
-        await prank.play();
-      } catch (e) {
-        console.warn('Autoplay blokkolva – manuális katt kellhet.', e);
+    function showNativeValidity() {
+      // Ha bármi mező érvénytelen, mutassuk a böngésző natív üzenetét
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return false;
       }
+      return true;
+    }
+
+    async function playSound() {
+      try { prank.currentTime = 0; await prank.play(); } catch(e) {}
     }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       err.textContent = '';
 
-      const name = form.name.value.trim();
-      const email = form.email.value.trim();
-      const dob = form.dob.value;
+      // Szóközök levágása – ez gyakran okoz fals hibát
+      const emailInput = form.email;
+      emailInput.value = (emailInput.value || '').trim();
 
-      if (!name) { err.textContent = 'Kérlek, add meg a neved!'; return; }
-      if (!form.email.checkValidity()) { err.textContent = 'Az email formátuma nem helyes.'; return; }
-      if (!dob) { err.textContent = 'Add meg a születési dátumod!'; return; }
+      // Natív ellenőrzés használata (type="email", required stb.)
+      if (!showNativeValidity()) return;
 
-      uname.textContent = name;
+      uname.textContent = (form.name.value || '').trim();
       form.style.display = 'none';
       success.style.display = 'block';
-
       playSound();
     });
 
-    playManual.addEventListener('click', (e) => {
-      e.preventDefault();
-      playSound();
-    });
+    playManual.addEventListener('click', (e) => { e.preventDefault(); playSound(); });
 
-    back?.addEventListener('click', (e) => {
+    back.addEventListener('click', (e) => {
       e.preventDefault();
       success.style.display = 'none';
       form.reset();
