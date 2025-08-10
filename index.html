@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vicces belépő</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+    .wrap { max-width: 460px; margin: 40px auto; padding: 24px; background: #111827; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    h1 { margin: 0 0 16px; font-size: 28px; }
+    p.hint { margin: 0 0 20px; color: #94a3b8; }
+    label { display: block; font-weight: 600; margin: 14px 0 6px; }
+    input { width: 100%; padding: 12px 14px; border: 1px solid #334155; background: #0b1220; color: #e2e8f0; border-radius: 10px; }
+    input:focus { outline: none; border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,.25); }
+    .btn { margin-top: 16px; width: 100%; padding: 12px 16px; border: none; border-radius: 10px; background: #22c55e; color: #0b1220; font-weight: 800; cursor: pointer; }
+    .btn:hover { filter: brightness(1.05); }
+    .error { margin-top: 10px; color: #fca5a5; font-weight: 600; }
+    .success { text-align: center; }
+    .success img { max-width: 100%; border-radius: 12px; margin-top: 16px; }
+    footer { text-align: center; margin: 20px 0; color: #64748b; font-size: 12px; }
+    .small { font-size: 12px; color: #94a3b8; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap" id="card">
+    <h1>Regisztráció / Belépés</h1>
+    <p class="hint">Csak poén oldal – semmit nem mentünk el.</p>
+
+    <form id="form">
+      <label for="name">Név</label>
+      <input id="name" name="name" type="text" placeholder="Pl. Kiss Pista" required />
+
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" placeholder="valami@pelda.hu" required />
+
+      <label for="dob">Születési dátum</label>
+      <input id="dob" name="dob" type="date" required />
+
+      <button class="btn" type="submit">Belépek</button>
+      <div id="err" class="error" aria-live="polite"></div>
+      <p class="small">Megjegyzés: ez a demo NEM küld adatot sehova és nem tárolja azokat.</p>
+    </form>
+
+    <div id="success" class="success" style="display:none">
+      <h2>Üdv, <span id="uname"></span>! 😎</h2>
+      <p>Belépés sikeres. Íme a jutalom:</p>
+      <!-- Tedd a projekt mappájába: beinto.jpg -->
+      <img src="beinto.jpg" alt="Vicces kép" />
+      <p class="small">Vissza a regisztrációhoz? <a href="#" id="back">Katt ide</a></p>
+    </div>
+  </div>
+
+  <footer>Made for fun · nincs adatgyűjtés</footer>
+
+  <script>
+    const form = document.getElementById('form');
+    const err = document.getElementById('err');
+    const success = document.getElementById('success');
+    const uname = document.getElementById('uname');
+    const back = document.getElementById('back');
+
+    function validEmail(e) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      err.textContent = '';
+
+      const name = form.name.value.trim();
+      const email = form.email.value.trim();
+      const dob = form.dob.value;
+
+      if (!name) { err.textContent = 'Kérlek, add meg a neved!'; return; }
+      if (!validEmail(email)) { err.textContent = 'Az email formátuma nem oké.'; return; }
+      if (!dob) { err.textContent = 'Add meg a születési dátumod!'; return; }
+
+      uname.textContent = name;
+      form.style.display = 'none';
+      success.style.display = 'block';
+    });
+
+    back?.addEventListener('click', (e) => {
+      e.preventDefault();
+      success.style.display = 'none';
+      form.reset();
+      form.style.display = 'block';
+    });
+  </script>
+</body>
+</html>
