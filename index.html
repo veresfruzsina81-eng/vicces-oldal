@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EXTRA VERZIÓ V3 – Vicces belépő</title>
+  <title>Szívatós belépő – csak hang</title>
   <style>
     :root { --bg:#0f172a; --panel:#111827; --text:#e2e8f0; --muted:#94a3b8; --line:#334155; --ok:#22c55e; }
+    * { box-sizing: border-box; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text); }
-    .wrap { max-width: 520px; margin: 40px auto; padding: 24px; background: var(--panel); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    .wrap { max-width:520px; margin:40px auto; padding:24px; background:var(--panel); border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
     h1 { margin:0 0 16px; font-size:28px; }
-    .badge { display:inline-block; padding:6px 10px; border-radius:8px; background:#22c55e; color:#0b1220; font-weight:800; margin-bottom:10px; }
     label { display:block; font-weight:600; margin:14px 0 6px; }
     input { width:100%; padding:12px 14px; border:1px solid var(--line); background:#0b1220; color:var(--text); border-radius:10px; }
     input:focus { outline:none; border-color:#60a5fa; box-shadow:0 0 0 3px rgba(96,165,250,.25); }
@@ -17,15 +17,13 @@
     .btn:hover { filter:brightness(1.05); }
     .error { margin-top:10px; color:#fca5a5; font-weight:600; }
     .success { text-align:center; }
-    .success img { max-width:100%; border-radius:12px; margin-top:16px; }
     .small { font-size:12px; color:var(--muted); margin-top:10px; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="badge">EXTRA VERZIÓ V3</div>
     <h1>Regisztráció / Belépés</h1>
-    <p class="small">Poén oldal – semmit nem mentünk el.</p>
+    <p class="small">Belépés után automatikusan lejátszunk egy rövid vicces hangot. (Nincs adatmentés.)</p>
 
     <form id="form">
       <label for="name">Név</label>
@@ -40,10 +38,17 @@
 
     <div id="success" class="success" style="display:none">
       <h2>Üdv, <span id="uname"></span>! 😎</h2>
-      <p>Belépés sikeres. Íme a meglepi:</p>
-      <img id="prize" src="beinto.jpg" alt="Jutalom kép" />
+      <p>Figyelj a hangra…</p>
+
+      <!-- A hangfájlt a repó gyökerébe töltsd fel "prank.mp3" néven -->
+      <audio id="prank" src="prank.mp3" preload="auto"></audio>
+
+      <p class="small">
+        Ha nem szól: katt ide a lejátszáshoz →
+        <a href="#" id="playManual">lejátszás</a>
+      </p>
+
       <p class="small"><a href="#" id="back">Vissza</a></p>
-      <audio id="snd" preload="auto"></audio>
     </div>
   </div>
 
@@ -52,36 +57,55 @@
     const err = document.getElementById('err');
     const success = document.getElementById('success');
     const uname = document.getElementById('uname');
-    const prize = document.getElementById('prize');
+    const prank = document.getElementById('prank');
+    const playManual = document.getElementById('playManual');
     const back = document.getElementById('back');
-    const snd = document.getElementById('snd');
 
-    function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+    function validEmail(e){ return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(e); }
 
-    form.addEventListener('submit', (e) => {
+    async function playSound() {
+      try {
+        prank.volume = 1.0;      // ha túl hangos, 0.5-re veheted
+        prank.currentTime = 0;
+        await prank.play();
+      } catch (e) {
+        console.warn('Autoplay blokkolva – manuális katt kellhet.', e);
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       err.textContent = '';
+
       const name = form.name.value.trim();
       const email = form.email.value.trim();
       const dob = form.dob.value;
+
       if (!name) { err.textContent = 'Kérlek, add meg a neved!'; return; }
       if (!validEmail(email)) { err.textContent = 'Az email formátuma nem oké.'; return; }
       if (!dob) { err.textContent = 'Add meg a születési dátumod!'; return; }
 
       uname.textContent = name;
+
       form.style.display = 'none';
       success.style.display = 'block';
 
-      // rövid beep
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const o = ctx.createOscillator(); const g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination); o.type = 'sine'; o.frequency.setValueAtTime(440, ctx.currentTime);
-      g.gain.setValueAtTime(0.2, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
-      o.start(); o.stop(ctx.currentTime + 0.35);
+      // A submit gomb kattintása user-gesture, így a legtöbb böngésző engedi az azonnali lejátszást:
+      playSound();
+    });
+
+    playManual.addEventListener('click', (e) => {
+      e.preventDefault();
+      playSound();
     });
 
     back?.addEventListener('click', (e) => {
-      e.preventDefault(); success.style.display='none'; form.reset(); form.style.display='block';
+      e.preventDefault();
+      success.style.display = 'none';
+      form.reset();
+      form.style.display = 'block';
+      // leállítás, ha még szól
+      try { prank.pause(); } catch {}
     });
   </script>
 </body>
