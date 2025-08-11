@@ -101,6 +101,7 @@
       <h2>Üdv, <span id="uname"></span>! 😎</h2>
       <div id="jokeBox" class="jokeBox"></div>
       <button id="moreJoke" class="btn secondary" type="button">Még egy poén</button>
+      <button id="playTalent" class="btn secondary" type="button">Hallgasd meg – tehetséges</button>
       <p style="margin-top:10px">
         <a href="#" id="play" class="hint">Lejátszás újra</a> ·
         <a href="#" id="back" class="hint">Kijelentkezés</a>
@@ -120,7 +121,9 @@
     </div>
   </div>
 
+  <!-- Hangok -->
   <audio id="prank" src="prank_short.mp3" preload="auto"></audio>
+  <audio id="talent" src="tehetseges.mp3" preload="auto"></audio>
 
 <script>
 const form  = document.getElementById('form');
@@ -128,12 +131,14 @@ const err   = document.getElementById('err');
 const ok    = document.getElementById('ok');
 const uname = document.getElementById('uname');
 const audio = document.getElementById('prank');
+const talent= document.getElementById('talent');
 const play  = document.getElementById('play');
 const back  = document.getElementById('back');
 const loading = document.getElementById('loading');
 const loadingText = document.getElementById('loadingText');
 const jokeBox = document.getElementById('jokeBox');
 const moreJoke = document.getElementById('moreJoke');
+const playTalent = document.getElementById('playTalent');
 
 const funnyMessages = [
   "Kávészemek őrlése…","Cukor kimérése…","Habos tej előkészítése…",
@@ -170,6 +175,7 @@ form.addEventListener('submit', async (e)=>{
   const okToProceed = confirm(ask.q);
   if(!okToProceed){ err.textContent = ask.a; return; }
 
+  // Kávéfőzés overlay
   loading.style.display = 'grid';
   let i = 0;
   loadingText.textContent = funnyMessages[i];
@@ -179,26 +185,42 @@ form.addEventListener('submit', async (e)=>{
   clearInterval(iv);
   loading.style.display = 'none';
 
+  // Siker nézet
   uname.textContent = form.name.value.trim();
   form.style.display = 'none';
   ok.style.display = 'block';
   jokeBox.textContent = randomJoke();
 
+  // Prank hang
   try { audio.currentTime = 0; await audio.play(); }
   catch { document.body.addEventListener('click', ()=>audio.play(), {once:true}); }
 });
 
+// „Még egy poén” gomb
 moreJoke.addEventListener('click', ()=>{
   jokeBox.textContent = randomJoke();
 });
 
+// „Hallgasd meg – tehetséges” gomb
+playTalent.addEventListener('click', async ()=>{
+  try {
+    try { audio.pause(); } catch {}
+    talent.currentTime = 0;
+    await talent.play();
+  } catch {
+    alert('A böngésző blokkolja az automatikus lejátszást. Kattints bárhová az oldalon, majd próbáld újra!');
+  }
+});
+
+// Extra: újrajátszás / kijelentkezés
 play.addEventListener('click', e=>{ e.preventDefault(); audio.currentTime=0; audio.play(); });
 back.addEventListener('click', e=>{
   e.preventDefault();
   ok.style.display='none';
   form.reset();
   form.style.display='block';
-  audio.pause();
+  try{ audio.pause(); }catch{}
+  try{ talent.pause(); }catch{}
 });
 </script>
 </body>
