@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Viccközpont – Desktop Edition (3D háttér + mozgatható ablakok)</title>
+<title>Viccközpont – Játék menü (Alap + Komolyabb)</title>
 <style>
 :root{
   --bg:#070b17; --text:#e8edff; --muted:#a7b1d6; --line:rgba(255,255,255,.14);
@@ -17,11 +17,12 @@
 html,body{height:100%;margin:0}
 body{background:var(--bg); color:var(--text); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow:hidden}
 a{color:inherit}
+button{cursor:pointer}
 
-/* 3D háttér vászon */
+/* 3D háttér */
 #bg3d{position:fixed; inset:0; z-index:0; display:block}
 
-/* App bar (login után) */
+/* Appbar */
 .appbar{position:fixed; top:0; left:0; right:0; z-index:3; display:none;
   padding:10px 14px; gap:10px; align-items:center;
   background:linear-gradient(180deg, rgba(12,18,36,.85), rgba(12,18,36,.55));
@@ -30,20 +31,13 @@ a{color:inherit}
 .logo .dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(90deg,var(--brand1),var(--brand2)); box-shadow:0 0 18px #22d3ee90}
 .appbar .profile{margin-left:auto; display:flex; align-items:center; gap:10px; font-weight:700; color:#cfe1ff}
 
-/* Launcher sáv alul */
-.dock{position:fixed; left:50%; transform:translateX(-50%); bottom:16px; z-index:3; display:none; gap:10px;
-  background:linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.06)); border:1px solid var(--line); border-radius:16px; padding:8px 10px; backdrop-filter:blur(10px)}
-.dock .btn{padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--glass); cursor:pointer; font-weight:800}
-.dock .btn.ok{background:var(--goodGrad); color:#062215; border-color:transparent}
-.dock .btn.info{background:var(--infoGrad); color:#071321; border-color:transparent}
-
 /* Login kártya */
 .auth{position:relative; z-index:2; max-width:440px; margin:80px auto; padding:24px; border-radius:16px;
   background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
   border:1px solid var(--line); backdrop-filter:blur(10px); box-shadow:0 30px 80px rgba(0,0,0,.35)}
 label{display:block; font-weight:800; margin:12px 0 6px}
 input{width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,.06); color:var(--text)}
-.btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border:0; border-radius:12px; font-weight:900; cursor:pointer}
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border:0; border-radius:12px; font-weight:900}
 .btn.full{width:100%}
 .btn.green{background:var(--goodGrad); color:#062215; box-shadow:0 10px 30px rgba(34,197,94,.25)}
 .err{color:#fecaca; font-weight:800; min-height:18px; margin-top:10px}
@@ -56,24 +50,34 @@ input{width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--
   background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
   border:1px solid var(--line); text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.45)}
 
-/* Window rendszer */
-.window{position:fixed; z-index:2; min-width:320px; max-width:92vw; min-height:220px;
-  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-  border:1px solid var(--line); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.45); backdrop-filter:blur(10px); display:none}
-.titlebar{display:flex; align-items:center; gap:8px; padding:10px 12px; cursor:move; border-bottom:1px solid var(--line)}
-.titlebar .dot{width:10px;height:10px;border-radius:50%}
-.titlebar .dot.red{background:#ef4444} .titlebar .dot.yellow{background:#f59e0b} .titlebar .dot.green{background:#22c55e}
-.titlebar .title{font-weight:900; margin-left:6px}
-.win-content{padding:12px; max-height:70vh; overflow:auto}
-
-/* Kártyák + elemek a panelekben */
-.box{border:1px solid var(--line); border-radius:12px; background:rgba(10,12,22,.6); padding:12px}
-.row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
-.chip{padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:var(--glass); cursor:pointer; font-weight:800}
+/* Menü */
+#menu{position:fixed; inset:70px 0 0; z-index:2; display:none; overflow:auto; padding:16px}
+.menu-wrap{max-width:1100px; margin:0 auto}
+.tabs{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap}
+.tab{padding:10px 14px; border-radius:999px; border:1px solid var(--line); background:var(--glass); font-weight:800}
+.tab.active{background:linear-gradient(90deg,#7c3aed,#22d3ee); color:#061225; border-color:transparent}
+.grid{display:grid; grid-template-columns:repeat(12,1fr); gap:14px}
+@media (max-width:980px){ .grid{grid-template-columns:repeat(8,1fr)} }
+@media (max-width:640px){ .grid{grid-template-columns:repeat(4,1fr)} }
+.card{grid-column:span 4; border:1px solid var(--line); border-radius:14px; background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06)); backdrop-filter:blur(8px); padding:14px; box-shadow:0 16px 50px rgba(0,0,0,.3)}
+.card h3{margin:0 0 8px}
+.card p{margin:0 0 10px; color:var(--muted)}
+.card .actions{display:flex; gap:8px; flex-wrap:wrap}
+.chip{padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:var(--glass); font-weight:800}
 .chip.ok{background:var(--goodGrad); color:#062215; border-color:transparent}
 .chip.info{background:var(--infoGrad); color:#071321; border-color:transparent}
 
-/* Kvíz – fehér kártya téma az ablakon belül */
+/* Panelok (játék ablakok) – mobilbarát, középre igazított */
+.panel{position:fixed; inset:0; z-index:5; display:none; place-items:center; background:rgba(3,6,14,.5); backdrop-filter:blur(4px); padding:12px}
+.panel .inner{width:min(980px,96vw); max-height:86vh; overflow:auto; border:1px solid var(--line); border-radius:16px; background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06)); box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.panel .titlebar{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--line)}
+.panel .title{font-weight:900}
+.close{border:1px solid var(--line); background:var(--glass); border-radius:10px; padding:8px 10px; font-weight:800}
+
+/* Játék belsők */
+.box{border:1px solid var(--line); border-radius:12px; background:rgba(10,12,22,.6); padding:12px}
+
+/* Kvíz fehér kártya */
 .quiz-card{background:#fff; color:#000; border-radius:12px; padding:12px; border:1px solid rgba(0,0,0,.1)}
 .quiz-card .box{background:#f9f9f9; color:#000; border:1px solid rgba(0,0,0,.1)}
 .answers{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:10px}
@@ -86,7 +90,7 @@ input{width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--
 
 /* Amőba */
 .ttt-grid{display:grid; grid-template-columns:repeat(3,100px); grid-template-rows:repeat(3,100px); gap:8px; justify-content:center}
-.ttt-cell{display:grid; place-items:center; font-size:36px; font-weight:900; border-radius:12px; background:rgba(255,255,255,.10); border:1px solid var(--line); cursor:pointer; user-select:none}
+.ttt-cell{display:grid; place-items:center; font-size:36px; font-weight:900; border-radius:12px; background:rgba(255,255,255,.10); border:1px solid var(--line); user-select:none; cursor:pointer}
 .ttt-cell.win{background:linear-gradient(180deg, rgba(34,197,94,.25), rgba(34,197,94,.15))}
 .ttt-panel{display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:10px}
 
@@ -98,8 +102,10 @@ input{width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--
 .chat-input{display:flex; gap:8px; margin-top:10px}
 .chat-input input{flex:1}
 
-/* Rejtett a kezdeti állapotban */
-#desktop{display:none}
+/* Runner (komolyabb, ugrálós) */
+#runnerCanvas{width:100%; max-height:60vh; background:linear-gradient(180deg,#0b1226,#0f1b3a); border:1px solid var(--line); border-radius:12px}
+.runner-ui{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px}
+
 </style>
 </head>
 <body>
@@ -107,23 +113,14 @@ input{width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--
 <canvas id="bg3d"></canvas>
 
 <header class="appbar" id="appbar">
-  <div class="logo"><span class="dot"></span> Viccközpont – Desktop</div>
+  <div class="logo"><span class="dot"></span> Viccközpont – Játék menü</div>
   <div class="profile" id="profileName"></div>
 </header>
-
-<!-- Launcher (dock) -->
-<div class="dock" id="dock">
-  <button class="btn info" data-open="#winQuiz">Kvíz</button>
-  <button class="btn info" data-open="#winTtt">Amőba</button>
-  <button class="btn info" data-open="#winChat">Chat</button>
-  <button class="btn info" data-open="#winMedia">Hangok & Időjárás</button>
-  <button class="btn" id="btnCenter">Ablakok középre</button>
-</div>
 
 <!-- LOGIN -->
 <main id="loginWrap" class="auth">
   <h1>Bejelentkezés</h1>
-  <p class="muted">Modern „desktop” élmény: kvíz, amőba, chat – mozgatható ablakokban, 3D háttérrel. 🔥</p>
+  <p class="muted">Válassz a mini játékok közül – alap vagy komolyabb móka. 🔥</p>
   <form id="form" novalidate>
     <label for="name">Név</label>
     <input id="name" type="text" required placeholder="Név">
@@ -139,23 +136,69 @@ input{width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--
 <!-- Loading -->
 <div id="loading"><div class="loader"><div id="loadingText">Kávészemek őrlése…</div></div></div>
 
-<!-- DESKTOP ABLAKOK -->
-<div id="desktop">
-  <!-- Kvíz -->
-  <div class="window" id="winQuiz" style="top:84px; left:40px; width:620px;">
-    <div class="titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><div class="title">Kvíz Bajnokság</div></div>
-    <div class="win-content">
+<!-- FŐMENÜ -->
+<section id="menu">
+  <div class="menu-wrap">
+    <div class="tabs">
+      <button class="tab active" data-tab="basic">Alap játékok</button>
+      <button class="tab" data-tab="advanced">Komolyabb játékok</button>
+    </div>
+
+    <div id="tab-basic" class="grid">
+      <div class="card">
+        <h3>🎯 Kvíz Bajnokság</h3>
+        <p>15 kérdés • 15 mp/kérdés • Toplista</p>
+        <div class="actions"><button class="chip ok" data-open="#panelQuiz">Megnyitás</button></div>
+      </div>
+      <div class="card">
+        <h3>❌ Amőba</h3>
+        <p>Játssz a gép ellen, vagy ketten egymás ellen.</p>
+        <div class="actions"><button class="chip ok" data-open="#panelTtt">Megnyitás</button></div>
+      </div>
+      <div class="card">
+        <h3>💬 Chat</h3>
+        <p>Poénos válaszok, tipp üzenetek.</p>
+        <div class="actions"><button class="chip ok" data-open="#panelChat">Megnyitás</button></div>
+      </div>
+      <div class="card">
+        <h3>🎵 Hangok & Időjárás</h3>
+        <p>Prank hang + poénos időjárás</p>
+        <div class="actions"><button class="chip ok" data-open="#panelMedia">Megnyitás</button></div>
+      </div>
+    </div>
+
+    <div id="tab-advanced" class="grid" style="display:none">
+      <div class="card">
+        <h3>🕹️ Ugrálós Runner</h3>
+        <p>Ugorj az akadályok felett, gyűjts pontot! (Tap / Space)</p>
+        <div class="actions"><button class="chip ok" data-open="#panelRunner">Megnyitás</button></div>
+      </div>
+      <div class="card">
+        <h3>🔒 Hamarosan</h3>
+        <p>Több komoly mini-játék (Snake, 2048, Flappy…)</p>
+        <div class="actions"><button class="chip" disabled>Fejlesztés alatt</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PANELS -->
+<!-- Kvíz -->
+<div class="panel" id="panelQuiz">
+  <div class="inner">
+    <div class="titlebar"><div class="title">🎯 Kvíz Bajnokság</div><button class="close" data-close>Bezár</button></div>
+    <div class="content" style="padding:12px">
       <div class="quiz-card">
         <h3 style="margin:6px 0 10px">15 kérdés • 15 mp/kérdés</h3>
         <div id="quizStart">
-          <div class="row" style="margin:8px 0">
-            <label for="playerName" style="margin:0 10px 0 0; font-weight:800;color:#111">Név:</label>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+            <label for="playerName" style="margin:0 6px 0 0; font-weight:800;color:#111">Név:</label>
             <input id="playerName" type="text" placeholder="Neved" style="max-width:240px;background:#fff;color:#111;border:1px solid #e5e7eb">
             <button id="quizGo" class="chip ok">Indít</button>
           </div>
           <p class="muted" style="color:#333">Lejárt idő = 0 pont. Hajrá! 🏁</p>
         </div>
-        <div class="row quizHud" id="quizHud" style="display:none">
+        <div class="row" id="quizHud" style="display:none;margin-top:8px">
           <span class="badge">Kérdés: <b id="qIdx">1</b>/15</span>
           <span class="badge">Pont: <b id="qScore">0</b></span>
           <span class="badge">Idő: <b id="qTime">0.0s</b></span>
@@ -168,7 +211,7 @@ input{width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--
         <div id="quizDone" style="display:none">
           <h3 style="margin:6px 0">Eredmény</h3>
           <div class="box" id="quizSummary" style="color:#111"></div>
-          <div class="row" style="margin-top:10px">
+          <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
             <button id="quizAgain" class="chip info">Újra</button>
             <button id="quizReset" class="chip" style="background:#fff;color:#111">Toplista törlése</button>
           </div>
@@ -183,27 +226,31 @@ input{width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Amőba -->
-  <div class="window" id="winTtt" style="top:110px; left:700px; width:380px;">
-    <div class="titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><div class="title">Amőba</div></div>
-    <div class="win-content">
+<!-- Amőba -->
+<div class="panel" id="panelTtt">
+  <div class="inner">
+    <div class="titlebar"><div class="title">❌ Amőba</div><button class="close" data-close>Bezár</button></div>
+    <div class="content" style="padding:12px">
       <div class="ttt-grid" id="tttGrid"></div>
       <div id="tttInfo" class="box" style="margin-top:10px;text-align:center">Te kezdesz: X</div>
       <div class="ttt-panel">
         <button id="tttReset" class="chip info">Újrakezd</button>
-        <label class="row" style="gap:6px">
+        <label style="display:flex; gap:6px; align-items:center">
           <input type="checkbox" id="tttCpu" checked>
           <span class="muted">Játék a gép ellen</span>
         </label>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Chat -->
-  <div class="window" id="winChat" style="top:360px; left:40px; width:520px;">
-    <div class="titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><div class="title">Chat</div></div>
-    <div class="win-content">
+<!-- Chat -->
+<div class="panel" id="panelChat">
+  <div class="inner">
+    <div class="titlebar"><div class="title">💬 Chat</div><button class="close" data-close>Bezár</button></div>
+    <div class="content" style="padding:12px">
       <div id="chatBox" class="chat-box"></div>
       <div class="chat-input">
         <input id="chatInput" type="text" placeholder="Írj valamit… (szia, vicc, segíts)">
@@ -211,32 +258,46 @@ input{width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Hangok + Időjárás -->
-  <div class="window" id="winMedia" style="top:360px; left:600px; width:420px;">
-    <div class="titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><div class="title">Hangok & Időjárás</div></div>
-    <div class="win-content">
-      <div class="row" style="margin-bottom:8px">
+<!-- Media -->
+<div class="panel" id="panelMedia">
+  <div class="inner">
+    <div class="titlebar"><div class="title">🎵 Hangok & Időjárás</div><button class="close" data-close>Bezár</button></div>
+    <div class="content" style="padding:12px">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px">
         <button class="chip ok" data-sound="prank">Prank ▶️</button>
         <button class="chip info" data-sound="talent">Tehetséges ▶️</button>
         <button class="chip" id="stopAll">Leállít</button>
       </div>
-      <div class="row">
+      <div style="display:flex; gap:10px; flex-wrap:wrap">
         <button id="btnWx" class="chip ok">Poénos időjárás</button>
         <div id="wx" class="box">Nyomd meg a gombot!</div>
       </div>
-      <div class="row" style="margin-top:8px">
-        <div class="box" id="clock">--:--:--</div>
+      <div style="margin-top:8px"><div class="box" id="clock">--:--:--</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Runner – ugrálós -->
+<div class="panel" id="panelRunner">
+  <div class="inner">
+    <div class="titlebar"><div class="title">🕹️ Ugrálós Runner</div><button class="close" data-close>Bezár</button></div>
+    <div class="content" style="padding:12px">
+      <canvas id="runnerCanvas" width="900" height="360"></canvas>
+      <div class="runner-ui">
+        <button id="runStart" class="chip ok">Start / Újra</button>
+        <div class="box" id="runInfo">Tap vagy Space = Ugrás • Pont: 0 (Rekord: 0)</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Hangfájlok -->
+<!-- Hangok -->
 <audio id="prank"  src="prank_short.mp3"    preload="auto"></audio>
 <audio id="talent" src="tehetseges.mp3.m4a" preload="auto"></audio>
 
-<!-- Three.js CDN a 3D háttérhez -->
+<!-- Three.js a 3D háttérhez -->
 <script src="https://unpkg.com/three@0.157.0/build/three.min.js"></script>
 
 <script>
@@ -245,7 +306,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const $$ = s => document.querySelectorAll(s);
   const rnd = a => a[Math.floor(Math.random()*a.length)];
 
-  /* ===== 3D háttér – részecskefelhő ===== */
+  /* ===== 3D háttér ===== */
   (function init3D(){
     const canvas = document.getElementById('bg3d'); if(!canvas) return;
     const scene = new THREE.Scene();
@@ -283,8 +344,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   /* ===== Login stabil ===== */
   const form = $('#form'), loading = $('#loading'), loadingText = $('#loadingText');
-  const loginWrap = $('#loginWrap'), appbar = $('#appbar'), dock = $('#dock'), profileName = $('#profileName');
-  if(form && loading && loginWrap && appbar && dock){
+  const loginWrap = $('#loginWrap'), appbar = $('#appbar'), menu = $('#menu'), profileName = $('#profileName');
+  if(form && loading && loginWrap && appbar && menu){
     form.addEventListener('submit', (e)=>{
       e.preventDefault();
       const name = $('#name')?.value.trim();
@@ -302,40 +363,36 @@ window.addEventListener('DOMContentLoaded', () => {
         clearInterval(iv); loading.style.display='none';
         loginWrap.style.display='none';
         appbar.style.display='flex';
-        dock.style.display='flex';
+        menu.style.display='block';
         if(profileName) profileName.textContent = "Üdv, " + (name || "Vendég") + "!";
-        $('#desktop').style.display='block';
-        // középre rendezés első induláskor
-        centerAll();
       }, 1200);
     });
   }
 
-  /* ===== Dock gombok ablaknyitáshoz ===== */
-  $$('#dock [data-open]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const target = $(btn.getAttribute('data-open')); if(!target) return;
-      target.style.display='block'; bringToFront(target);
+  /* ===== Menü tabok ===== */
+  $$('.tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      $$('.tab').forEach(t=>t.classList.remove('active')); tab.classList.add('active');
+      const k=tab.dataset.tab;
+      $('#tab-basic').style.display = (k==='basic') ? 'grid' : 'none';
+      $('#tab-advanced').style.display = (k==='advanced') ? 'grid' : 'none';
     });
   });
-  $('#btnCenter')?.addEventListener('click', centerAll);
 
-  /* ===== Drag & Z-index ===== */
-  let zCounter = 10;
-  function bringToFront(win){ win.style.zIndex = ++zCounter; }
-  $$('.window').forEach(win=>{
-    const bar = win.querySelector('.titlebar'); if(!bar) return;
-    let sx=0, sy=0, ox=0, oy=0, dragging=false;
-    bar.addEventListener('mousedown', e=>{ dragging=true; bringToFront(win); sx=e.clientX; sy=e.clientY; const r=win.getBoundingClientRect(); ox=r.left; oy=r.top; document.body.style.userSelect='none'; });
-    window.addEventListener('mousemove', e=>{ if(!dragging) return; const nx=ox+(e.clientX-sx); const ny=oy+(e.clientY-sy); win.style.left = Math.max(8, Math.min(innerWidth - win.offsetWidth - 8, nx)) + 'px'; win.style.top = Math.max(60, Math.min(innerHeight - 80, ny)) + 'px';});
-    window.addEventListener('mouseup', ()=>{ dragging=false; document.body.style.userSelect='auto'; });
-    win.addEventListener('mousedown', ()=>bringToFront(win));
+  /* ===== Panelek nyitása/zárása ===== */
+  $$('#menu [data-open]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const sel=b.getAttribute('data-open'); const p=$(sel); if(!p) return;
+      p.style.display='grid';
+    });
   });
-  function centerAll(){
-    const wins=[ '#winQuiz', '#winTtt', '#winChat', '#winMedia' ].map(id=>$(id)).filter(Boolean);
-    let x=40, y=90;
-    wins.forEach(w=>{ w.style.left=x+'px'; w.style.top=y+'px'; w.style.display='block'; bringToFront(w); x+=40; y+=30; });
-  }
+  $$('[data-close]').forEach(b=>{
+    b.addEventListener('click', ()=> b.closest('.panel').style.display='none' );
+  });
+  // katt háttérre zár
+  $$('.panel').forEach(p=>{
+    p.addEventListener('click', e=>{ if(e.target===p) p.style.display='none'; });
+  });
 
   /* ===== Hangok + Időjárás ===== */
   const A_PRANK=$('#prank'), A_TALENT=$('#talent');
@@ -363,8 +420,8 @@ window.addEventListener('DOMContentLoaded', () => {
       if(/hogy vagy\??/.test(t)) return "Remekül! Mint a FPS a gamer gépen. 🚀";
       if(/vicc|po[eé]n/.test(t)) return rnd(botVicc);
       if(/k[aá]v[eé]/.test(t)) return "Kávé? Mindig! ☕ Addig kvíz vagy amőba?";
-      if(/seg[ií]ts|help|hogyan/.test(t)) return "Segítek: alul a dokkban nyisd meg az ablakokat. Húzogatni is lehet őket!";
-      if(/j[aá]t[eé]k|game/.test(t)) return "Kvíz? Amőba? Vagy mindkettő! 🎮";
+      if(/seg[ií]ts|help|hogyan/.test(t)) return "Segítek: válassz a menüből és játssz egyet!";
+      if(/j[aá]t[eé]k|game/.test(t)) return "Kvíz? Amőba? Vagy Runner! 🎮";
       if(/\?$/.test(t)) return "Jó kérdés! Ha én tudnám, már shaderbe is beégettem volna. 🤖";
       return rnd(botFallback);
     }
@@ -405,7 +462,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
   const quizStart=$('#quizStart'), quizHud=$('#quizHud'), quizQWrap=$('#quizQWrap'), quizDone=$('#quizDone');
   const qIdxEl=$('#qIdx'), qScoreEl=$('#qScore'), qTimeEl=$('#qTime'), qBar=$('#qBar'), qText=$('#qText'), qAns=$('#qAns'), quizSummary=$('#quizSummary');
-
   if($('#quizGo')){
     let qi=0,qScore=0,qStart=0,qTimer=null,qEndAt=0,player='';
     $('#quizGo').addEventListener('click', startQuiz);
@@ -428,9 +484,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if(qIdxEl) qIdxEl.textContent=(qi+1);
       if(qScoreEl) qScoreEl.textContent=qScore;
       if(qText) qText.textContent=Q.q;
-      if(qAns){ qAns.innerHTML='';
-        Q.a.forEach((txt,idx)=>{ const b=document.createElement('button'); b.className='ans'; b.textContent=txt; b.addEventListener('click',()=>choose(idx)); qAns.appendChild(b); });
-      }
+      if(qAns){ qAns.innerHTML=''; Q.a.forEach((txt,idx)=>{ const b=document.createElement('button'); b.className='ans'; b.textContent=txt; b.addEventListener('click',()=>choose(idx)); qAns.appendChild(b); }); }
       const D=15000; qEndAt=performance.now()+D; if(qTimer) cancelAnimationFrame(qTimer);
       (function tickBar(){
         const left=Math.max(0,qEndAt-performance.now());
@@ -475,6 +529,102 @@ window.addEventListener('DOMContentLoaded', () => {
     function end(res){ gameOver=true; if(res.p==='D'){ tttInfo.textContent="Döntetlen!"; return; } res.line.forEach(idx=>tttGrid.children[idx].classList.add('win')); if(res.p==='X'){ tttInfo.textContent="Gratulálok, ügyes vagy! 🎉 Te nyertél!"; } else tttInfo.textContent="A gép nyert. Újra?"; }
     $('#tttReset')?.addEventListener('click', initTTT); initTTT();
   }
+
+  /* ===== Runner – ugrálós ===== */
+  (function runner(){
+    const canvas = document.getElementById('runnerCanvas'); if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let w=canvas.width, h=canvas.height;
+
+    // Játék állapot
+    let running=false, score=0, best=Number(localStorage.getItem('runnerBest')||0);
+    const info = document.getElementById('runInfo');
+    function setInfo(){ if(info) info.textContent=`Tap vagy Space = Ugrás • Pont: ${score} (Rekord: ${best})`; }
+
+    // Fizika
+    const ground = h-60;
+    const player = { x:80, y:ground, vy:0, onGround:true, size:28 };
+    const grav = 0.8, jumpV = -14;
+
+    // Akadályok
+    const spikes = [];
+    function spawnSpike(){ const s = { x:w+20, y:ground, w:20+Math.random()*16, h:30+Math.random()*10, passed:false }; spikes.push(s); }
+    let spawnT=0;
+
+    // Input
+    function jump(){
+      if(player.onGround){
+        player.vy = jumpV; player.onGround=false;
+      }
+    }
+    window.addEventListener('keydown', e=>{ if(e.code==='Space') { e.preventDefault(); jump(); } });
+    canvas.addEventListener('pointerdown', jump, {passive:true});
+
+    // Reset
+    function reset(){ score=0; player.y=ground; player.vy=0; player.onGround=true; spikes.length=0; spawnT=0; setInfo(); }
+
+    // Loop
+    let raf=null, last=0, speed=6;
+    function step(ts){
+      if(!running){ cancelAnimationFrame(raf); return; }
+      const dt = Math.min(32, ts-last); last=ts;
+      ctx.clearRect(0,0,w,h);
+
+      // háttér csík
+      ctx.fillStyle='#0a1430'; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='#0b2a55'; for(let i=0;i<6;i++){ ctx.fillRect((ts/40 + i*180)%w, h-120+i*6, 90, 4); }
+
+      // talaj
+      ctx.fillStyle='#0e2447'; ctx.fillRect(0, ground+player.size/2, w, 6);
+
+      // player fizika
+      player.vy += grav;
+      player.y += player.vy;
+      if(player.y>=ground){ player.y=ground; player.vy=0; player.onGround=true; }
+
+      // player rajz
+      ctx.fillStyle='#7c3aed'; ctx.fillRect(player.x-player.size/2, player.y-player.size/2, player.size, player.size);
+
+      // akadály spawn
+      spawnT -= dt;
+      if(spawnT<=0){ spawnSpike(); spawnT = 900 - Math.min(600, score*2); }
+
+      // akadályok mozgatás + ütközés
+      ctx.fillStyle='#22d3ee';
+      for(let i=spikes.length-1;i>=0;i--){
+        const s=spikes[i]; s.x -= speed + Math.min(6, score/50);
+        ctx.beginPath(); ctx.moveTo(s.x, s.y+player.size/2);
+        ctx.lineTo(s.x+s.w/2, s.y - s.h + player.size/2);
+        ctx.lineTo(s.x+s.w, s.y+player.size/2); ctx.closePath(); ctx.fill();
+
+        // pontszám
+        if(!s.passed && s.x + s.w < player.x - player.size/2){ s.passed=true; score++; setInfo(); }
+
+        // ütközés (AABB közelítés)
+        const px=player.x-player.size/2, py=player.y-player.size/2, pw=player.size, ph=player.size;
+        if(s.x < px+pw && s.x+s.w > px && s.y - s.h < py+ph && s.y > py){
+          // game over
+          running=false;
+          best=Math.max(best, score); localStorage.setItem('runnerBest', best);
+          setInfo();
+          ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(0,0,w,h);
+          ctx.fillStyle='#fff'; ctx.font='20px sans-serif';
+          ctx.fillText('Ütközés! Kattints a Start/Újra gombra.', 20, 40);
+        }
+
+        if(s.x + s.w < -20) spikes.splice(i,1);
+      }
+
+      raf = requestAnimationFrame(step);
+    }
+
+    document.getElementById('runStart')?.addEventListener('click', ()=>{
+      reset(); running=true; last=performance.now(); raf=requestAnimationFrame(step);
+    });
+
+    setInfo();
+  })();
+
 });
 </script>
 </body>
