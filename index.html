@@ -1,358 +1,315 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="hu">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Viccközpont – v6 (modern)</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Viccközpont v7</title>
 <style>
-  :root{
-    --bg:#0b1020; --c1:#7c3aed; --c2:#22d3ee; --card:rgba(255,255,255,.08);
-    --line:rgba(255,255,255,.14); --text:#eef2ff; --muted:#bfc7ff;
-    --ok:#22c55e; --info:#60a5fa; --warn:#f59e0b; --danger:#ef4444;
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%;margin:0}
-  body{
-    font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
-    color:var(--text); background:
-      radial-gradient(1200px 800px at 120% -20%, #22d3ee22 0 40%, transparent 60%),
-      radial-gradient(1100px 700px at -20% 120%, #7c3aed22 0 40%, transparent 60%),
-      radial-gradient(900px 600px at 50% 30%, #ffffff10 0 20%, transparent 60%),
-      linear-gradient(180deg,#0b1020,#0d1226 40%, #0b1020 100%);
-    min-height:100dvh; padding:24px; display:grid; place-items:center;
+  /* Alapbeállítások */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, sans-serif;
+    color: white;
+    overflow-x: hidden;
+    min-height: 100vh;
   }
 
-  /* ——— NAV BAR (belépés után) ——— */
-  .topbar{
-    position:fixed; top:14px; left:50%; transform:translateX(-50%);
-    display:flex; align-items:center; gap:10px; padding:10px 14px;
-    background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.06));
-    border:1px solid var(--line); border-radius:14px; backdrop-filter:blur(14px);
-    box-shadow:0 20px 60px rgba(0,0,0,.4); z-index:20;
-  }
-  .topbar .dot{width:8px;height:8px;border-radius:50%;background:linear-gradient(90deg,var(--c1),var(--c2));}
-  .topbar b{font-weight:800}
-  .topbar .pill{padding:6px 10px;border-radius:999px;border:1px solid var(--line);cursor:pointer}
-  .pill.ok{background:linear-gradient(90deg,#22c55e,#16a34a); color:#072a16}
-  .pill.info{background:linear-gradient(90deg,#60a5fa,#3b82f6); color:#071321}
-  .pill.danger{background:linear-gradient(90deg,#ef4444,#dc2626); color:#2a0606}
-
-  /* ——— KÁRTYÁK ——— */
-  .card{
-    width:min(460px, 92vw);
-    background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-    border:1px solid var(--line); border-radius:18px; padding:26px 24px;
-    box-shadow:0 30px 80px rgba(0,0,0,.35); backdrop-filter:blur(14px);
-    animation:pop .5s ease both;
-  }
-  @keyframes pop{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
-  h1{margin:0 0 6px; font-size:28px; letter-spacing:.4px}
-  p.hint{margin:0 0 18px; color:var(--muted); font-size:14px}
-  label{display:block; font-weight:700; margin:12px 0 6px}
-  input{
-    width:100%; padding:12px 14px; border-radius:12px; font-size:15px;
-    border:1px solid var(--line); background:rgba(255,255,255,.06); color:var(--text);
-    outline:none;
-  }
-  .btn{
-    margin-top:16px; width:100%; padding:12px 16px; border:0; border-radius:12px;
-    background:linear-gradient(90deg,#22c55e,#16a34a); color:#072a16; font-weight:900; cursor:pointer;
-  }
-  .err{min-height:18px; margin-top:10px; color:#fecaca; font-weight:700}
-
-  /* mini állapot a login kártyára */
-  .mini{
-    position:fixed; top:18px; left:50%; transform:translateX(-50%);
-    width:320px; padding:14px 16px; z-index:15;
-  }
-  .mini .success{display:block}
-  .mini form{display:none!important}
-  .check{display:grid;place-items:center;margin:6px auto 6px;width:52px;height:52px;border-radius:50%;
-    border:2px solid #34d399; background:radial-gradient(circle at 30% 30%,#fff3,#fff1)}
-
-  /* ——— GRID ——— */
-  .grid{
-    width:min(1200px,96vw); margin-top:120px; display:none;
-    gap:16px; grid-template-columns:repeat(12,1fr);
-  }
-  @media (max-width:980px){ .grid{grid-template-columns:repeat(8,1fr)} }
-  @media (max-width:640px){ .grid{grid-template-columns:repeat(4,1fr)} }
-
-  .panel{
-    background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
-    border:1px solid var(--line); border-radius:16px; padding:16px; backdrop-filter:blur(12px);
-    box-shadow:0 16px 50px rgba(0,0,0,.3); animation:pop .5s ease both;
-  }
-  .title{font-weight:900; margin:0 0 8px}
-  .muted{color:var(--muted); font-size:13px; margin:0 0 10px}
-  .row{display:flex; gap:8px; flex-wrap:wrap}
-  .chip{padding:8px 12px;border-radius:999px;border:1px solid var(--line);cursor:pointer}
-  .chip.ok{background:linear-gradient(90deg,#22c55e,#16a34a); color:#072a16}
-  .chip.info{background:linear-gradient(90deg,#60a5fa,#3b82f6); color:#071321}
-  .chip.warn{background:linear-gradient(90deg,#f59e0b,#fbbf24); color:#281a03}
-  .chip.danger{background:linear-gradient(90deg,#ef4444,#dc2626); color:#2b0a0a}
-
-  .span-6{grid-column:span 6}
-  .span-4{grid-column:span 4}
-  .span-3{grid-column:span 3}
-  @media (max-width:980px){ .span-6,.span-4,.span-3{grid-column:span 8} }
-  @media (max-width:640px){ .span-6,.span-4,.span-3{grid-column:span 4} }
-
-  .box{
-    padding:10px 12px; border-radius:12px; border:1px solid var(--line);
-    background:rgba(255,255,255,.05); min-height:34px
+  /* Hullámos háttér (canvas) */
+  #bgCanvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: -1;
+    background: black;
   }
 
-  /* loader */
-  .loading{
-    position:fixed; inset:0; display:none; place-items:center;
-    background:rgba(8,12,30,.6); backdrop-filter:blur(8px); z-index:40;
+  /* Központi konténer */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    display: grid;
+    gap: 20px;
   }
-  .loader{
-    width:min(380px,92vw); padding:22px; text-align:center; border-radius:16px;
-    background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-    border:1px solid var(--line); box-shadow:0 30px 80px rgba(0,0,0,.45)
-  }
-  .steam{height:52px; display:flex; justify-content:center; gap:12px; margin-bottom:8px}
-  .steam span{width:6px; height:6px; border-radius:50%; background:#fff; opacity:.8; animation:rise 1.8s linear infinite}
-  .steam span:nth-child(2){animation-delay:.3s} .steam span:nth-child(3){animation-delay:.6s}
-  @keyframes rise{0%{transform:translateY(12px);opacity:0} 25%{opacity:.8} 100%{transform:translateY(-34px);opacity:0}}
 
-  .stamp{position:fixed; right:10px; bottom:10px; font:12px/1.1 system-ui; opacity:.7}
+  /* Kártyák stílusa */
+  .card {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 20px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    transition: transform 0.2s;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+  }
+  h2 {
+    margin-bottom: 10px;
+    font-size: 1.4rem;
+  }
+  button {
+    padding: 10px 15px;
+    margin: 5px 0;
+    border: none;
+    border-radius: 6px;
+    background: #ff9800;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  button:hover {
+    background: #e68900;
+  }
+
+  /* Login rész */
+  #loginCard {
+    max-width: 400px;
+    margin: 60px auto;
+    text-align: center;
+  }
+  input {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 6px;
+    border: none;
+  }
+  #err {
+    color: red;
+    font-size: 0.9rem;
+  }
+
+  /* Töltőképernyő */
+  #loading {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    font-size: 1.2rem;
+    place-items: center;
+    z-index: 10;
+  }
+
+  /* Dashboard */
+  #dash {
+    display: none;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+  }
 </style>
 </head>
 <body>
 
-<!-- NAV (belépés után látszik) -->
-<nav id="topbar" class="topbar" style="display:none">
-  <span class="dot"></span>
-  <span>Bejelentkezve: <b id="uname">Vendég</b></span>
-  <span class="pill ok" id="tbPrank">Prank ▶️</span>
-  <span class="pill info" id="tbTalent">Tehetséges ▶️</span>
-  <span class="pill danger" id="tbLogout">Kilépés</span>
-</nav>
+<!-- Háttér canvas -->
+<canvas id="bgCanvas"></canvas>
 
-<!-- LOGIN kártya -->
-<main id="login" class="card">
-  <h1>Üdv a Viccközpontban</h1>
-  <p class="hint">Belépés után jönnek a poénok, hangok és mini játékok. 😎</p>
-  <form id="form" novalidate>
-    <label for="name">Név</label>
-    <input id="name" name="name" type="text" required>
-    <label for="email">Email</label>
-    <input id="email" name="email" type="email" required>
-    <label for="pwd">Jelszó</label>
-    <input id="pwd" name="pwd" type="password" minlength="4" required>
-    <button class="btn" type="submit">Belépek</button>
-    <div id="err" class="err"></div>
+<!-- Töltőképernyő -->
+<div id="loading"><span id="loadingText">Betöltés...</span></div>
+
+<!-- Bejelentkezés -->
+<div id="loginCard" class="card">
+  <h2>Viccközpont v7 – Bejelentkezés</h2>
+  <form id="form">
+    <input type="text" id="name" placeholder="Név">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="pwd" placeholder="Jelszó">
+    <div id="err"></div>
+    <button type="submit">Belépés</button>
   </form>
+</div>
 
-  <section id="mini" class="success" style="display:none">
-    <div class="check">✅</div>
-    <div class="row" style="justify-content:center; gap:8px">
-      <span class="pill ok" id="miniPrank">Prank ▶️</span>
-      <span class="pill info" id="miniTalent">Tehetséges ▶️</span>
-    </div>
-  </section>
-</main>
-
-<!-- DASHBOARD GRID -->
-<section id="grid" class="grid" aria-live="polite">
+<!-- Dashboard -->
+<div class="container" id="dash">
   <!-- Poén generátor -->
-  <div class="panel span-6">
-    <h3 class="title">Poén generátor</h3>
-    <p class="muted">Katt és jön az új poén.</p>
-    <div id="jokeBox" class="box"></div>
-    <div class="row">
-      <button id="btnJoke" class="chip ok" type="button">Még egy poén</button>
-      <button id="btnThree" class="chip info" type="button">3 gyors poén</button>
-    </div>
+  <div class="card">
+    <h2>Poén generátor</h2>
+    <div id="jokeBox">Kattints egy gombra!</div>
+    <button id="btnJoke">Egy poén</button>
+    <button id="btnThree">Három poén</button>
   </div>
 
-  <!-- Hang panel -->
-  <div class="panel span-6">
-    <h3 class="title">Hanggombok</h3>
-    <p class="muted">Válassz egy hangot, és szóljon a móka! 🎵</p>
-    <div class="row">
-      <button class="chip ok"   data-sound="prank"  type="button">Prank ▶️</button>
-      <button class="chip info" data-sound="talent" type="button">Tehetséges ▶️</button>
-      <button class="chip warn" data-sound="prank"  type="button">Prank (hangos) 🔊</button>
-    </div>
+  <!-- Hangok -->
+  <div class="card" id="card-sounds">
+    <h2>Vicces hangok</h2>
+    <button data-sound="prank">Prank</button>
+    <button data-sound="talent">Tehetséges</button>
+    <audio id="prank" src="prank_short.mp3"></audio>
+    <audio id="talent" src="tehetseges.mp3.m4a"></audio>
   </div>
 
   <!-- Kvíz -->
-  <div class="panel span-4">
-    <h3 class="title">Villámkvíz</h3>
-    <p class="muted" id="quizQ">Mi a kávé ellentéte?</p>
-    <div id="quizA" class="row">
-      <button class="chip info"  data-a="tea">A: Tea</button>
-      <button class="chip warn"  data-a="alvas">B: Alvás</button>
-      <button class="chip danger" data-a="nincs">C: Nincs ellentéte</button>
+  <div class="card">
+    <h2>Villámkvíz</h2>
+    <p>Melyik állat alszik a legtöbbet?</p>
+    <div id="quizA">
+      <button data-a="oroszlan">Oroszlán</button>
+      <button data-a="alvas">Koala</button>
+      <button data-a="tea">Macska</button>
     </div>
-    <p id="quizR" class="muted" style="margin-top:8px"></p>
+    <div id="quizR"></div>
   </div>
 
-  <!-- Időjárás (poénos) -->
-  <div class="panel span-4">
-    <h3 class="title">Időjárás jelentés ☁️</h3>
-    <p class="muted">100% humor, 0% pontosság.</p>
-    <div id="wx" class="box" style="margin-bottom:8px"></div>
-    <button id="btnWx" class="chip ok" type="button">Friss poén-jelentés</button>
+  <!-- Időjárás -->
+  <div class="card">
+    <h2>Poénos időjárás</h2>
+    <div id="wx">Nyomd meg a gombot!</div>
+    <button id="btnWx">Mutasd!</button>
   </div>
 
-  <!-- Mini játék #1 – Kő-Papír-Olló -->
-  <div class="panel span-4">
-    <h3 class="title">Mini játék: Kő-Papír-Olló</h3>
-    <p class="muted">Válassz és nézzük, ki nyer! 🎮</p>
-    <div class="row" id="rpsBtns">
-      <button class="chip ok" data-pick="Kő">Kő</button>
-      <button class="chip info" data-pick="Papír">Papír</button>
-      <button class="chip danger" data-pick="Olló">Olló</button>
-    </div>
-    <div id="rpsOut" class="box" style="margin-top:8px"></div>
+  <!-- Mini játék: Kő-Papír-Olló -->
+  <div class="card">
+    <h2>Kő–Papír–Olló</h2>
+    <button id="btnRPS">Játék indítása</button>
+    <div id="gameOutput"></div>
   </div>
 
-  <!-- Mini játék #2 – Számkitaláló -->
-  <div class="panel span-4">
-    <h3 class="title">Mini játék: Számkitaláló</h3>
-    <p class="muted">Tippelj 1 és 10 között.</p>
-    <div class="row">
-      <input id="guessIn" type="number" min="1" max="10" placeholder="1–10" style="width:120px">
-      <button id="guessBtn" class="chip ok" type="button">Tipp!</button>
-      <button id="guessNew" class="chip info" type="button">Új szám</button>
-    </div>
-    <div id="guessOut" class="box" style="margin-top:8px"></div>
-  </div>
-</section>
-
-<!-- Loading overlay -->
-<div id="loading" class="loading">
-  <div class="loader">
-    <div class="steam"><span></span><span></span><span></span></div>
-    <div class="box" id="loadingText">Kávészemek őrlése…</div>
+  <!-- Mini játék: Számkitaláló -->
+  <div class="card">
+    <h2>Számkitaláló</h2>
+    <button id="btnGuess">Játék indítása</button>
   </div>
 </div>
-
-<!-- Hangok -->
-<audio id="prank"  src="prank_short.mp3"     preload="auto"></audio>
-<audio id="talent" src="tehetseges.mp3.m4a"  preload="auto"></audio>
-
-<div class="stamp">Viccközpont <b>v6</b></div>
-
 <script>
-/* ====== Adatok ====== */
-const JOKES = [
-  "Miért nem megy a lift? Mert fel van húzva!",
-  "Mit mond a nulla a nyolcasnak? – Szép öved van!",
-  "Miért vitt a számítógép esernyőt? – Mert vírusos idő lesz.",
-  "Mit csinál a csiga a kocsmában? – Csúszik.",
-  "Miért nem lehet a titkot elásni? – Mert kiderül.",
-  "A madarak nem használják a Facebookot, mert már van Twitterük."
-];
-const WX = [
-  "Ma 100% esély van poénzáporra! ☔😂",
-  "Holnap napsütés és röhögéshullám várható. 🌞🤣",
-  "Viharos nevetés közeleg! 💨😆",
-  "Derült ég, de a szomszéd viccei beborítanak. 🌤",
-  "Nevetési front vonul át az országon. 🌦"
-];
-const QA = { tea:"Majdnem! 🍵", alvas:"Helyes! 😴", nincs:"Hát… a kifogyott kávé? ☕❌" };
-const rnd = a => a[Math.floor(Math.random()*a.length)];
+// ==== Háttér hullám/folyó animáció ====
+const canvas = document.getElementById("bgCanvas");
+const ctx = canvas.getContext("2d");
+let w, h, t = 0;
 
-/* ====== Elemszedés ====== */
-const el = id => document.getElementById(id);
-const form=el('form'), err=el('err'), login=el('login'), mini=el('mini'), grid=el('grid');
-const uname=el('uname'), topbar=el('topbar'), loading=el('loading'), loadingText=el('loadingText');
-const prank=el('prank'), talent=el('talent');
+function resize() {
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resize);
+resize();
 
-/* ====== Belépés folyamat ====== */
-form.addEventListener('submit', (e)=>{
+function draw() {
+  ctx.clearRect(0,0,w,h);
+  t += 0.005;
+  for (let i = -30; i < 30; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, h/2);
+    for (let x = 0; x <= w; x += 10) {
+      let y = h/2 + Math.sin(i/10 + t + x/100) * 50 + i*4;
+      ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = `hsl(${i*12 + t*200}, 80%, 60%)`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  requestAnimationFrame(draw);
+}
+draw();
+
+// ==== Adatok ====
+const jokes = [
+  "Miért nem megy a lift? Mert fel van dobva!",
+  "Miért nem szereti a számítógép a hideget? Mert lefagy.",
+  "Két párhuzamos vonal... sosem találkoznak. Szomorú, de igaz.",
+  "Miért volt boldog a seprű? Mert felsöpörték!",
+  "Mit mond a nulla a nyolcasnak? Szép öved van!",
+  "Miért nem megy a csiga az iskolába? Mert leragadt a házifeladatnál."
+];
+const weatherJokes = [
+  "Ma 100% esély van nevetésre, helyenként röhögéssel.",
+  "Holnap derült ég, de borús humor.",
+  "Ma zivatar várható, szóvicc formájában.",
+  "Hőségriadó: a poénok ma forrók lesznek.",
+  "Ködös reggel, tiszta hülyeséggel."
+];
+
+// ==== Segédfüggvény ====
+function randomItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// ==== Poén generátor ====
+document.getElementById("btnJoke").addEventListener("click", () => {
+  document.getElementById("jokeBox").textContent = randomItem(jokes);
+});
+document.getElementById("btnThree").addEventListener("click", () => {
+  const pick = jokes.slice().sort(() => 0.5 - Math.random()).slice(0, 3);
+  document.getElementById("jokeBox").innerHTML =
+    "<ul style='margin:6px 0 0 16px'>" + pick.map(j => `<li>${j}</li>`).join("") + "</ul>";
+});
+
+// ==== Hanggombok ====
+document.querySelectorAll("#card-sounds [data-sound]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const id = btn.getAttribute("data-sound");
+    const audio = document.getElementById(id);
+    audio.currentTime = 0;
+    audio.play().catch(()=>alert("Kattints az oldalra, hogy engedje a hangot!"));
+  });
+});
+
+// ==== Kvíz ====
+document.querySelectorAll("#quizA button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const answer = btn.getAttribute("data-a");
+    const res = document.getElementById("quizR");
+    res.textContent = (answer === "alvas") ? "Helyes! 😄" : "Ez most nem jött be. 😅";
+  });
+});
+
+// ==== Időjárás ====
+document.getElementById("btnWx").addEventListener("click", () => {
+  document.getElementById("wx").textContent = randomItem(weatherJokes);
+});
+document.getElementById("wx").textContent = "Nyomd meg a gombot egy poénos jelentésért!";
+
+// ==== Mini játék: Kő-Papír-Olló ====
+document.getElementById("btnRPS").addEventListener("click", () => {
+  const choices = ["Kő","Papír","Olló"];
+  const user = prompt("Válassz: Kő, Papír vagy Olló?");
+  if (!user) return;
+  const comp = randomItem(choices);
+  let result = "Vesztettél!";
+  if (user === comp) result = "Döntetlen!";
+  else if (
+    (user === "Kő" && comp === "Olló") ||
+    (user === "Papír" && comp === "Kő") ||
+    (user === "Olló" && comp === "Papír")
+  ) result = "Nyertél!";
+  document.getElementById("gameOutput").textContent = `Te: ${user} | Gép: ${comp} → ${result}`;
+});
+
+// ==== Mini játék: Számkitaláló ====
+document.getElementById("btnGuess").addEventListener("click", () => {
+  const num = Math.floor(Math.random() * 10) + 1;
+  const guess = prompt("Gondoltam egy számra 1 és 10 között. Tipp?");
+  alert((parseInt(guess, 10) === num) ? `Eltaláltad! (${num}) 🎉` : `Nem talált! A szám: ${num}`);
+});
+
+// ==== Belépés folyamat ====
+document.getElementById("form").addEventListener("submit", e => {
   e.preventDefault();
-  const name = el('name').value.trim();
-  const email= el('email').value.trim();
-  const pwd  = el('pwd').value.trim();
-  err.textContent='';
-  if(!name || !email.includes('@') || pwd.length<4){ err.textContent='Ellenőrizd a mezőket!'; return; }
+  const name = document.getElementById("name").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const pwd = document.getElementById("pwd").value.trim();
+  const err = document.getElementById("err");
 
-  // Loader futtatása
-  loading.style.display='grid';
-  const msgs = ["Kávészemek őrlése…","Víz melegítése…","Csésze előkészítése…","Tejhabosítás…","Kávé főzése…","Kávé kész! ☕"];
-  let i=0; const iv=setInterval(()=>{ loadingText.textContent = msgs[i++ % msgs.length]; }, 800);
+  if (!name || !email || !pwd) { err.textContent = "Minden mezőt tölts ki!"; return; }
+  if (!email.includes("@")) { err.textContent = "Helytelen email formátum!"; return; }
+  err.textContent = "";
+
+  const loading = document.getElementById("loading");
+  const loadingText = document.getElementById("loadingText");
+  loading.style.display = "grid";
+  const texts = ["Kávészemek őrlése…","Víz melegítése…","Cukor adagolása…","Humor ellenőrzése…"];
+  let i = 0;
+  const iv = setInterval(()=>{ loadingText.textContent = texts[i++ % texts.length]; }, 900);
 
   setTimeout(()=> {
     clearInterval(iv);
-    loading.style.display='none';
-    // UI váltás
-    uname.textContent = name || 'Vendég';
-    login.classList.add('mini'); mini.style.display='block';
-    grid.style.display='grid'; topbar.style.display='flex';
-    // első poén + hang
-    el('jokeBox').textContent = rnd(JOKES);
-    try{ prank.currentTime=0; prank.play(); }catch{}
-  }, 4200);
+    loading.style.display = "none";
+    document.getElementById("loginCard").style.display = "none";
+    document.getElementById("dash").style.display = "grid";
+    document.getElementById("jokeBox").textContent = randomItem(jokes);
+  }, 3000);
 });
-
-/* ====== Topbar és mini panel gombok ====== */
-el('tbPrank').addEventListener('click', ()=>{ try{ talent.pause(); }catch{} prank.currentTime=0; prank.play().catch(()=>{}); });
-el('tbTalent').addEventListener('click',()=>{ try{ prank.pause(); }catch{}  talent.currentTime=0; talent.play().catch(()=>{}); });
-el('tbLogout').addEventListener('click', ()=> location.reload() );
-el('miniPrank').addEventListener('click',()=> el('tbPrank').click());
-el('miniTalent').addEventListener('click',()=> el('tbTalent').click());
-
-/* ====== Poén generátor ====== */
-el('btnJoke').addEventListener('click', ()=> el('jokeBox').textContent=rnd(JOKES) );
-el('btnThree').addEventListener('click', ()=>{
-  const group = [rnd(JOKES), rnd(JOKES), rnd(JOKES)];
-  el('jokeBox').innerHTML = "<ul style='margin:6px 0 0 16px'>" + group.map(j=>`<li>${j}</li>`).join("") + "</ul>";
-});
-
-/* ====== Hang panel ====== */
-document.querySelectorAll('[data-sound]').forEach(b=>{
-  b.addEventListener('click', ()=>{
-    try{ prank.pause(); talent.pause(); }catch{}
-    const id = b.getAttribute('data-sound');
-    const a = (id==='talent') ? talent : prank;
-    a.currentTime=0; a.play().catch(()=> alert("Kattints az oldalra, hogy a böngésző engedje a hangot!"));
-  });
-});
-
-/* ====== Kvíz ====== */
-document.querySelectorAll('#quizA .chip').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    const a = btn.getAttribute('data-a');
-    el('quizR').textContent = QA[a] || '';
-  });
-});
-
-/* ====== Időjárás ====== */
-el('btnWx').addEventListener('click', ()=> el('wx').textContent = rnd(WX) );
-el('wx').textContent = "Nyomd meg a gombot egy poénos jelentésért!";
-
-/* ====== Mini játék #1 – Kő-Papír-Olló ====== */
-const rpsOut = el('rpsOut');
-document.querySelectorAll('#rpsBtns .chip').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    const user = btn.getAttribute('data-pick');
-    const comp = rnd(["Kő","Papír","Olló"]);
-    let res = "Vesztettél!";
-    if(user===comp) res="Döntetlen!";
-    else if( (user==="Kő"&&comp==="Olló") || (user==="Papír"&&comp==="Kő") || (user==="Olló"&&comp==="Papír") ) res="Nyertél!";
-    rpsOut.textContent = `Te: ${user} | Gép: ${comp} → ${res}`;
-  });
-});
-
-/* ====== Mini játék #2 – Számkitaláló ====== */
-let secret = 1 + Math.floor(Math.random()*10);
-const guess = ()=> {
-  const v = parseInt(el('guessIn').value,10);
-  if(isNaN(v)){ el('guessOut').textContent = "Adj meg egy számot!"; return; }
-  if(v===secret) el('guessOut').textContent = `Eltaláltad! (${secret}) 🎉`;
-  else if(v<secret) el('guessOut').textContent = "Nagyobb! ⬆️";
-  else el('guessOut').textContent = "Kisebb! ⬇️";
-};
-el('guessBtn').addEventListener('click', guess);
-el('guessNew').addEventListener('click', ()=>{ secret = 1 + Math.floor(Math.random()*10); el('guessOut').textContent="Új szám kész! Tippelj!"; el('guessIn').value=""; });
-
 </script>
 </body>
 </html>
