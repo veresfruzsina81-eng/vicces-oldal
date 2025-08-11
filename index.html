@@ -3,57 +3,86 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Viccközpont – Mini játékok (full)</title>
+<title>Viccközpont – Játékok</title>
+
+<!-- PWA manifest (később töltjük meg) -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#070b17">
+<link rel="icon" href="/icons/icon-192.png">
+
 <style>
-:root{--bg:#070b17;--text:#e8edff;--muted:#a7b1d6;--line:rgba(255,255,255,.14);--glass:rgba(255,255,255,.06);--ok:#22c55e;--info:#60a5fa}
-*{box-sizing:border-box}html,body{height:100%;margin:0}
+:root{
+  --bg:#070b17; --text:#e8edff; --muted:#a7b1d6; --line:rgba(255,255,255,.14);
+  --glass:rgba(255,255,255,.06); --ok:#22c55e; --info:#60a5fa;
+  --shadow:0 10px 30px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box} html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;overflow:hidden}
+button{cursor:pointer} a{color:inherit;text-decoration:none}
 #bg{position:fixed;inset:0;z-index:0}
-.appbar{position:fixed;left:0;right:0;top:0;z-index:3;display:none;padding:10px 14px;gap:10px;align-items:center;background:linear-gradient(180deg,rgba(12,18,36,.85),rgba(12,18,36,.55));border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}
-.appbar .logo{font-weight:900}.appbar .who{margin-left:auto;color:#cfe1ff;font-weight:700}
-.auth{position:relative;z-index:2;max-width:440px;margin:90px auto;padding:22px;border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.04));border:1px solid var(--line);backdrop-filter:blur(10px)}
-label{display:block;font-weight:800;margin:10px 0 6px}
-input{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text)}
-.btn{padding:12px 16px;border:0;border-radius:12px;font-weight:900}.full{width:100%}.green{background:#22c55e;color:#062215}
+
+/* Felső sáv */
+.appbar{position:fixed;left:0;right:0;top:0;z-index:3;display:none;
+  padding:12px 16px;gap:10px;align-items:center;
+  background:linear-gradient(180deg,rgba(12,18,36,.85),rgba(12,18,36,.55));
+  border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}
+.logo{font-weight:900;letter-spacing:.2px}
+.appbar .who{margin-left:auto;color:#cfe1ff;font-weight:700}
+
+/* Login */
+.auth{position:relative;z-index:2;max-width:480px;margin:100px auto;padding:24px;border-radius:18px;
+  background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.05));
+  border:1px solid var(--line);backdrop-filter:blur(12px); box-shadow:var(--shadow)}
+label{display:block;font-weight:800;margin:12px 0 6px}
+input{width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.07);color:var(--text)}
+.btn{padding:12px 16px;border:0;border-radius:14px;font-weight:900;transition:.2s transform}
+.btn:hover{transform:translateY(-1px)} .full{width:100%}.green{background:#22c55e;color:#062215}
+
+/* Loading */
 #loading{position:fixed;inset:0;z-index:4;display:none;place-items:center;background:rgba(8,12,30,.6);backdrop-filter:blur(6px)}
-.loader{padding:16px 20px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.06))}
-#menu{position:fixed;inset:64px 0 0;z-index:2;display:none;overflow:auto;padding:14px}
-.wrap{max-width:1100px;margin:0 auto}
-.tabs{position:sticky;top:66px;z-index:2;display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
-.tab{padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:var(--glass);font-weight:800}
+.loader{padding:16px 20px;border-radius:14px;border:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,255,255,.11),rgba(255,255,255,.07));box-shadow:var(--shadow)}
+
+/* Menü + rács */
+#menu{position:fixed;inset:68px 0 0;z-index:2;display:none;overflow:auto;padding:18px}
+.wrap{max-width:1180px;margin:6px auto 60px}
+.tabs{position:static; display:flex; gap:10px; margin:0 0 18px; flex-wrap:wrap}
+.tab{padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:var(--glass);font-weight:800}
 .tab.active{background:linear-gradient(90deg,#7c3aed,#22d3ee);color:#061225;border-color:transparent}
-.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
-@media (max-width:980px){.grid{grid-template-columns:repeat(8,1fr)}}
-@media (max-width:640px){.grid{grid-template-columns:repeat(4,1fr)}}
-.card{grid-column:span 4;border:1px solid var(--line);border-radius:14px;padding:14px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.06));backdrop-filter:blur(8px)}
-.card h3{margin:0 0 8px}.card p{margin:0 0 10px;color:var(--muted)}
-.actions{display:flex;gap:8px;flex-wrap:wrap}
-.chip{padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--glass);font-weight:800}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:22px}
+@media (max-width:1100px){.grid{grid-template-columns:repeat(9,1fr)}}
+@media (max-width:800px){.grid{grid-template-columns:repeat(6,1fr)}}
+@media (max-width:560px){.grid{grid-template-columns:repeat(4,1fr)}}
+
+.card{grid-column:span 4;border:1px solid var(--line);border-radius:16px;
+  padding:16px;background:linear-gradient(180deg,rgba(255,255,255,.11),rgba(255,255,255,.07));
+  backdrop-filter:blur(10px);box-shadow:var(--shadow);
+  transition:.22s transform,.22s box-shadow}
+.card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.35)}
+.card h3{margin:0 0 8px}.card p{margin:0 0 12px;color:var(--muted)}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.chip{padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--glass);font-weight:800;transition:.2s transform}
+.chip:hover{transform:translateY(-1px)}
 .chip.ok{background:#22c55e;color:#062215;border-color:transparent}
 .chip.info{background:#60a5fa;color:#071321;border-color:transparent}
-.panel{position:fixed;inset:0;z-index:5;display:none;place-items:center;background:rgba(3,6,14,.5);backdrop-filter:blur(4px);padding:12px}
-.inner{width:min(980px,96vw);max-height:86vh;overflow:auto;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.06))}
-.titlebar{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line)}
-.close{border:1px solid var(--line);background:var(--glass);border-radius:10px;padding:8px 10px;font-weight:800}
-.content{padding:12px}.box{border:1px solid var(--line);border-radius:12px;background:rgba(10,12,22,.6);padding:12px}
-.ttt-grid{display:grid;grid-template-columns:repeat(3,100px);grid-template-rows:repeat(3,100px);gap:8px;justify-content:center}
-.ttt-cell{display:grid;place-items:center;font-size:36px;font-weight:900;border-radius:12px;background:rgba(255,255,255,.10);border:1px solid var(--line);user-select:none;cursor:pointer}
-.ttt-cell.win{background:linear-gradient(180deg,rgba(34,197,94,.25),rgba(34,197,94,.15))}
-.quiz-card{background:#fff;color:#000;border-radius:12px;padding:12px;border:1px solid rgba(0,0,0,.1)}
-.quiz-card .box{background:#f9f9f9;color:#000;border:1px solid rgba(0,0,0,.1)}
-.answers{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}
-.ans{padding:12px;border-radius:12px;border:1px solid rgba(0,0,0,.1);background:#f9f9f9;cursor:pointer;font-weight:800}
-.ans.correct{outline:2px solid #22c55e}.ans.wrong{outline:2px solid #ef4444}
-.badge{padding:6px 10px;background:#eef2ff;color:#111;border:1px solid rgba(0,0,0,.08);border-radius:999px}
-.meter{flex:1;height:10px;background:#e5e7eb;border:1px solid rgba(0,0,0,.08);border-radius:999px;overflow:hidden}
-.meter>span{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ef4444,#dc2626);transform-origin:left;transform:scaleX(1);transition:transform .2s linear}
-.chat-box{height:320px;border:1px solid var(--line);background:rgba(10,12,22,.55);border-radius:14px;padding:12px;overflow:auto;scroll-behavior:smooth}
-.msg{max-width:70%;padding:10px 12px;border-radius:12px;margin:8px 0;line-height:1.3;word-wrap:break-word}
-.user{margin-left:auto;background:linear-gradient(180deg,rgba(96,165,250,.25),rgba(96,165,250,.15));border:1px solid #60a5fa55}
-.bot{margin-right:auto;background:linear-gradient(180deg,rgba(124,58,237,.25),rgba(124,58,237,.15));border:1px solid #7c3aed55}
-.chat-input{display:flex;gap:8px;margin-top:10px}.chat-input input{flex:1}
-#runner{width:100%;max-height:60vh;background:linear-gradient(180deg,#0b1226,#0f1b3a);border:1px solid var(--line);border-radius:12px}
-.log{max-height:240px;overflow:auto}
+
+/* Lenyitható „Komolyabb játékok” blokk (felül) */
+.adv-wrap{margin:8px 0 18px}
+.coll-btn{
+  padding:10px 16px;border-radius:12px;border:1px solid var(--line);
+  background:linear-gradient(90deg,#7c3aed,#22d3ee);color:#061225;font-weight:900;
+}
+.coll-content{margin-top:12px;display:none}
+.coll-content.open{display:block}
+
+/* Panel keret – a részletes tartalmakhoz később */
+.panel{position:fixed;inset:0;z-index:5;display:none;place-items:center;background:rgba(3,6,14,.55);backdrop-filter:blur(4px);padding:14px}
+.inner{width:min(980px,96vw);max-height:86vh;overflow:auto;border:1px solid var(--line);border-radius:18px;
+  background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.07));box-shadow:var(--shadow)}
+.titlebar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+.close{border:1px solid var(--line);background:var(--glass);border-radius:12px;padding:9px 12px;font-weight:900}
+.content{padding:14px}
+.box{border:1px solid var(--line);border-radius:14px;background:rgba(10,12,22,.6);padding:12px}
 </style>
 </head>
 <body>
@@ -80,253 +109,565 @@ input{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);ba
 
 <section id="menu">
   <div class="wrap">
+
+    <!-- FELÜL: lenyitható Komolyabb játékok (ide jön majd a platformer a 2. részben) -->
+    <div class="adv-wrap">
+      <button id="advToggle" class="coll-btn">▼ Komolyabb játékok</button>
+      <div id="advContent" class="coll-content">
+        <div class="box">Itt lesz a 2D platformer és a „komolyabb” cuccok. (A következő részben)</div>
+      </div>
+    </div>
+
+    <!-- ALUL: Alap / Komolyabb fülek és kártyák -->
     <div class="tabs">
       <button class="tab active" data-tab="basic">Alap játékok</button>
       <button class="tab" data-tab="adv">Komolyabb játékok</button>
     </div>
 
-    <!-- ALAP: 1 kártya -> választó -->
     <div id="tab-basic" class="grid">
-      <div class="card">
-        <h3>🎮 Alap játékok</h3>
-        <p>Amőba • Kő–Papír–Olló • Számkitaláló</p>
-        <div class="actions"><button class="chip ok" data-open="#pickBasic">Megnyitás</button></div>
-      </div>
+      <div class="card"><h3>❌ Amőba</h3><p>Játssz a gép ellen vagy ketten.</p><div class="actions"><button class="chip ok" data-open="#panelTTT">Megnyitás</button></div></div>
+      <div class="card"><h3>✊✋✌ Kő–Papír–Olló</h3><p>Gyors meccsek, pontszámmal.</p><div class="actions"><button class="chip ok" data-open="#panelRPS">Megnyitás</button></div></div>
+      <div class="card"><h3>🔢 Számkitaláló (1–10)</h3><p>Találd el 5 próbából.</p><div class="actions"><button class="chip ok" data-open="#panelGuess">Megnyitás</button></div></div>
+      <div class="card"><h3>🪙 Kaparós sorsjegy</h3><p>Kaparj és nézd meg, nyertél-e!</p><div class="actions"><button class="chip ok" data-open="#panelScratch">Megnyitás</button></div></div>
     </div>
 
-    <!-- ADV: Kvíz + Chat + Hangok + Runner -->
     <div id="tab-adv" class="grid" style="display:none">
       <div class="card"><h3>🎯 Kvíz Bajnokság</h3><p>15 kérdés • 15 mp/kérdés • Toplista</p><div class="actions"><button class="chip info" data-open="#panelQuiz">Megnyitás</button></div></div>
       <div class="card"><h3>💬 Chat</h3><p>Poénos válaszok, tipp üzenetek.</p><div class="actions"><button class="chip info" data-open="#panelChat">Megnyitás</button></div></div>
       <div class="card"><h3>🎵 Hangok & Időjárás</h3><p>Prank hang + poénos időjárás</p><div class="actions"><button class="chip info" data-open="#panelMedia">Megnyitás</button></div></div>
       <div class="card"><h3>🕹️ Runner</h3><p>Ugorj az akadályok felett, gyűjts pontot!</p><div class="actions"><button class="chip info" data-open="#panelRun">Megnyitás</button></div></div>
+      <div class="card"><h3>🏆 Achievements</h3><p>Jelvények: kvíz, runner, kaparós</p><div class="actions"><button class="chip info" data-open="#panelAch">Megnyitás</button></div></div>
     </div>
+
   </div>
 </section>
+<!-- ====== PANELEK – ALAP JÁTÉKOK ====== -->
 
-<!-- Alap játékok választó -->
-<div class="panel" id="pickBasic">
+<!-- Amőba -->
+<div class="panel" id="panelTTT">
   <div class="inner">
-    <div class="titlebar"><div class="title">🎮 Alap játékok</div><button class="close" data-close>Bezár</button></div>
+    <div class="titlebar">
+      <div class="title">❌ Amőba</div>
+      <button class="close" data-close>Bezár</button>
+    </div>
     <div class="content">
-      <div class="grid">
-        <div class="card"><h3>❌ Amőba</h3><p>Játssz a gép ellen vagy ketten.</p><div class="actions"><button class="chip ok" data-open="#panelTTT">Indítás</button></div></div>
-        <div class="card"><h3>✊✋✌ Kő–Papír–Olló</h3><p>Gyors meccsek, pontszám.</p><div class="actions"><button class="chip ok" data-open="#panelRPS">Indítás</button></div></div>
-        <div class="card"><h3>🔢 Számkitaláló (1–10)</h3><p>Találd el 5 próbából.</p><div class="actions"><button class="chip ok" data-open="#panelGuess">Indítás</button></div></div>
+      <div class="ttt-grid" id="ttt" style="display:grid;grid-template-columns:repeat(3,110px);grid-template-rows:repeat(3,110px);gap:10px;justify-content:center"></div>
+      <div class="box" id="tttInfo" style="margin-top:10px;text-align:center">Te kezdesz: X</div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap">
+        <button class="chip info" id="tttNew">Újrakezd</button>
+        <label style="display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="tttCpu" checked>
+          <span style="color:#a7b1d6">Játék a gép ellen</span>
+        </label>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Amőba -->
-<div class="panel" id="panelTTT"><div class="inner"><div class="titlebar"><div class="title">❌ Amőba</div><button class="close" data-close>Bezár</button></div><div class="content">
-  <div class="ttt-grid" id="ttt"></div>
-  <div class="box" id="tttInfo" style="margin-top:10px;text-align:center">Te kezdesz: X</div>
-  <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;flex-wrap:wrap">
-    <button class="chip info" id="tttNew">Újrakezd</button>
-    <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="tttCpu" checked><span style="color:var(--muted)">Játék a gép ellen</span></label>
-  </div>
-</div></div></div>
-
-<!-- RPS -->
-<div class="panel" id="panelRPS"><div class="inner"><div class="titlebar"><div class="title">✊✋✌ Kő–Papír–Olló</div><button class="close" data-close>Bezár</button></div><div class="content">
-  <div class="box" id="rpsInfo">Első 5-ig megy. Te: 0 – Gép: 0</div>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-    <button class="chip ok" data-rps="rock">✊ Kő</button>
-    <button class="chip info" data-rps="paper">✋ Papír</button>
-    <button class="chip" data-rps="scissors">✌ Olló</button>
-    <button class="chip" id="rpsReset">Újrakezd</button>
-  </div>
-  <div class="box log" id="rpsLog" style="margin-top:10px"></div>
-</div></div></div>
-
-<!-- Guess -->
-<div class="panel" id="panelGuess"><div class="inner"><div class="titlebar"><div class="title">🔢 Számkitaláló (1–10)</div><button class="close" data-close>Bezár</button></div><div class="content">
-  <div class="box" id="gInfo">Gondoltam egy számra 1 és 10 között. Van 5 tipped. 😉</div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-    <input id="gInput" type="number" min="1" max="10" placeholder="1..10" style="width:120px">
-    <button class="chip ok" id="gTry">Tipp</button><button class="chip" id="gNew">Új játék</button>
-  </div>
-  <div class="box log" id="gLog" style="margin-top:10px"></div>
-</div></div></div>
-
-<!-- Kvíz -->
-<div class="panel" id="panelQuiz"><div class="inner"><div class="titlebar"><div class="title">🎯 Kvíz Bajnokság</div><button class="close" data-close>Bezár</button></div><div class="content">
-  <div class="quiz-card">
-    <h3 style="margin:6px 0 10px">15 kérdés • 15 mp/kérdés</h3>
-    <div id="quizStart">
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label for="playerName" style="margin:0 6px 0 0;font-weight:800;color:#111">Név:</label>
-        <input id="playerName" type="text" placeholder="Neved" style="max-width:240px;background:#fff;color:#111;border:1px solid #e5e7eb">
-        <button id="quizGo" class="chip ok">Indít</button>
+<!-- Kő–Papír–Olló -->
+<div class="panel" id="panelRPS">
+  <div class="inner">
+    <div class="titlebar">
+      <div class="title">✊✋✌ Kő–Papír–Olló</div>
+      <button class="close" data-close>Bezár</button>
+    </div>
+    <div class="content">
+      <div class="box" id="rpsInfo">Első 5-ig megy. Te: 0 – Gép: 0</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <button class="chip ok" data-rps="rock">✊ Kő</button>
+        <button class="chip info" data-rps="paper">✋ Papír</button>
+        <button class="chip" data-rps="scissors">✌ Olló</button>
+        <button class="chip" id="rpsReset">Újrakezd</button>
       </div>
-      <p style="color:#333">Lejárt idő = 0 pont. Hajrá! 🏁</p>
+      <div class="box" id="rpsLog" style="margin-top:12px;max-height:240px;overflow:auto"></div>
     </div>
-    <div class="row" id="quizHud" style="display:none;margin-top:8px">
-      <span class="badge">Kérdés: <b id="qIdx">1</b>/15</span>
-      <span class="badge">Pont: <b id="qScore">0</b></span>
-      <span class="badge">Idő: <b id="qTime">0.0s</b></span>
-      <div class="meter"><span id="qBar"></span></div>
+  </div>
+</div>
+
+<!-- Számkitaláló -->
+<div class="panel" id="panelGuess">
+  <div class="inner">
+    <div class="titlebar">
+      <div class="title">🔢 Számkitaláló (1–10)</div>
+      <button class="close" data-close>Bezár</button>
     </div>
-    <div id="quizQWrap" style="display:none">
-      <div id="qText" class="box" style="color:#111">Kérdés…</div>
-      <div id="qAns" class="answers"></div>
+    <div class="content">
+      <div class="box" id="gInfo">Gondoltam egy számra 1 és 10 között. Van 5 tipped. 😉</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <input id="gInput" type="number" min="1" max="10" placeholder="1..10" style="width:130px">
+        <button class="chip ok" id="gTry">Tipp</button>
+        <button class="chip" id="gNew">Új játék</button>
+      </div>
+      <div class="box" id="gLog" style="margin-top:12px;max-height:240px;overflow:auto"></div>
     </div>
-    <div id="quizDone" style="display:none">
-      <h3 style="margin:6px 0">Eredmény</h3>
-      <div class="box" id="quizSummary" style="color:#111"></div>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <button id="quizAgain" class="chip info">Újra</button>
-        <button id="quizReset" class="chip" style="background:#fff;color:#111">Toplista törlése</button>
+  </div>
+</div>
+
+<!-- Kaparós sorsjegy -->
+<div class="panel" id="panelScratch">
+  <div class="inner">
+    <div class="titlebar">
+      <div class="title">🪙 Kaparós sorsjegy</div>
+      <button class="close" data-close>Bezár</button>
+    </div>
+    <div class="content">
+      <div id="scratchWrap" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+        <div style="position:relative; width:340px; height:200px; border-radius:16px; overflow:hidden; box-shadow:0 10px 28px rgba(0,0,0,.28); border:1px solid var(--line);">
+          <div id="scratchPrize" style="position:absolute; inset:0; display:grid; place-items:center;
+               background:linear-gradient(135deg,#111827,#0b1733); color:#fff; text-align:center; padding:16px;">
+            <div>
+              <div style="font-size:48px; line-height:1.1;" id="prizeEmoji">🎁</div>
+              <div style="margin-top:8px; font-weight:900; font-size:20px" id="prizeText">Nyeremény…</div>
+              <div style="margin-top:4px; color:#a7b1d6" id="prizeSub">Kaparj a felfedéshez!</div>
+            </div>
+          </div>
+          <canvas id="scratchCanvas" width="340" height="200" style="position:absolute; inset:0;"></canvas>
+        </div>
+        <div style="flex:1; min-width:240px;">
+          <div class="box" id="scratchInfo">Húzd az egeret (vagy az ujjad) a kártyán, hogy lekapard a réteget!</div>
+          <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap">
+            <button class="chip ok" id="scratchNew">Új kártya</button>
+            <button class="chip" id="scratchReveal">Mutasd meg</button>
+          </div>
+        </div>
       </div>
     </div>
-    <div style="margin-top:14px">
-      <h4 style="margin:0 0 6px;color:#111">Toplista (helyi)</h4>
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr><th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;color:#111">#</th><th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;color:#111">Név</th><th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;color:#111">Pont</th><th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;color:#111">Idő</th></tr></thead>
-        <tbody id="lbBody"></tbody>
-      </table>
-    </div>
   </div>
-</div></div></div>
+</div>
 
-<!-- Chat -->
-<div class="panel" id="panelChat"><div class="inner"><div class="titlebar"><div class="title">💬 Chat</div><button class="close" data-close>Bezár</button></div><div class="content">
-  <div id="chatBox" class="chat-box"></div>
-  <div class="chat-input"><input id="chatInput" placeholder="Írj valamit… (szia, vicc, segíts)"><button id="chatSend" class="chip ok">Küldés</button></div>
-</div></div></div>
+<!-- ====== PANELEK – HELYFOGLALÓK a következő részekhez ====== -->
+<div class="panel" id="panelQuiz"><div class="inner"><div class="titlebar"><div class="title">🎯 Kvíz</div><button class="close" data-close>Bezár</button></div><div class="content"><div class="box">A kvíz logika a 4/5 részben érkezik.</div></div></div></div>
+<div class="panel" id="panelChat"><div class="inner"><div class="titlebar"><div class="title">💬 Chat</div><button class="close" data-close>Bezár</button></div><div class="content"><div class="box">A chat a 4/5 részben érkezik.</div></div></div></div>
+<div class="panel" id="panelMedia"><div class="inner"><div class="titlebar"><div class="title">🎵 Hangok & Időjárás</div><button class="close" data-close>Bezár</button></div><div class="content"><div class="box">A hang+időjárás a 4/5 részben érkezik.</div></div></div></div>
+<div class="panel" id="panelRun"><div class="inner"><div class="titlebar"><div class="title">🕹️ Runner</div><button class="close" data-close>Bezár</button></div><div class="content"><div class="box">A runner a 4/5 részben érkezik.</div></div></div></div>
+<div class="panel" id="panelAch"><div class="inner"><div class="titlebar"><div class="title">🏆 Jelvények</div><button class="close" data-close>Bezár</button></div><div class="content"><div class="box">Achievements a 5/5 részben.</div></div></div></div>
 
-<!-- Media -->
-<div class="panel" id="panelMedia"><div class="inner"><div class="titlebar"><div class="title">🎵 Hangok & Időjárás</div><button class="close" data-close>Bezár</button></div><div class="content">
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-    <button class="chip ok" data-sound="prank">Prank ▶️</button>
-    <button class="chip info" data-sound="talent">Tehetséges ▶️</button>
-    <button class="chip" id="stopAll">Leállít</button>
-  </div>
-  <div style="display:flex;gap:10px;flex-wrap:wrap">
-    <button id="btnWx" class="chip ok">Poénos időjárás</button>
-    <div id="wx" class="box">Nyomd meg a gombot!</div>
-  </div>
-  <div style="margin-top:8px"><div class="box" id="clock">--:--:--</div></div>
-</div></div></div>
-
-<!-- Runner -->
-<div class="panel" id="panelRun"><div class="inner"><div class="titlebar"><div class="title">🕹️ Runner</div><button class="close" data-close>Bezár</button></div><div class="content">
-  <canvas id="runner" width="900" height="360"></canvas>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-    <button class="chip ok" id="runStart">Start / Újra</button>
-    <div class="box" id="runInfo">Tap vagy Space = Ugrás • Pont: 0 (Rekord: 0)</div>
-  </div>
-</div></div></div>
-
-<!-- Hangok (fájlneveknek egyezniük kell a repo-ban) -->
-<audio id="prank"  src="prank_short.mp3"    preload="auto"></audio>
-<audio id="talent" src="tehetseges.mp3.m4a" preload="auto"></audio>
-
+<!-- ====== ALAP JS: login, fülek, panelek, lenyitás ====== -->
 <script>
-/* Csillagos háttér */
-(function(){const c=document.getElementById('bg'),x=c.getContext('2d');let w,h,S=[];
-function size(){w=c.width=innerWidth;h=c.height=innerHeight}
-function star(){return{x:Math.random()*w,y:Math.random()*h,z:Math.random()*1.2+0.2,s:Math.random()*2+0.5}}
-function init(){size();S=[];for(let i=0;i<240;i++)S.push(star())}
-addEventListener('resize',init);init();
-(function anim(){x.clearRect(0,0,w,h);x.fillStyle='#0e1330';x.fillRect(0,0,w,h);S.forEach(s=>{s.x+=s.z;if(s.x>w)s.x=0;x.fillStyle='rgba(160,210,255,.9)';x.fillRect(s.x,s.y,s.s,s.s)});requestAnimationFrame(anim)})()})();
-
-/* Login */
 const qs=s=>document.querySelector(s), qsa=s=>document.querySelectorAll(s);
+
+/* Login alap */
 const login=qs('#login'), bar=qs('#bar'), who=qs('#who'), menu=qs('#menu'), loading=qs('#loading'), loadTxt=qs('#loadTxt');
 qs('#form').addEventListener('submit',e=>{
-  e.preventDefault(); const n=qs('#n').value.trim(), m=qs('#e').value.trim(), p=qs('#p').value.trim(), err=qs('#err');
-  err.textContent=''; if(!n||!m.includes('@')||p.length<4){err.textContent='Ellenőrizd a mezőket!';return;}
-  loading.style.display='grid'; const lines=["Kávé melegítése…","Játékok polírozása…","Poénmotor beindítása…"];let i=0;const iv=setInterval(()=>loadTxt.textContent=lines[i++%lines.length],700);
+  e.preventDefault();
+  const n=qs('#n').value.trim(), m=qs('#e').value.trim(), p=qs('#p').value.trim(), err=qs('#err');
+  err.textContent='';
+  if(!n||!m.includes('@')||p.length<4){err.textContent='Ellenőrizd a mezőket!';return;}
+  loading.style.display='grid';
+  const lines=["Kávé melegítése…","Játékok polírozása…","Poénmotor beindítása…"];let i=0;
+  const iv=setInterval(()=>loadTxt.textContent=lines[i++%lines.length],700);
   setTimeout(()=>{clearInterval(iv);loading.style.display='none';login.style.display='none';bar.style.display='flex';menu.style.display='block';who.textContent='Üdv, '+n+'!';},1100);
 });
 
-/* Tabok */
-qsa('.tab').forEach(t=>t.addEventListener('click',()=>{qsa('.tab').forEach(z=>z.classList.remove('active'));t.classList.add('active');qs('#tab-basic').style.display=t.dataset.tab==='basic'?'grid':'none';qs('#tab-adv').style.display=t.dataset.tab==='adv'?'grid':'none';}));
+/* Fülek */
+qsa('.tab').forEach(t=>t.addEventListener('click',()=>{
+  qsa('.tab').forEach(z=>z.classList.remove('active'));
+  t.classList.add('active');
+  qs('#tab-basic').style.display = t.dataset.tab==='basic' ? 'grid' : 'none';
+  qs('#tab-adv').style.display   = t.dataset.tab==='adv'   ? 'grid' : 'none';
+}));
 
-/* Panelek */
-qsa('[data-open]').forEach(b=>b.addEventListener('click',()=>{const p=qs(b.getAttribute('data-open'));if(p)p.style.display='grid'}));
+/* Panelek nyit/zár */
+qsa('[data-open]').forEach(b=>b.addEventListener('click',()=>{
+  const p=qs(b.getAttribute('data-open')); if(p) p.style.display='grid';
+}));
 qsa('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('.panel').style.display='none'));
-qsa('.panel').forEach(p=>p.addEventListener('click',e=>{if(e.target===p)p.style.display='none'}));
+qsa('.panel').forEach(p=>p.addEventListener('click',e=>{ if(e.target===p) p.style.display='none'; }));
 
-/* Amőba */
-(function(){const grid=qs('#ttt'),info=qs('#tttInfo'),cpu=qs('#tttCpu'),btn=qs('#tttNew');if(!grid)return;
-let board,turn,over;const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];const pick=a=>a[Math.floor(Math.random()*a.length)];
-function bestMove(mark){const opp=mark==='X'?'O':'X';for(let i=0;i<9;i++){if(!board[i]){board[i]=mark;if(win()?.p===mark){board[i]=null;return i}board[i]=null}}
-for(let i=0;i<9;i++){if(!board[i]){board[i]=opp;if(win()?.p===opp){board[i]=null;return i}board[i]=null}}if(!board[4])return 4;const c=[0,2,6,8].filter(i=>!board[i]);if(c.length)return pick(c);const s=[1,3,5,7].filter(i=>!board[i]);if(s.length)return pick(s);return board.findIndex(v=>!v)}
-function win(){for(const [a,b,c]of lines){if(board[a]&&board[a]===board[b]&&board[a]===board[c])return{p:board[a],l:[a,b,c]}}if(board.every(Boolean))return{p:'D',l:[]};return null}
-function render(){[...grid.children].forEach((c,i)=>{c.textContent=board[i]||'';c.classList.remove('win')})}
-function end(r){over=true;if(r.p==='D'){info.textContent='Döntetlen!';return}r.l.forEach(i=>grid.children[i].classList.add('win'));info.textContent=r.p==='X'?'Gratulálok, ügyes vagy! 🎉':'A gép nyert. Újra?'}
-function play(i){if(over||board[i])return;board[i]=turn;render();const r=win();if(r){end(r);return}
-if(cpu.checked){turn='O';setTimeout(()=>{const mv=bestMove('O');if(mv>=0&&!over){board[mv]='O';render();const r2=win();if(r2){end(r2);return}turn='X';info.textContent='Te jössz: X'}},250)}else{turn=turn==='X'?'O':'X';info.textContent='Következő: '+turn}}
-function init(){board=Array(9).fill(null);turn='X';over=false;grid.innerHTML='';for(let i=0;i<9;i++){const c=document.createElement('div');c.className='ttt-cell';c.addEventListener('click',()=>play(i));grid.appendChild(c)}info.textContent='Te kezdesz: X'}
-btn.addEventListener('click',init);init()})();
-
-/* RPS */
-(function(){const info=qs('#rpsInfo'),log=qs('#rpsLog'),btns=qsa('[data-rps]'),reset=qs('#rpsReset');if(!info)return;
-let you=0,bot=0,goal=5;const beats={rock:'scissors',paper:'rock',scissors:'paper'},name={rock:'Kő',paper:'Papír',scissors:'Olló'};
-const write=s=>{const p=document.createElement('div');p.textContent=s;log.prepend(p)};const refresh=()=>info.textContent=`Első ${goal}-ig megy. Te: ${you} – Gép: ${bot}`;
-function play(u){const a=['rock','paper','scissors'][Math.floor(Math.random()*3)];if(u===a)write(`Döntetlen (${name[u]} = ${name[a]})`);else if(beats[u]===a){you++;write(`Nyertél! ${name[u]} veri ${name[a]}-t`)}else{bot++;write(`Vesztettél. ${name[a]} veri ${name[u]}-t`)};
-refresh();if(you===goal||bot===goal){write(you===goal?'🎉 NYERTÉL!':'🤖 A gép nyert.');btns.forEach(b=>b.disabled=true)}}btns.forEach(b=>b.addEventListener('click',()=>play(b.dataset.rps)));
-reset.addEventListener('click',()=>{you=0;bot=0;log.innerHTML='';btns.forEach(b=>b.disabled=false);refresh()});refresh()})();
-
-/* Guess */
-(function(){const info=qs('#gInfo'),log=qs('#gLog'),inp=qs('#gInput'),go=qs('#gTry'),nw=qs('#gNew');if(!info)return;
-let s=0,t=0,max=5,over=false;const w=s=>{const p=document.createElement('div');p.textContent=s;log.prepend(p)}
-function start(){s=1+Math.floor(Math.random()*10);t=0;over=false;log.innerHTML='';info.textContent=`Gondoltam egy számra 1 és 10 között. Van ${max} tipped.`;inp.value='';inp.focus()}
-function guess(){if(over)return;const v=Number(inp.value);if(!Number.isInteger(v)||v<1||v>10){w('Adj meg 1..10 közti egész számot!');return}
-t++;if(v===s){w('🎉 Eltaláltad!');info.textContent=`Nyertél ${t} próbából!`;over=true;return}
-if(t>=max){w(`Vége! A szám ${s} volt.`);info.textContent='Elfogytak a tippek.';over=true;return}
-w(v<s?'Tipp: nagyobb!':'Tipp: kisebb!');inp.value='';inp.focus()}
-go.addEventListener('click',guess);inp.addEventListener('keydown',e=>{if(e.key==='Enter')guess()});nw.addEventListener('click',start);start()})();
-
-/* Kvíz */
-(function(){const Q=[{q:"Melyik állat alszik a legtöbbet?",a:["Koala","Oroszlán","Macska","Panda"],c:0},{q:"Melyik bolygó a „vörös”?",a:["Mars","Vénusz","Jupiter","Szaturnusz"],c:0},{q:"Mennyi 9×7?",a:["56","63","72","49"],c:1},{q:"Mi a H2O?",a:["Oxigén","Hidrogén","Víz","Sósav"],c:2},{q:"Melyik főváros? Bécs",a:["Svájc","Ausztria","Belgium","Csehország"],c:1},{q:"Melyik növény fűszer?",a:["Bazsalikom","Nyírfa","Fenyő","Tölgy"],c:0},{q:"HTML-ben link?",a:["<div>","<a>","<link>","<p>"],c:1},{q:"Mennyi a π kb.?",a:["2.14","3.14","3.41","4.13"],c:1},{q:"Melyik nem nyelv?",a:["Python","Ruby","Photoshop","Go"],c:2},{q:"Mo. fővárosa?",a:["Debrecen","Győr","Budapest","Szeged"],c:2},{q:"RGB-ben a B?",a:["Black","Blue","Brown","Bright"],c:1},{q:"Hány nap egy hét?",a:["5","6","7","8"],c:2},{q:"Melyik reptet?",a:["Strucc","Sas","Pingvin","Kivi"],c:1},{q:"HTTPS S?",a:["Secure","Simple","Serial","Service"],c:0},{q:"CSS mire jó?",a:["Adatbázis","Stílus","Szerver","Teszt"],c:1}];
-const lbKey='quizLBv1',lbBody=qs('#lbBody');const S=(k,v)=>localStorage.setItem(k,JSON.stringify(v));const L=k=>JSON.parse(localStorage.getItem(k)||'[]');
-function renderLB(){const lb=(L(lbKey)||[]).sort((a,b)=>(b.score-a.score)||(a.time-b.time));lbBody.innerHTML=lb.slice(0,10).map((r,i)=>`<tr><td style="padding:6px;border-bottom:1px solid #e5e7eb">${i+1}</td><td style="padding:6px;border-bottom:1px solid #e5e7eb">${r.name||'Névtelen'}</td><td style="padding:6px;border-bottom:1px solid #e5e7eb">${r.score}/15</td><td style="padding:6px;border-bottom:1px solid #e5e7eb">${(r.time/1000).toFixed(1)}s</td></tr>`).join('')||'<tr><td colspan="4" style="padding:6px;color:#555">Még nincs eredmény.</td></tr>'}renderLB();
-const s=qs('#quizStart'),hud=qs('#quizHud'),wrap=qs('#quizQWrap'),done=qs('#quizDone'),qIdx=qs('#qIdx'),qScore=qs('#qScore'),qTime=qs('#qTime'),qBar=qs('#qBar'),qText=qs('#qText'),qAns=qs('#qAns'),sum=qs('#quizSummary');
-let i=0,score=0,t0=0,timer=null,endAt=0,player='';
-function start(){player=(qs('#playerName')?.value||qs('#n')?.value||'Vendég').trim();i=0;score=0;s.style.display='none';done.style.display='none';hud.style.display='flex';wrap.style.display='block';t0=performance.now();next()}
-function next(){if(i>=Q.length)return finish();const qq=Q[i];qIdx.textContent=i+1;qScore.textContent=score;qText.textContent=qq.q;qAns.innerHTML='';qq.a.forEach((txt,idx)=>{const b=document.createElement('button');b.className='ans';b.textContent=txt;b.onclick=()=>pick(idx);qAns.appendChild(b)});
-const D=15000;endAt=performance.now()+D;(function tick(){const left=Math.max(0,endAt-performance.now());qBar.style.transform=`scaleX(${left/D})`;qTime.textContent=((performance.now()-t0)/1000).toFixed(1)+'s';if(left<=0){lock(false);setTimeout(()=>{i++;next()},600)}else{timer=requestAnimationFrame(tick)}})()}
-function pick(idx){if(timer){cancelAnimationFrame(timer);timer=null}const ok=(idx===Q[i].c);if(ok)score++;lock(ok,idx);setTimeout(()=>{i++;next()},600)}
-function lock(ok,p=-1){[...qAns.children].forEach((btn,k)=>{if(k===Q[i].c)btn.classList.add('correct');if(k===p&&k!==Q[i].c)btn.classList.add('wrong');btn.disabled=true})}
-function finish(){if(timer){cancelAnimationFrame(timer);timer=null}const T=performance.now()-t0;hud.style.display='none';wrap.style.display='none';done.style.display='block';sum.innerHTML=`<p><b>${player}</b>, eredményed: <b>${score}/15</b>, idő: <b>${(T/1000).toFixed(1)}s</b>.</p>`;const lb=L(lbKey);lb.push({name:player,score:score,time:T});S(lbKey,lb);renderLB()}
-qs('#quizGo')?.addEventListener('click',start);qs('#quizAgain')?.addEventListener('click',()=>{s.style.display='block';done.style.display='none'});qs('#quizReset')?.addEventListener('click',()=>{if(confirm('Toplista törlése?')){localStorage.removeItem(lbKey);renderLB()}})})();
-
-/* Chat */
-(function(){const box=qs('#chatBox'),inp=qs('#chatInput'),send=qs('#chatSend');if(!box)return;
-function push(t,who='user'){const b=document.createElement('div');b.className='msg '+(who==='user'?'user':'bot');b.textContent=t;box.appendChild(b);box.scrollTop=box.scrollHeight}
-const fallback=["Értem… vagy mégsem? 🤔","Kávé után minden jobb. ☕","Mondanék egy viccet, de félek, lefagysz a nevetéstől.","Nézz be a Runnerbe! 🎮"];
-const jokes=["Miért vitt a számítógép esernyőt? – Vírusos idő lesz.","Mit mond a nulla a nyolcasnak? – Szép öved van!","A kávé a válasz. Mi is volt a kérdés? 🤔"];
-function bot(t0){const t=t0.toLowerCase();if(/szia|hell[oó]|hali/.test(t))return "Szia! A csillagaim is köszönnek. ✨";if(/hogy vagy\??/.test(t))return "Remekül! Mint a 144 FPS. 🚀";if(/vicc|po[eé]n/.test(t))return jokes[Math.floor(Math.random()*jokes.length)];if(/seg[ií]ts|help/.test(t))return "Válassz a menüből: kvíz, chat, hangok, runner.";if(/j[aá]t[eé]k/.test(t))return "Kvíz? Amőba? Runner? Mind van!";if(/\?$/.test(t))return "Jó kérdés! Ha tudnám, shaderbe írnám. 🤖";return fallback[Math.floor(Math.random()*fallback.length)]}
-function sendMsg(){const v=inp.value.trim();if(!v)return;push(v,'user');inp.value='';setTimeout(()=>push(bot(v),'bot'),350)}
-send.addEventListener('click',sendMsg);inp.addEventListener('keydown',e=>{if(e.key==='Enter')sendMsg()})})();
-
-/* Hangok + időjárás + óra */
-(function(){const A1=qs('#prank'),A2=qs('#talent');function stop(){try{A1?.pause();A2?.pause()}catch{}}
-function play(id){stop();const a=id==='talent'?A2:A1;if(!a)return;a.currentTime=0;a.play?.().catch(()=>alert('Kattints bárhová az oldalon, hogy a böngésző engedje a hangot!'))}
-qsa('[data-sound]').forEach(b=>b.addEventListener('click',()=>play(b.getAttribute('data-sound'))));qs('#stopAll')?.addEventListener('click',stop);
-qs('#btnWx')?.addEventListener('click',()=>{const WX=["Ma 100% esély poénzáporra! ☔😂","Holnap napsütés és röhögéshullám. 🌞🤣","Viharos nevetés közeleg! 💨😆","Derült ég, de a szomszéd viccei beborítanak. 🌤"];qs('#wx').textContent=WX[Math.floor(Math.random()*WX.length)]});
-(function tick(){qs('#clock').textContent=new Date().toLocaleTimeString('hu-HU',{hour12:false});requestAnimationFrame(tick)})()})();
-
-/* Runner */
-(function(){const cv=qs('#runner');if(!cv)return;const ct=cv.getContext('2d');let w=cv.width,h=cv.height;
-const info=qs('#runInfo'),btn=qs('#runStart');let run=false,score=0,best=Number(localStorage.getItem('runnerBest')||0);
-function setI(){info.textContent=`Tap vagy Space = Ugrás • Pont: ${score} (Rekord: ${best})`}
-const ground=h-60,P={x:80,y:ground,vy:0,on:true,s:28},g=0.8,j=-14,S=[];let spT=0,last=0,raf=0;
-function spawn(){S.push({x:w+20,y:ground,w:20+Math.random()*16,h:30+Math.random()*10,pass:false})}
-function tap(){if(P.on){P.vy=j;P.on=false}}addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();tap()}});cv.addEventListener('pointerdown',tap,{passive:true});
-function reset(){score=0;P.y=ground;P.vy=0;P.on=true;S.length=0;spT=0;setI()}
-function step(ts){if(!run){cancelAnimationFrame(raf);return}const dt=Math.min(32,ts-last);last=ts;ct.clearRect(0,0,w,h);ct.fillStyle='#0a1430';ct.fillRect(0,0,w,h);
-ct.fillStyle='#0b2a55';for(let i=0;i<6;i++)ct.fillRect((ts/40+i*180)%w,h-120+i*6,90,4);ct.fillStyle='#0e2447';ct.fillRect(0,ground+P.s/2,w,6);
-P.vy+=g;P.y+=P.vy;if(P.y>=ground){P.y=ground;P.vy=0;P.on=true}ct.fillStyle='#7c3aed';ct.fillRect(P.x-P.s/2,P.y-P.s/2,P.s,P.s);
-spT-=dt;if(spT<=0){spawn();spT=900-Math.min(600,score*2)}ct.fillStyle='#22d3ee';
-for(let i=S.length-1;i>=0;i--){const s=S[i];s.x-=6+Math.min(6,score/50);ct.beginPath();ct.moveTo(s.x,s.y+P.s/2);ct.lineTo(s.x+s.w/2,s.y-s.h+P.s/2);ct.lineTo(s.x+s.w,s.y+P.s/2);ct.closePath();ct.fill();
-if(!s.pass&&s.x+s.w<P.x-P.s/2){s.pass=true;score++;setI()}const px=P.x-P.s/2,py=P.y-P.s/2,pw=P.s,ph=P.s;if(s.x<px+pw&&s.x+s.w>px&&s.y-s.h<py+ph&&s.y>py){run=false;best=Math.max(best,score);localStorage.setItem('runnerBest',best);setI();ct.fillStyle='rgba(0,0,0,.5)';ct.fillRect(0,0,w,h);ct.fillStyle='#fff';ct.font='20px sans-serif';ct.fillText('Ütközés! Start/Újra gomb.',20,40)}
-if(s.x+s.w<-20)S.splice(i,1)}raf=requestAnimationFrame(step)}
-btn.addEventListener('click',()=>{reset();run=true;last=performance.now();raf=requestAnimationFrame(step)});setI()})();
+/* Felül: Komolyabb játékok lenyitó */
+(function(){
+  const btn = document.getElementById('advToggle');
+  const box = document.getElementById('advContent');
+  if(!btn || !box) return;
+  btn.addEventListener('click', ()=>{
+    box.classList.toggle('open');
+    btn.textContent = (box.classList.contains('open') ? '▲' : '▼') + ' Komolyabb játékok';
+  });
+})();
 </script>
+<script>
+/* === AMŐBA === */
+(function(){
+  const grid=qs('#ttt'), info=qs('#tttInfo'), cpu=qs('#tttCpu'), newBtn=qs('#tttNew');
+  let cells, turn, board;
+  function start(){
+    grid.innerHTML=''; board=Array(9).fill(null); turn='X'; info.textContent='Te kezdesz: X';
+    for(let i=0;i<9;i++){
+      const cell=document.createElement('button');
+      cell.className='box';
+      cell.style.fontSize='40px';
+      cell.onclick=()=>move(i);
+      grid.appendChild(cell);
+    }
+    cells=[...grid.children];
+  }
+  function move(i){
+    if(board[i]) return;
+    board[i]=turn;
+    cells[i].textContent=turn;
+    if(check(turn)) return win(turn);
+    turn=turn==='X'?'O':'X';
+    info.textContent='Következő: '+turn;
+    if(turn==='O' && cpu.checked) cpuMove();
+  }
+  function cpuMove(){
+    let empty=board.map((v,i)=>v?null:i).filter(v=>v!==null);
+    let pick=empty[Math.floor(Math.random()*empty.length)];
+    setTimeout(()=>move(pick),500);
+  }
+  function check(p){return[0,1,2,3,4,5,6,7].some(r=>{
+    const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    return lines.some(line=>line.every(idx=>board[idx]===p));
+  });}
+  function win(p){info.textContent=(p==='X'?'Nyertél!':'Vesztettél!')+' Gratulálok ügyes vagy!';}
+  newBtn.onclick=start;
+  start();
+})();
+
+/* === KŐ-PAPÍR-OLLÓ === */
+(function(){
+  const log=qs('#rpsLog'), info=qs('#rpsInfo'), reset=qs('#rpsReset');
+  let scoreP=0, scoreC=0;
+  function play(choice){
+    const options=['rock','paper','scissors'];
+    const ai=options[Math.floor(Math.random()*3)];
+    const res=(choice===ai)?'Döntetlen':
+      (choice==='rock'&&ai==='scissors'||
+       choice==='paper'&&ai==='rock'||
+       choice==='scissors'&&ai==='paper')?'Nyertél!':'Vesztettél!';
+    if(res==='Nyertél!') scoreP++;
+    else if(res==='Vesztettél!') scoreC++;
+    info.textContent=`Első 5-ig megy. Te: ${scoreP} – Gép: ${scoreC}`;
+    log.innerHTML+=`<div>Te: ${choice}, Gép: ${ai} → ${res}</div>`;
+    if(scoreP>=5||scoreC>=5){
+      log.innerHTML+=`<div><b>Játék vége: ${scoreP>scoreC?'Győzelem!':'Vereség!'}</b></div>`;
+    }
+  }
+  qsa('[data-rps]').forEach(b=>b.onclick=()=>play(b.dataset.rps));
+  reset.onclick=()=>{scoreP=0;scoreC=0;log.innerHTML='';info.textContent='Első 5-ig megy. Te: 0 – Gép: 0';};
+})();
+
+/* === SZÁMKITALÁLÓ === */
+(function(){
+  const info=qs('#gInfo'), log=qs('#gLog'), input=qs('#gInput'), tryB=qs('#gTry'), newB=qs('#gNew');
+  let num, tries;
+  function start(){ num=Math.floor(Math.random()*10)+1; tries=5; log.innerHTML=''; info.textContent='Gondoltam egy számra 1 és 10 között. Van 5 tipped.'; }
+  tryB.onclick=()=>{
+    const v=parseInt(input.value); if(!v||v<1||v>10) return;
+    tries--;
+    if(v===num){ log.innerHTML+=`<div>Talált! 🎯</div>`; info.textContent='Nyertél!'; }
+    else if(tries<=0){ log.innerHTML+=`<div>Elfogyott a tipped. A szám: ${num}</div>`; info.textContent='Vesztettél!'; }
+    else { log.innerHTML+=`<div>${v} – ${v<num?'Nagyobbra':'Kisebbre'} gondoltam.</div>`; info.textContent=`${tries} tipped maradt.`; }
+    input.value='';
+  };
+  newB.onclick=start;
+  start();
+})();
+
+/* === KAPARÓS SORSJEGY === */
+(function(){
+  const canvas=qs('#scratchCanvas'), ctx=canvas.getContext('2d'),
+        prizeEmoji=qs('#prizeEmoji'), prizeText=qs('#prizeText'), prizeSub=qs('#prizeSub'),
+        info=qs('#scratchInfo'), newB=qs('#scratchNew'), revealB=qs('#scratchReveal');
+  const prizes=[['🥖','Nyertél egy szelet kenyeret!'],['🍌','Egy banán a tiéd!'],['🚗','Nyertél egy matchbox autót!'],['💩','Sajnos ez most nem nyeremény.']];
+  let isDrawing=false, lastX,lastY;
+  function pickPrize(){
+    const [em,txt]=prizes[Math.floor(Math.random()*prizes.length)];
+    prizeEmoji.textContent=em; prizeText.textContent=txt; prizeSub.textContent='Kaparj a felfedéshez!';
+  }
+  function cover(){
+    ctx.fillStyle='#ccc'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.globalCompositeOperation='destination-out';
+  }
+  function scratch(e){
+    if(!isDrawing) return;
+    const rect=canvas.getBoundingClientRect();
+    const x=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+    const y=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+    ctx.beginPath();
+    ctx.arc(x,y,20,0,Math.PI*2);
+    ctx.fill();
+  }
+  canvas.addEventListener('mousedown',e=>{isDrawing=true; scratch(e);});
+  canvas.addEventListener('touchstart',e=>{isDrawing=true; scratch(e);});
+  canvas.addEventListener('mousemove',scratch);
+  canvas.addEventListener('touchmove',scratch);
+  ['mouseup','mouseleave','touchend'].forEach(ev=>canvas.addEventListener(ev,()=>isDrawing=false));
+  newB.onclick=()=>{ctx.globalCompositeOperation='source-over';pickPrize();cover();};
+  revealB.onclick=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);};
+  pickPrize();cover();
+})();
+</script>
+<script>
+/* === AMŐBA === */
+(function(){
+  const grid=qs('#ttt'), info=qs('#tttInfo'), cpu=qs('#tttCpu'), newBtn=qs('#tttNew');
+  let cells, turn, board;
+  function start(){
+    grid.innerHTML=''; board=Array(9).fill(null); turn='X'; info.textContent='Te kezdesz: X';
+    for(let i=0;i<9;i++){
+      const cell=document.createElement('button');
+      cell.className='box';
+      cell.style.fontSize='40px';
+      cell.onclick=()=>move(i);
+      grid.appendChild(cell);
+    }
+    cells=[...grid.children];
+  }
+  function move(i){
+    if(board[i]) return;
+    board[i]=turn;
+    cells[i].textContent=turn;
+    if(check(turn)) return win(turn);
+    turn=turn==='X'?'O':'X';
+    info.textContent='Következő: '+turn;
+    if(turn==='O' && cpu.checked) cpuMove();
+  }
+  function cpuMove(){
+    let empty=board.map((v,i)=>v?null:i).filter(v=>v!==null);
+    let pick=empty[Math.floor(Math.random()*empty.length)];
+    setTimeout(()=>move(pick),500);
+  }
+  function check(p){return[0,1,2,3,4,5,6,7].some(r=>{
+    const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    return lines.some(line=>line.every(idx=>board[idx]===p));
+  });}
+  function win(p){info.textContent=(p==='X'?'Nyertél!':'Vesztettél!')+' Gratulálok ügyes vagy!';}
+  newBtn.onclick=start;
+  start();
+})();
+
+/* === KŐ-PAPÍR-OLLÓ === */
+(function(){
+  const log=qs('#rpsLog'), info=qs('#rpsInfo'), reset=qs('#rpsReset');
+  let scoreP=0, scoreC=0;
+  function play(choice){
+    const options=['rock','paper','scissors'];
+    const ai=options[Math.floor(Math.random()*3)];
+    const res=(choice===ai)?'Döntetlen':
+      (choice==='rock'&&ai==='scissors'||
+       choice==='paper'&&ai==='rock'||
+       choice==='scissors'&&ai==='paper')?'Nyertél!':'Vesztettél!';
+    if(res==='Nyertél!') scoreP++;
+    else if(res==='Vesztettél!') scoreC++;
+    info.textContent=`Első 5-ig megy. Te: ${scoreP} – Gép: ${scoreC}`;
+    log.innerHTML+=`<div>Te: ${choice}, Gép: ${ai} → ${res}</div>`;
+    if(scoreP>=5||scoreC>=5){
+      log.innerHTML+=`<div><b>Játék vége: ${scoreP>scoreC?'Győzelem!':'Vereség!'}</b></div>`;
+    }
+  }
+  qsa('[data-rps]').forEach(b=>b.onclick=()=>play(b.dataset.rps));
+  reset.onclick=()=>{scoreP=0;scoreC=0;log.innerHTML='';info.textContent='Első 5-ig megy. Te: 0 – Gép: 0';};
+})();
+
+/* === SZÁMKITALÁLÓ === */
+(function(){
+  const info=qs('#gInfo'), log=qs('#gLog'), input=qs('#gInput'), tryB=qs('#gTry'), newB=qs('#gNew');
+  let num, tries;
+  function start(){ num=Math.floor(Math.random()*10)+1; tries=5; log.innerHTML=''; info.textContent='Gondoltam egy számra 1 és 10 között. Van 5 tipped.'; }
+  tryB.onclick=()=>{
+    const v=parseInt(input.value); if(!v||v<1||v>10) return;
+    tries--;
+    if(v===num){ log.innerHTML+=`<div>Talált! 🎯</div>`; info.textContent='Nyertél!'; }
+    else if(tries<=0){ log.innerHTML+=`<div>Elfogyott a tipped. A szám: ${num}</div>`; info.textContent='Vesztettél!'; }
+    else { log.innerHTML+=`<div>${v} – ${v<num?'Nagyobbra':'Kisebbre'} gondoltam.</div>`; info.textContent=`${tries} tipped maradt.`; }
+    input.value='';
+  };
+  newB.onclick=start;
+  start();
+})();
+
+/* === KAPARÓS SORSJEGY === */
+(function(){
+  const canvas=qs('#scratchCanvas'), ctx=canvas.getContext('2d'),
+        prizeEmoji=qs('#prizeEmoji'), prizeText=qs('#prizeText'), prizeSub=qs('#prizeSub'),
+        info=qs('#scratchInfo'), newB=qs('#scratchNew'), revealB=qs('#scratchReveal');
+  const prizes=[['🥖','Nyertél egy szelet kenyeret!'],['🍌','Egy banán a tiéd!'],['🚗','Nyertél egy matchbox autót!'],['💩','Sajnos ez most nem nyeremény.']];
+  let isDrawing=false, lastX,lastY;
+  function pickPrize(){
+    const [em,txt]=prizes[Math.floor(Math.random()*prizes.length)];
+    prizeEmoji.textContent=em; prizeText.textContent=txt; prizeSub.textContent='Kaparj a felfedéshez!';
+  }
+  function cover(){
+    ctx.fillStyle='#ccc'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.globalCompositeOperation='destination-out';
+  }
+  function scratch(e){
+    if(!isDrawing) return;
+    const rect=canvas.getBoundingClientRect();
+    const x=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+    const y=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+    ctx.beginPath();
+    ctx.arc(x,y,20,0,Math.PI*2);
+    ctx.fill();
+  }
+  canvas.addEventListener('mousedown',e=>{isDrawing=true; scratch(e);});
+  canvas.addEventListener('touchstart',e=>{isDrawing=true; scratch(e);});
+  canvas.addEventListener('mousemove',scratch);
+  canvas.addEventListener('touchmove',scratch);
+  ['mouseup','mouseleave','touchend'].forEach(ev=>canvas.addEventListener(ev,()=>isDrawing=false));
+  newB.onclick=()=>{ctx.globalCompositeOperation='source-over';pickPrize();cover();};
+  revealB.onclick=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);};
+  pickPrize();cover();
+})();
+</script>
+<!-- ===== Toast értesítések konténer ===== -->
+<div id="toasts" style="position:fixed;right:16px;bottom:16px;z-index:9999;display:flex;flex-direction:column;gap:10px"></div>
+
+<style>
+/* Achievements panel kártyái */
+#panelAch .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+#panelAch .ach{grid-column:span 4;border:1px solid var(--line);border-radius:14px;padding:12px;background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.07))}
+#panelAch .ach.locked{opacity:.58;filter:grayscale(1)}
+/* Toast doboz */
+.toast{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.09));box-shadow:0 10px 24px rgba(0,0,0,.35)}
+</style>
+
+<script>
+/* ===== Színes „folyó” háttér animáció a #bg vásznon ===== */
+(function(){
+  const c=document.getElementById('bg'); if(!c) return; const x=c.getContext('2d');
+  let w=innerWidth,h=innerHeight; c.width=w; c.height=h;
+  addEventListener('resize',()=>{w=innerWidth;h=innerHeight;c.width=w;c.height=h});
+  const N=90, pts=[];
+  for(let i=0;i<N;i++){
+    pts.push({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-0.5)*0.6,vy:(Math.random()-0.5)*0.6});
+  }
+  function grad(t){ // lila → cián átmenet hullámozva
+    const a=0.5+0.5*Math.sin(t*0.0012), b=0.5+0.5*Math.cos(t*0.0015);
+    const g=x.createLinearGradient(0,0,w,h);
+    g.addColorStop(0,`rgba(${120+80*a|0},${60|0},${237|0},0.25)`);
+    g.addColorStop(1,`rgba(${34|0},${210+40*b|0},${238|0},0.25)`);
+    return g;
+  }
+  function loop(t){
+    x.clearRect(0,0,w,h);
+    x.fillStyle='#0a0f22'; x.fillRect(0,0,w,h);
+    // lágy mező (metaballs jelleg)
+    x.globalCompositeOperation='lighter';
+    for(const p of pts){
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x< -50||p.x>w+50) p.vx*=-1;
+      if(p.y< -50||p.y>h+50) p.vy*=-1;
+      const r=40;
+      const g=grad(t);
+      x.fillStyle=g;
+      x.beginPath(); x.arc(p.x,p.y,r,0,Math.PI*2); x.fill();
+    }
+    x.globalCompositeOperation='source-over';
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+
+/* ===== Achievements + Toast ===== */
+const Ach=(function(){
+  const KEY='achV1';
+  const defs=[
+    {id:'quiz_10',name:'Kvíz 10/15',desc:'Érj el legalább 10 pontot a kvízben.'},
+    {id:'quiz_15',name:'Kvíz 15/15',desc:'Minden válasz helyes!'},
+    {id:'run_20', name:'Runner 20', desc:'Érj el 20 pontot a Runnerben.'},
+    {id:'run_50', name:'Runner 50', desc:'Érj el 50 pontot a Runnerben.'},
+    {id:'scratch_win',name:'Szerencse fia',desc:'Nyerő kaparós sorsjegy.'}
+  ];
+  const read=()=>JSON.parse(localStorage.getItem(KEY)||'{}');
+  const write=v=>localStorage.setItem(KEY,JSON.stringify(v));
+  let state=read();
+
+  function toast(txt){
+    const wrap=document.getElementById('toasts'); if(!wrap) return;
+    const t=document.createElement('div'); t.className='toast'; t.textContent='🏆 '+txt;
+    wrap.appendChild(t);
+    setTimeout(()=>{t.style.transition='opacity .3s, transform .3s'; t.style.opacity='0'; t.style.transform='translateY(8px)';
+      setTimeout(()=>wrap.removeChild(t),320);
+    },1800);
+  }
+  function unlock(id){
+    if(state[id]) return false;
+    state[id]=Date.now(); write(state);
+    const meta=defs.find(d=>d.id===id);
+    toast('Jelvény: '+(meta?meta.name:id));
+    render();
+    return true;
+  }
+  function render(){
+    const cont=document.querySelector('#panelAch .content'); if(!cont) return;
+    const grid=document.createElement('div'); grid.className='grid';
+    const s=read();
+    grid.innerHTML=defs.map(d=>{
+      const ok=!!s[d.id];
+      return `<div class="ach ${ok?'':'locked'}">
+        <div style="font-weight:900;margin-bottom:6px">${d.name}</div>
+        <div style="color:${ok?'#cfe1ff':'#a7b1d6'}">${d.desc}</div>
+        <div style="margin-top:8px;font-size:12px;color:#a7b1d6">${ok?'Megszerezve: '+new Date(s[d.id]).toLocaleString('hu-HU'):'Nincs meg'}</div>
+      </div>`;
+    }).join('');
+    cont.innerHTML=''; cont.appendChild(grid);
+  }
+  document.addEventListener('DOMContentLoaded',render);
+  return {unlock,render};
+})();
+
+/* ===== Mini hookok Ach-hez (opcionális) =====
+   Tipp: később a kvíz finish() végére tedd be:
+     if(score>=10) Ach.unlock('quiz_10');
+     if(score>=15) Ach.unlock('quiz_15');
+   A Runner kódba (pontszám nő): if(score>=20) Ach.unlock('run_20'); if(score>=50) Ach.unlock('run_50');
+   A Kaparósban, ha nyer: Ach.unlock('scratch_win');
+*/
+
+/* ===== PWA – service worker regisztráció ===== */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/service-worker.js').catch(console.error);
+  });
+}
+</script>
+
+<!-- ===== KÜLÖN FÁJLOK (másold a repóba) =====
+1) manifest.json
+{
+  "name": "Viccközpont – Mini játékok",
+  "short_name": "Viccek&Játék",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#070b17",
+  "theme_color": "#070b17",
+  "description": "Vicces mini-játékok: kvíz, amőba, kaparós, KPO, runner, platformer.",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+
+2) service-worker.js
+// v1 – alap offline cache
+const CACHE_NAME='viccek-cache-v1';
+const ASSETS=[
+  '/', '/manifest.json', '/service-worker.js',
+  '/prank_short.mp3','/tehetseges.mp3.m4a',
+  '/icons/icon-192.png','/icons/icon-512.png'
+];
+self.addEventListener('install',e=>{
+  e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(ASSETS)));
+  self.skipWaiting();
+});
+self.addEventListener('activate',e=>{
+  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.map(k=>k!==CACHE_NAME&&caches.delete(k)))));
+  self.clients.claim();
+});
+self.addEventListener('fetch',e=>{
+  if(e.request.method!=='GET') return;
+  e.respondWith(
+    fetch(e.request).then(res=>{
+      const copy=res.clone(); caches.open(CACHE_NAME).then(c=>c.put(e.request,copy)); return res;
+    }).catch(()=>caches.match(e.request).then(r=>r||caches.match('/')))
+  );
+});
+
+3) Ikonok: hozd létre /icons/icon-192.png és /icons/icon-512.png
+-->
+
 </body>
 </html>
