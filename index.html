@@ -1,69 +1,79 @@
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-    <meta charset="UTF-8">
-    <title>Vicces Belépő</title>
-    <style>
-        body {
-            text-align: center;
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            margin: 0;
-            padding: 0;
-        }
-        h1 {
-            margin-top: 50px;
-        }
-        #popup {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.8);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-        #popup img {
-            max-width: 90%;
-            max-height: 90%;
-            border: 5px solid white;
-            border-radius: 10px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modern Bejelentkezés</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+    }
+    .login-box {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        width: 300px;
+        text-align: center;
+    }
+    h2 {
+        margin-bottom: 20px;
+        color: #333;
+    }
+    input {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    button {
+        width: 100%;
+        padding: 10px;
+        border: none;
+        background: #667eea;
+        color: white;
+        font-size: 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+    button:hover {
+        background: #5563c1;
+    }
+</style>
 </head>
 <body>
 
-<h1>Üdv a vicces oldalon! 😎</h1>
-<p>Belépés után felugrik egy kép és szól a hang.</p>
-
-<!-- Felugró overlay -->
-<div id="popup">
-    <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAgGBgkKDQkJCQkJCQkJCQkJCQkJCQ0JCQkJHQ4fHh0OHBwgGSsgIBogGhwcIDUpLCorMDAwHyctPTYrPC4oKCkBCQkJDQsNFQ4ODSYVFRUmJiYmJjImJiYnJiYyJicmJzInJiYmJiYmJiYmJiYnJicmJiYyJiYmJjImJiYm...NAGYON_HOSSZÚ_BASE64_ADAT...==" alt="Vicces kép">
+<div class="login-box">
+    <h2>Bejelentkezés</h2>
+    <form id="loginForm">
+        <input type="text" id="name" placeholder="Név" required>
+        <input type="email" id="email" placeholder="Email" required>
+        <input type="password" id="password" placeholder="Jelszó" required>
+        <button type="submit">Belépés</button>
+    </form>
 </div>
 
-<!-- Hang -->
 <audio id="prank" src="prank_short.mp3" preload="auto"></audio>
 
 <script>
-window.addEventListener("load", () => {
-    const popup = document.getElementById("popup");
+document.getElementById("loginForm").addEventListener("submit", function(e) {
+    e.preventDefault();
     const audio = document.getElementById("prank");
 
-    // Mutatjuk a képet
-    popup.style.display = "flex";
-
-    // Hang lejátszása
     audio.play().catch(() => {
-        document.body.addEventListener("click", () => audio.play(), { once: true });
+        alert("Kattints az oldalra, hogy a hang elindulhasson!");
     });
 
-    // 3 mp múlva bezárjuk a képet
-    setTimeout(() => {
-        popup.style.display = "none";
-    }, 3000);
+    alert("Sikeres bejelentkezés! 😎");
 });
 </script>
 
