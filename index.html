@@ -8,17 +8,16 @@
   :root{
     --bg1:#1f3b73; --bg2:#6a11cb; --glass:rgba(255,255,255,.08);
     --line:rgba(255,255,255,.15); --text:#e8eefc; --muted:#b8c1ff;
-    --accent:#22c55e; --accent2:#60a5fa;
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
   body{
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;
     background:linear-gradient(135deg, var(--bg1), var(--bg2));
     color:var(--text);
     display:grid; place-items:center; padding:24px;
   }
-  .card,.ready-box{
+  .card{
     width:min(420px, 92vw);
     background:var(--glass);
     border:1px solid var(--line);
@@ -28,7 +27,7 @@
     box-shadow:0 30px 80px rgba(0,0,0,.35);
     animation:pop .45s ease both;
   }
-  @keyframes pop{from{transform:translateY(10px) scale(.985);opacity:.0}to{transform:none;opacity:1}}
+  @keyframes pop{from{transform:translateY(10px) scale(.985);opacity:0}to{transform:none;opacity:1}}
   h1,h2{margin-top:0}
   p.hint{margin:0 0 18px; color:var(--muted); font-size:14px}
   label{display:block; margin:14px 0 6px; font-weight:600}
@@ -54,13 +53,6 @@
     margin:10px auto 0; padding:10px 12px; border-radius:12px;
     border:1px solid var(--line); background:rgba(5,10,20,.35); color:#eaf2ff; min-height:24px;
   }
-  /* Ready screen */
-  .ready-buttons { display:flex; justify-content:center; gap:15px; margin-top:15px }
-  .ready-buttons button {
-    background:#667eea; border:0; color:white; padding:10px 18px; border-radius:8px; cursor:pointer; font-size:16px;
-  }
-  #readyMsg { margin-top:15px; font-size:14px; color:var(--muted) }
-  /* Loading */
   .loading{
     position:fixed; inset:0; display:none; place-items:center;
     background:rgba(6,11,23,.65); backdrop-filter: blur(6px); z-index:9999;
@@ -82,25 +74,14 @@
   .steam span:nth-child(2){ left:40px; animation-delay:.4s }
   .steam span:nth-child(3){ left:58px; animation-delay:.8s }
   @keyframes rise{
-    0%{transform:translateY(0) scale(.8); opacity:.0}
+    0%{transform:translateY(0) scale(.8); opacity:0}
     20%{opacity:.8}
     100%{transform:translateY(-40px) scale(1.1); opacity:0}
   }
 </style>
 </head>
 <body>
-  <!-- Készen állsz képernyő -->
-  <div id="readyScreen" class="ready-box">
-    <h2>Készen állsz?</h2>
-    <div class="ready-buttons">
-      <button id="yesBtn">Igen</button>
-      <button id="noBtn">Nem</button>
-    </div>
-    <p id="readyMsg"></p>
-  </div>
-
-  <!-- Bejelentkező kártya -->
-  <main class="card" id="loginCard" style="display:none">
+  <main class="card" id="loginCard">
     <h1>Bejelentkezés</h1>
     <p class="hint">Csak tréfa: belépés után hang szól. 🔊</p>
     <form id="form" novalidate>
@@ -114,7 +95,7 @@
       <div id="err" class="err"></div>
     </form>
 
-    <!-- Siker nézet + poén gomb -->
+    <!-- Siker nézet -->
     <section id="ok" class="success">
       <div class="check">✅</div>
       <h2>Üdv, <span id="uname"></span>! 😎</h2>
@@ -142,14 +123,6 @@
   <audio id="prank" src="prank_short.mp3" preload="auto"></audio>
 
 <script>
-const readyScreen = document.getElementById('readyScreen');
-const loginCard = document.getElementById('loginCard');
-const yesBtn = document.getElementById('yesBtn');
-const noBtn = document.getElementById('noBtn');
-const readyMsg = document.getElementById('readyMsg');
-yesBtn.addEventListener('click', () => { readyScreen.style.display="none"; loginCard.style.display="block"; });
-noBtn.addEventListener('click', () => { readyMsg.textContent="Akkor igyál még egy kávét! ☕"; });
-
 const form  = document.getElementById('form');
 const err   = document.getElementById('err');
 const ok    = document.getElementById('ok');
