@@ -3,306 +3,191 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Viccközpont v10 – stabil (kvíz fehér kártyával)</title>
+<title>Viccközpont – Desktop Edition (3D háttér + mozgatható ablakok)</title>
 <style>
-  :root{
-    --bg:#0a0f1f; --glass:rgba(255,255,255,.06); --line:rgba(255,255,255,.16);
-    --text:#e6ecff; --muted:#a7b1d6;
-    --brand1:#7c3aed; --brand2:#22d3ee;
-    --ok:#22c55e; --info:#60a5fa; --warn:#f59e0b; --danger:#ef4444;
-    --goodGrad:linear-gradient(90deg,#22c55e,#16a34a);
-    --infoGrad:linear-gradient(90deg,#60a5fa,#3b82f6);
-    --warnGrad:linear-gradient(90deg,#f59e0b,#fbbf24);
-    --badGrad:linear-gradient(90deg,#ef4444,#dc2626);
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%;margin:0}
-  body{color:var(--text); background:var(--bg); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden}
+:root{
+  --bg:#070b17; --text:#e8edff; --muted:#a7b1d6; --line:rgba(255,255,255,.14);
+  --glass:rgba(255,255,255,.06);
+  --brand1:#7c3aed; --brand2:#22d3ee;
+  --ok:#22c55e; --info:#60a5fa; --warn:#f59e0b; --danger:#ef4444;
+  --goodGrad:linear-gradient(90deg,#22c55e,#16a34a);
+  --infoGrad:linear-gradient(90deg,#60a5fa,#3b82f6);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg); color:var(--text); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow:hidden}
+a{color:inherit}
 
-  /* Háttér vásznak */
-  #bgCanvas{position:fixed; inset:0; z-index:0;
-    background:
-      radial-gradient(1200px 800px at 120% -20%,#22d3ee15 0 40%,transparent 60%),
-      radial-gradient(1000px 700px at -20% 120%,#7c3aed15 0 40%,transparent 60%),
-      #0a0f1f;
-  }
-  #fxCanvas{position:fixed; inset:0; z-index:2; pointer-events:none}
+/* 3D háttér vászon */
+#bg3d{position:fixed; inset:0; z-index:0; display:block}
 
-  /* Kvíz-speciális háttér – csak kvíz nézetben */
-  body.quiz-theme #bgCanvas{
-    background:
-      radial-gradient(1100px 700px at 110% -10%, #22d3ee22 0 40%, transparent 60%),
-      radial-gradient(900px 600px at -10% 110%, #7c3aed22 0 40%, transparent 60%),
-      repeating-conic-gradient(from 0deg,
-        #ffe08a 0 10deg, #ff8fab 10deg 20deg, #9bf6ff 20deg 30deg, #baffc9 30deg 40deg,
-        #ffd6a5 40deg 50deg, #caffbf 50deg 60deg);
-    filter: saturate(1.05);
-  }
+/* App bar (login után) */
+.appbar{position:fixed; top:0; left:0; right:0; z-index:3; display:none;
+  padding:10px 14px; gap:10px; align-items:center;
+  background:linear-gradient(180deg, rgba(12,18,36,.85), rgba(12,18,36,.55));
+  backdrop-filter:blur(10px); border-bottom:1px solid var(--line) }
+.logo{display:flex; align-items:center; gap:10px; font-weight:900}
+.logo .dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(90deg,var(--brand1),var(--brand2)); box-shadow:0 0 18px #22d3ee90}
+.appbar .profile{margin-left:auto; display:flex; align-items:center; gap:10px; font-weight:700; color:#cfe1ff}
 
-  /* Kvíz kártya: FEHÉR háttér a jobb olvashatóságért */
-  body.quiz-theme #quizCard{
-    background:#fff; color:#000;
-    border:1px solid rgba(0,0,0,.1);
-    box-shadow:0 30px 80px rgba(0,0,0,.25);
-  }
-  body.quiz-theme #quizCard .box,
-  body.quiz-theme #quizCard .answers .ans{
-    background:#f9f9f9; color:#000;
-    border:1px solid rgba(0,0,0,.1);
-  }
-  body.quiz-theme #quizCard .ans.correct{outline:2px solid #22c55e}
-  body.quiz-theme #quizCard .ans.wrong{outline:2px solid #ef4444}
+/* Launcher sáv alul */
+.dock{position:fixed; left:50%; transform:translateX(-50%); bottom:16px; z-index:3; display:none; gap:10px;
+  background:linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.06)); border:1px solid var(--line); border-radius:16px; padding:8px 10px; backdrop-filter:blur(10px)}
+.dock .btn{padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--glass); cursor:pointer; font-weight:800}
+.dock .btn.ok{background:var(--goodGrad); color:#062215; border-color:transparent}
+.dock .btn.info{background:var(--infoGrad); color:#071321; border-color:transparent}
 
-  /* Appbar */
-  header.appbar{position:sticky; top:0; z-index:3; display:flex; align-items:center; gap:12px; padding:12px 16px;
-    background:linear-gradient(180deg, rgba(15,22,44,.85), rgba(15,22,44,.55)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line)}
-  .logo{display:flex; align-items:center; gap:10px; font-weight:900; letter-spacing:.4px}
-  .logo .dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(90deg,var(--brand1),var(--brand2));box-shadow:0 0 18px #22d3ee90}
-  nav.tabs{margin-left:auto; display:flex; gap:6px; flex-wrap:wrap}
-  .tab{padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:var(--glass); color:var(--text); cursor:pointer; font-weight:700}
-  .tab.active{background:linear-gradient(90deg,#7c3aed,#22d3ee); color:#061225; border-color:transparent}
+/* Login kártya */
+.auth{position:relative; z-index:2; max-width:440px; margin:80px auto; padding:24px; border-radius:16px;
+  background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+  border:1px solid var(--line); backdrop-filter:blur(10px); box-shadow:0 30px 80px rgba(0,0,0,.35)}
+label{display:block; font-weight:800; margin:12px 0 6px}
+input{width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,.06); color:var(--text)}
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border:0; border-radius:12px; font-weight:900; cursor:pointer}
+.btn.full{width:100%}
+.btn.green{background:var(--goodGrad); color:#062215; box-shadow:0 10px 30px rgba(34,197,94,.25)}
+.err{color:#fecaca; font-weight:800; min-height:18px; margin-top:10px}
+.muted{color:var(--muted)}
 
-  main{max-width:1200px; margin:20px auto; padding:0 16px; position:relative; z-index:1;}
+/* Loading overlay */
+#loading{position:fixed; inset:0; z-index:4; display:none; place-items:center;
+  background:rgba(8,12,30,.6); backdrop-filter:blur(6px)}
+.loader{width:min(360px,92vw); padding:18px; border-radius:14px;
+  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+  border:1px solid var(--line); text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.45)}
 
-  /* Auth */
-  .auth{max-width:480px; margin:50px auto; padding:24px; border-radius:16px;
-    background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
-    border:1px solid var(--line); backdrop-filter:blur(10px); box-shadow:0 30px 80px rgba(0,0,0,.35)}
-  .auth h1{margin:0 0 6px}
-  .muted{color:var(--muted)}
-  label{display:block; font-weight:800; margin:14px 0 6px}
-  input{
-    width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line);
-    background:rgba(255,255,255,.06); color:var(--text); outline:none; font-size:15px}
-  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border:0; border-radius:12px;
-    font-weight:900; cursor:pointer; background:var(--goodGrad); color:#062215; box-shadow:0 10px 30px rgba(34,197,94,.25); margin-top:16px; width:100%}
-  .err{color:#fecaca; font-weight:800; min-height:18px; margin-top:10px}
+/* Window rendszer */
+.window{position:fixed; z-index:2; min-width:320px; max-width:92vw; min-height:220px;
+  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+  border:1px solid var(--line); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.45); backdrop-filter:blur(10px); display:none}
+.titlebar{display:flex; align-items:center; gap:8px; padding:10px 12px; cursor:move; border-bottom:1px solid var(--line)}
+.titlebar .dot{width:10px;height:10px;border-radius:50%}
+.titlebar .dot.red{background:#ef4444} .titlebar .dot.yellow{background:#f59e0b} .titlebar .dot.green{background:#22c55e}
+.titlebar .title{font-weight:900; margin-left:6px}
+.win-content{padding:12px; max-height:70vh; overflow:auto}
 
-  /* Views */
-  section.view{display:none; animation:fade .35s ease both}
-  section.view.active{display:block}
-  @keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+/* Kártyák + elemek a panelekben */
+.box{border:1px solid var(--line); border-radius:12px; background:rgba(10,12,22,.6); padding:12px}
+.row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.chip{padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:var(--glass); cursor:pointer; font-weight:800}
+.chip.ok{background:var(--goodGrad); color:#062215; border-color:transparent}
+.chip.info{background:var(--infoGrad); color:#071321; border-color:transparent}
 
-  /* Grid + Cards */
-  .grid{display:grid; grid-template-columns:repeat(12,1fr); gap:16px}
-  @media (max-width:980px){ .grid{grid-template-columns:repeat(8,1fr)} }
-  @media (max-width:640px){ .grid{grid-template-columns:repeat(4,1fr)} }
-  .card{background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
-    border:1px solid var(--line); border-radius:16px; padding:16px; backdrop-filter:blur(10px); box-shadow:0 16px 50px rgba(0,0,0,.3)}
-  .title{font-weight:900; margin:0 0 8px}
-  .box{border:1px solid var(--line); border-radius:12px; background:rgba(10,12,22,.6); padding:12px; min-height:36px}
-  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
-  .chip{padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:var(--glass); cursor:pointer; font-weight:800}
-  .chip.ok{background:var(--goodGrad); color:#062215; border-color:transparent}
-  .chip.info{background:var(--infoGrad); color:#071321; border-color:transparent}
-  .chip.warn{background:var(--warnGrad); color:#2b1a03; border-color:transparent}
-  .chip.danger{background:var(--badGrad); color:#2b0a0a; border-color:transparent}
-  .span-8{grid-column:span 8} .span-6{grid-column:span 6} .span-4{grid-column:span 4}
-  @media (max-width:980px){ .span-8,.span-6,.span-4{grid-column:span 8} }
-  @media (max-width:640px){ .span-8,.span-6,.span-4{grid-column:span 4} }
+/* Kvíz – fehér kártya téma az ablakon belül */
+.quiz-card{background:#fff; color:#000; border-radius:12px; padding:12px; border:1px solid rgba(0,0,0,.1)}
+.quiz-card .box{background:#f9f9f9; color:#000; border:1px solid rgba(0,0,0,.1)}
+.answers{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:10px}
+.ans{padding:12px; border-radius:12px; border:1px solid rgba(0,0,0,.1); background:#f9f9f9; cursor:pointer; font-weight:800}
+.ans.correct{outline:2px solid #22c55e}
+.ans.wrong{outline:2px solid #ef4444}
+.badge{padding:6px 10px; background:#eef2ff; color:#111827; border:1px solid rgba(0,0,0,.08); border-radius:999px}
+.meter{flex:1; height:10px; background:#e5e7eb; border:1px solid rgba(0,0,0,.08); border-radius:999px; overflow:hidden}
+.meter>span{display:block; height:100%; width:100%; background:linear-gradient(90deg,#ef4444,#dc2626); transform-origin:left; transform:scaleX(1); transition:transform .2s linear}
 
-  /* Kvíz UI */
-  .quizHud{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px}
-  .badge{padding:6px 10px; background:#1f2b4d; border:1px solid var(--line); border-radius:999px}
-  .meter{flex:1; height:10px; background:#203056; border:1px solid var(--line); border-radius:999px; overflow:hidden}
-  .meter>span{display:block; height:100%; width:100%; background:var(--badGrad); transform-origin:left; transform:scaleX(1); transition:transform .2s linear}
-  .answers{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:10px}
-  .ans{padding:12px; border-radius:12px; border:1px solid var(--line); background:rgba(14,18,30,.75); cursor:pointer; font-weight:800}
-  .ans.correct{outline:2px solid #22c55eaa}
-  .ans.wrong{outline:2px solid #ef4444aa}
-  .table{width:100%; border-collapse:collapse; margin-top:10px}
-  .table th,.table td{border-bottom:1px solid var(--line); padding:8px; text-align:left}
-  .table th{opacity:.8; font-weight:800}
+/* Amőba */
+.ttt-grid{display:grid; grid-template-columns:repeat(3,100px); grid-template-rows:repeat(3,100px); gap:8px; justify-content:center}
+.ttt-cell{display:grid; place-items:center; font-size:36px; font-weight:900; border-radius:12px; background:rgba(255,255,255,.10); border:1px solid var(--line); cursor:pointer; user-select:none}
+.ttt-cell.win{background:linear-gradient(180deg, rgba(34,197,94,.25), rgba(34,197,94,.15))}
+.ttt-panel{display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:10px}
 
-  /* Loading overlay */
-  #loading{position:fixed; inset:0; display:none; place-items:center; z-index:4;
-    background:rgba(8,12,30,.6); backdrop-filter:blur(6px)}
-  .loader{width:min(360px,92vw); padding:18px; border-radius:14px;
-    background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-    border:1px solid var(--line); text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.45)}
+/* Chat */
+.chat-box{height:320px; border:1px solid var(--line); background:rgba(10,12,22,.55); border-radius:14px; padding:12px; overflow:auto; scroll-behavior:smooth}
+.msg{max-width:70%; padding:10px 12px; border-radius:12px; margin:8px 0; line-height:1.3; word-wrap:break-word}
+.user{margin-left:auto; background:linear-gradient(180deg, rgba(96,165,250,.25), rgba(96,165,250,.15)); border:1px solid #60a5fa55}
+.bot{margin-right:auto; background:linear-gradient(180deg, rgba(124,58,237,.25), rgba(124,58,237,.15)); border:1px solid #7c3aed55}
+.chat-input{display:flex; gap:8px; margin-top:10px}
+.chat-input input{flex:1}
 
-  /* Amőba */
-  .ttt-grid{display:grid; grid-template-columns:repeat(3,100px); grid-template-rows:repeat(3,100px); gap:8px; justify-content:center}
-  .ttt-cell{display:grid; place-items:center; font-size:36px; font-weight:900; border-radius:12px; background:rgba(255,255,255,.07); border:1px solid var(--line); cursor:pointer; user-select:none}
-  .ttt-cell.win{background:linear-gradient(180deg, rgba(34,197,94,.25), rgba(34,197,94,.15))}
-  .ttt-panel{display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:10px}
-
-  /* Chat */
-  .chat-wrap{max-width:900px; margin:0 auto}
-  .chat-box{height:380px; border:1px solid var(--line); background:rgba(10,12,22,.55); border-radius:14px; padding:12px; overflow:auto; scroll-behavior:smooth}
-  .msg{max-width:70%; padding:10px 12px; border-radius:12px; margin:8px 0; line-height:1.3; word-wrap:break-word}
-  .user{margin-left:auto; background:linear-gradient(180deg, rgba(96,165,250,.25), rgba(96,165,250,.15)); border:1px solid #60a5fa55}
-  .bot{margin-right:auto; background:linear-gradient(180deg, rgba(124,58,237,.25), rgba(124,58,237,.15)); border:1px solid #7c3aed55}
-  .chat-input{display:flex; gap:8px; margin-top:10px}
-  .chat-input input{flex:1}
-  .chat-tip{font-size:12px; color:#c9d1ff99; margin-top:6px}
-
-  /* Chat meghívó buborék */
-  .chat-nudge{
-    position:fixed; right:16px; bottom:16px; z-index:5;
-    display:none; align-items:center; gap:10px; padding:10px 12px;
-    background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-    border:1px solid var(--line); border-radius:14px; box-shadow:0 14px 40px rgba(0,0,0,.4);
-    cursor:pointer; backdrop-filter:blur(10px);
-  }
-  .chat-nudge.show{display:flex; animation:pop .35s ease both}
-  .chat-nudge .dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(90deg,var(--brand1),var(--brand2))}
-  @keyframes pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
+/* Rejtett a kezdeti állapotban */
+#desktop{display:none}
 </style>
 </head>
 <body>
-<canvas id="bgCanvas"></canvas>
-<canvas id="fxCanvas"></canvas>
 
-<header class="appbar" id="appbar" style="display:none">
-  <div class="logo"><span class="dot"></span> Viccközpont <small style="opacity:.7;font-weight:600;margin-left:6px">v10</small></div>
-  <nav class="tabs" id="tabs">
-    <button class="tab active" data-view="home">Főoldal</button>
-    <button class="tab" data-view="sounds">Hangok</button>
-    <button class="tab" data-view="games">Játékok</button>
-    <button class="tab" data-view="weather">Időjárás</button>
-    <button class="tab" data-view="quizpro">Kvíz Bajnokság</button>
-    <button class="tab" data-view="tictactoe">Amőba</button>
-    <button class="tab" data-view="chat">Chat</button>
-  </nav>
+<canvas id="bg3d"></canvas>
+
+<header class="appbar" id="appbar">
+  <div class="logo"><span class="dot"></span> Viccközpont – Desktop</div>
+  <div class="profile" id="profileName"></div>
 </header>
 
-<!-- Loading overlay -->
+<!-- Launcher (dock) -->
+<div class="dock" id="dock">
+  <button class="btn info" data-open="#winQuiz">Kvíz</button>
+  <button class="btn info" data-open="#winTtt">Amőba</button>
+  <button class="btn info" data-open="#winChat">Chat</button>
+  <button class="btn info" data-open="#winMedia">Hangok & Időjárás</button>
+  <button class="btn" id="btnCenter">Ablakok középre</button>
+</div>
+
+<!-- LOGIN -->
+<main id="loginWrap" class="auth">
+  <h1>Bejelentkezés</h1>
+  <p class="muted">Modern „desktop” élmény: kvíz, amőba, chat – mozgatható ablakokban, 3D háttérrel. 🔥</p>
+  <form id="form" novalidate>
+    <label for="name">Név</label>
+    <input id="name" type="text" required placeholder="Név">
+    <label for="email">Email</label>
+    <input id="email" type="email" required placeholder="valami@email.hu">
+    <label for="pwd">Jelszó</label>
+    <input id="pwd" type="password" minlength="4" required placeholder="••••">
+    <button class="btn green full" type="submit">Belépek</button>
+    <div id="err" class="err"></div>
+  </form>
+</main>
+
+<!-- Loading -->
 <div id="loading"><div class="loader"><div id="loadingText">Kávészemek őrlése…</div></div></div>
 
-<main id="app">
-  <!-- LOGIN -->
-  <section id="loginView" class="auth">
-    <h1>Bejelentkezés</h1>
-    <p class="muted">Humor, hangok és mini-játékok – modern kiadásban. 🔊🎮</p>
-    <form id="form" novalidate>
-      <label for="name">Név</label>
-      <input id="name" type="text" required placeholder="Név">
-      <label for="email">Email</label>
-      <input id="email" type="email" required placeholder="valami@email.hu">
-      <label for="pwd">Jelszó</label>
-      <input id="pwd" type="password" minlength="4" required placeholder="••••">
-      <button class="btn" type="submit">Belépek</button>
-      <div id="err" class="err"></div>
-    </form>
-  </section>
-
-  <!-- Főoldal -->
-  <section id="home" class="view active">
-    <div class="grid">
-      <div class="card span-8">
-        <h3 class="title">Poén generátor</h3>
-        <div id="jokeBox" class="box">Nyomd meg valamelyik gombot! 😄</div>
-        <div class="row" style="margin-top:10px">
-          <button id="btnJoke" class="chip ok">Még egy poén</button>
-          <button id="btnThree" class="chip info">3 gyors poén</button>
-        </div>
-      </div>
-      <div class="card span-4">
-        <h3 class="title">Gyors hang</h3>
-        <div class="row">
-          <button class="chip ok" data-sound="prank">Prank ▶️</button>
-          <button class="chip info" data-sound="talent">Tehetséges ▶️</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Hangok -->
-  <section id="sounds" class="view">
-    <div class="grid">
-      <div class="card span-6">
-        <h3 class="title">Hang panel</h3>
-        <p class="muted">Válassz hangot – indításkor a másik leáll.</p>
-        <div class="row">
-          <button class="chip ok" data-sound="prank">Prank ▶️</button>
-          <button class="chip info" data-sound="talent">Tehetséges ▶️</button>
-          <button class="chip warn" id="stopAll">Leállít</button>
-        </div>
-      </div>
-      <div class="card span-6">
-        <h3 class="title">Lejátszás vezérlés</h3>
-        <div class="row">
-          <button class="chip" id="rewind">⏪ Vissza</button>
-          <button class="chip" id="pause">⏸️ Szünet</button>
-          <button class="chip" id="resume">▶️ Folytat</button>
-        </div>
-        <div id="nowPlaying" class="box" style="margin-top:10px">Semmi sem szól.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Időjárás -->
-  <section id="weather" class="view">
-    <div class="grid">
-      <div class="card span-6">
-        <h3 class="title">Poénos időjárás</h3>
-        <div id="wx" class="box">Nyomd meg a gombot!</div>
-        <button id="btnWx" class="chip ok" style="margin-top:10px">Friss jelentés</button>
-      </div>
-      <div class="card span-6">
-        <h3 class="title">Mini-óra</h3>
-        <div id="clock" class="box">--:--:--</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Kvíz Bajnokság -->
-  <section id="quizpro" class="view">
-    <div class="grid">
-      <div class="card span-8" id="quizCard">
-        <h3 class="title">Kvíz Bajnokság – 15 kérdés, 15 mp/kérdés</h3>
-
-        <!-- Start -->
+<!-- DESKTOP ABLAKOK -->
+<div id="desktop">
+  <!-- Kvíz -->
+  <div class="window" id="winQuiz" style="top:84px; left:40px; width:620px;">
+    <div class="titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><div class="title">Kvíz Bajnokság</div></div>
+    <div class="win-content">
+      <div class="quiz-card">
+        <h3 style="margin:6px 0 10px">15 kérdés • 15 mp/kérdés</h3>
         <div id="quizStart">
           <div class="row" style="margin:8px 0">
-            <label for="playerName" style="margin:0 10px 0 0; font-weight:800">Név:</label>
-            <input id="playerName" type="text" placeholder="Neved" style="max-width:240px">
+            <label for="playerName" style="margin:0 10px 0 0; font-weight:800;color:#111">Név:</label>
+            <input id="playerName" type="text" placeholder="Neved" style="max-width:240px;background:#fff;color:#111;border:1px solid #e5e7eb">
             <button id="quizGo" class="chip ok">Indít</button>
           </div>
-          <p class="muted" style="margin-top:8px">Válaszolj gyorsan és pontosan! Lejárt idő = 0 pont.</p>
+          <p class="muted" style="color:#333">Lejárt idő = 0 pont. Hajrá! 🏁</p>
         </div>
-
-        <!-- HUD -->
-        <div id="quizHud" class="quizHud" style="display:none">
+        <div class="row quizHud" id="quizHud" style="display:none">
           <span class="badge">Kérdés: <b id="qIdx">1</b>/15</span>
           <span class="badge">Pont: <b id="qScore">0</b></span>
           <span class="badge">Idő: <b id="qTime">0.0s</b></span>
           <div class="meter"><span id="qBar"></span></div>
         </div>
-
-        <!-- Kérdés -->
         <div id="quizQWrap" style="display:none">
-          <div id="qText" class="box">Kérdés…</div>
+          <div id="qText" class="box" style="color:#111">Kérdés…</div>
           <div id="qAns" class="answers"></div>
         </div>
-
-        <!-- Befejezés -->
         <div id="quizDone" style="display:none">
-          <h3 class="title" style="margin-top:6px">Eredmény</h3>
-          <div class="box" id="quizSummary"></div>
+          <h3 style="margin:6px 0">Eredmény</h3>
+          <div class="box" id="quizSummary" style="color:#111"></div>
           <div class="row" style="margin-top:10px">
             <button id="quizAgain" class="chip info">Újra</button>
-            <button id="quizReset" class="chip danger">Toplista törlése</button>
+            <button id="quizReset" class="chip" style="background:#fff;color:#111">Toplista törlése</button>
           </div>
         </div>
-      </div>
-
-      <div class="card span-4">
-        <h3 class="title">Toplista (helyi)</h3>
-        <table class="table" id="lbTable">
-          <thead><tr><th>#</th><th>Név</th><th>Pont</th><th>Idő</th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <p class="muted">A toplista az eszközödön tárolódik (LocalStorage).</p>
+        <div style="margin-top:14px">
+          <h4 style="margin:0 0 6px;color:#111">Toplista (helyi)</h4>
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr><th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;color:#111">#</th><th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;color:#111">Név</th><th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;color:#111">Pont</th><th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;color:#111">Idő</th></tr></thead>
+            <tbody id="lbBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
 
   <!-- Amőba -->
-  <section id="tictactoe" class="view">
-    <div class="card">
-      <h3 class="title">Amőba (Tic-Tac-Toe)</h3>
+  <div class="window" id="winTtt" style="top:110px; left:700px; width:380px;">
+    <div class="titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><div class="title">Amőba</div></div>
+    <div class="win-content">
       <div class="ttt-grid" id="tttGrid"></div>
       <div id="tttInfo" class="box" style="margin-top:10px;text-align:center">Te kezdesz: X</div>
       <div class="ttt-panel">
@@ -313,138 +198,180 @@
         </label>
       </div>
     </div>
-  </section>
+  </div>
 
   <!-- Chat -->
-  <section id="chat" class="view">
-    <div class="card chat-wrap">
-      <h3 class="title">Chat – beszélgetek veled, sőt „fel is ajánlom magam” 😏</h3>
+  <div class="window" id="winChat" style="top:360px; left:40px; width:520px;">
+    <div class="titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><div class="title">Chat</div></div>
+    <div class="win-content">
       <div id="chatBox" class="chat-box"></div>
       <div class="chat-input">
-        <input id="chatInput" type="text" placeholder="Írj valamit… (pl. szia, vicc, hogy vagy, segíts)">
+        <input id="chatInput" type="text" placeholder="Írj valamit… (szia, vicc, segíts)">
         <button id="chatSend" class="chip ok">Küldés</button>
       </div>
-      <div class="chat-tip">Tipp: írj „vicc”, „poén”, „kávé”, „unalom”, „segíts”, „játék”, stb.</div>
     </div>
-  </section>
-</main>
+  </div>
 
-<!-- Chat meghívó buborék -->
-<div id="chatNudge" class="chat-nudge">
-  <span class="dot"></span>
-  <span id="chatNudgeText">Akarsz velem beszélgetni?</span>
+  <!-- Hangok + Időjárás -->
+  <div class="window" id="winMedia" style="top:360px; left:600px; width:420px;">
+    <div class="titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><div class="title">Hangok & Időjárás</div></div>
+    <div class="win-content">
+      <div class="row" style="margin-bottom:8px">
+        <button class="chip ok" data-sound="prank">Prank ▶️</button>
+        <button class="chip info" data-sound="talent">Tehetséges ▶️</button>
+        <button class="chip" id="stopAll">Leállít</button>
+      </div>
+      <div class="row">
+        <button id="btnWx" class="chip ok">Poénos időjárás</button>
+        <div id="wx" class="box">Nyomd meg a gombot!</div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div class="box" id="clock">--:--:--</div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- Hangok -->
+<!-- Hangfájlok -->
 <audio id="prank"  src="prank_short.mp3"    preload="auto"></audio>
 <audio id="talent" src="tehetseges.mp3.m4a" preload="auto"></audio>
 
+<!-- Three.js CDN a 3D háttérhez -->
+<script src="https://unpkg.com/three@0.157.0/build/three.min.js"></script>
+
 <script>
 window.addEventListener('DOMContentLoaded', () => {
-  /* ===== Segédek ===== */
   const $ = s => document.querySelector(s);
   const $$ = s => document.querySelectorAll(s);
   const rnd = a => a[Math.floor(Math.random()*a.length)];
 
-  /* ===== Vásznak ===== */
-  const bg = document.getElementById('bgCanvas');
-  const fx = document.getElementById('fxCanvas');
-  if (bg && fx) {
-    const g = bg.getContext('2d');
-    const fg = fx.getContext('2d');
-    function fit(){ bg.width=fx.width=innerWidth; bg.height=fx.height=innerHeight; }
-    addEventListener('resize', fit); fit();
-    let t=0; window.waveSpeed=0.006;
-    (function loop(){ t+=window.waveSpeed; g.clearRect(0,0,bg.width,bg.height);
-      for(let i=-24;i<24;i++){
-        g.beginPath(); g.moveTo(0,bg.height/2);
-        for(let x=0;x<=bg.width;x+=8){
-          const y = bg.height/2 + Math.sin(i/8 + t + x/140)*40 + i*5;
-          g.lineTo(x,y);
-        }
-        g.strokeStyle = `hsla(${(i*10+t*180)%360},80%,65%,.45)`; g.lineWidth=2; g.stroke();
-      } requestAnimationFrame(loop);
-    })();
-    const confetti=[]; window.burstConfetti=function(cx=innerWidth/2,cy=innerHeight/2,n=120){
-      for(let i=0;i<n;i++){ confetti.push({x:cx,y:cy,vx:(Math.random()*2-1)*4,vy:(Math.random()*-1-0.5)*6,g:0.12+Math.random()*0.1,life:60+Math.random()*40,c:`hsl(${Math.random()*360},90%,60%)`,s:2+Math.random()*3});}
+  /* ===== 3D háttér – részecskefelhő ===== */
+  (function init3D(){
+    const canvas = document.getElementById('bg3d'); if(!canvas) return;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 1, 2000);
+    camera.position.z = 500;
+    const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+    function resize(){ renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); }
+    resize(); addEventListener('resize', resize);
+
+    const COUNT = 1800;
+    const geom = new THREE.BufferGeometry();
+    const positions = new Float32Array(COUNT*3);
+    for(let i=0;i<COUNT;i++){
+      positions[i*3+0] = (Math.random()-0.5)*1200;
+      positions[i*3+1] = (Math.random()-0.5)*800;
+      positions[i*3+2] = (Math.random()-0.5)*1200;
     }
-    ;(function fxloop(){ fg.clearRect(0,0,fx.width,fx.height);
-      for(let i=confetti.length-1;i>=0;i--){ const p=confetti[i]; p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.life--; fg.fillStyle=p.c; fg.fillRect(p.x,p.y,p.s,p.s*2); if(p.life<=0||p.y>fx.height+20) confetti.splice(i,1);}
-      requestAnimationFrame(fxloop);
-    })();
-  }
+    geom.setAttribute('position', new THREE.BufferAttribute(positions,3));
+    const material = new THREE.PointsMaterial({ size:2, color:0x88ccff, transparent:true, opacity:0.9 });
+    const points = new THREE.Points(geom, material);
+    scene.add(points);
 
-  /* ===== Adatok ===== */
-  const JOKES=["Miért nem megy a lift? Mert fel van húzva!","Mit mond a nulla a nyolcasnak? – Szép öved van!","A kávé a válasz. Mi is volt a kérdés? 🤔","A madarak nem használják a Facebookot, van Twitterük.","Miért vitt a számítógép esernyőt? – Vírusos idő lesz.","Mit csinál a csiga a kocsmában? – Csúszik."];
-  const WX=["Ma 100% esély van poénzáporra! ☔😂","Holnap napsütés és röhögéshullám várható. 🌞🤣","Viharos nevetés közeleg! 💨😆","Derült ég, de a szomszéd viccei beborítanak. 🌤","Nevetési front: mosoly észlelve. 🌦"];
+    let t=0, mx=0, my=0;
+    addEventListener('mousemove', e=>{ mx=(e.clientX/innerWidth - .5); my=(e.clientY/innerHeight - .5); });
+    function anim(){
+      t+=0.0025;
+      points.rotation.y += 0.0015 + mx*0.005;
+      points.rotation.x = my*0.15;
+      material.color.setHSL((0.6 + Math.sin(t)*0.2)%1, 0.7, 0.6);
+      renderer.render(scene, camera);
+      requestAnimationFrame(anim);
+    }
+    anim();
+  })();
 
-  /* ===== Login + loader ===== */
-  const form = document.getElementById('form');
-  const loading = document.getElementById('loading');
-  const loadingText = document.getElementById('loadingText');
-  if (form && loading && loadingText) {
-    form.addEventListener('submit', e=>{
+  /* ===== Login stabil ===== */
+  const form = $('#form'), loading = $('#loading'), loadingText = $('#loadingText');
+  const loginWrap = $('#loginWrap'), appbar = $('#appbar'), dock = $('#dock'), profileName = $('#profileName');
+  if(form && loading && loginWrap && appbar && dock){
+    form.addEventListener('submit', (e)=>{
       e.preventDefault();
-      const name=document.getElementById('name')?.value.trim();
-      const email=document.getElementById('email')?.value.trim();
-      const pwd=document.getElementById('pwd')?.value.trim();
-      const err=document.getElementById('err');
-      if (err) err.textContent='';
-      if(!name||!email?.includes('@')||!pwd||pwd.length<4){ if(err) err.textContent='Ellenőrizd a mezőket!'; return; }
+      const name = $('#name')?.value.trim();
+      const email= $('#email')?.value.trim();
+      const pwd  = $('#pwd')?.value.trim();
+      const err  = $('#err');
+      if(err) err.textContent='';
+      if(!name || !email?.includes('@') || !pwd || pwd.length<4){ if(err) err.textContent='Ellenőrizd a mezőket!'; return; }
+
       loading.style.display='grid';
-      const texts=["Kávészemek őrlése…","Víz melegítése…","Csésze előkészítése…","Humor ellenőrzése…"];
-      let i=0; const iv=setInterval(()=>{ loadingText.textContent=texts[i++%texts.length]; },800);
-      setTimeout(()=>{ clearInterval(iv); loading.style.display='none';
-        document.getElementById('loginView')?.style && (document.getElementById('loginView').style.display='none');
-        document.getElementById('appbar')?.style && (document.getElementById('appbar').style.display='flex');
-        document.getElementById('jokeBox') && (document.getElementById('jokeBox').textContent = JOKES[Math.floor(Math.random()*JOKES.length)]);
-        const o=window.waveSpeed||0.006; window.waveSpeed=0.02; window.burstConfetti?.(innerWidth/2,120); setTimeout(()=>window.waveSpeed=o,1800);
-      },1400);
+      const texts = ["Kávészemek őrlése…","Víz melegítése…","Csésze előkészítése…","Humor ellenőrzése…"];
+      let i=0; const iv=setInterval(()=>{ loadingText.textContent=texts[i++%texts.length]; }, 800);
+
+      setTimeout(()=>{
+        clearInterval(iv); loading.style.display='none';
+        loginWrap.style.display='none';
+        appbar.style.display='flex';
+        dock.style.display='flex';
+        if(profileName) profileName.textContent = "Üdv, " + (name || "Vendég") + "!";
+        $('#desktop').style.display='block';
+        // középre rendezés első induláskor
+        centerAll();
+      }, 1200);
     });
   }
 
-  /* ===== Tabs + kvíz-téma ===== */
-  $$('#tabs .tab').forEach(tab=>{
-    tab.addEventListener('click', ()=>{
-      $$('#tabs .tab').forEach(t=>t.classList.remove('active')); tab.classList.add('active');
-      const view=tab.getAttribute('data-view');
-      $$('.view').forEach(v=>v.classList.remove('active'));
-      const target=document.getElementById(view); if (target) target.classList.add('active');
-      if(view==='quizpro') document.body.classList.add('quiz-theme'); else document.body.classList.remove('quiz-theme');
+  /* ===== Dock gombok ablaknyitáshoz ===== */
+  $$('#dock [data-open]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const target = $(btn.getAttribute('data-open')); if(!target) return;
+      target.style.display='block'; bringToFront(target);
     });
   });
+  $('#btnCenter')?.addEventListener('click', centerAll);
 
-  /* ===== Poén generátor ===== */
-  document.getElementById('btnJoke')?.addEventListener('click',()=>{ const box=document.getElementById('jokeBox'); if(box) box.textContent=JOKES[Math.floor(Math.random()*JOKES.length)]; });
-  document.getElementById('btnThree')?.addEventListener('click',()=>{
-    const box=document.getElementById('jokeBox'); if(!box) return;
-    const list=[JOKES[Math.floor(Math.random()*JOKES.length)],JOKES[Math.floor(Math.random()*JOKES.length)],JOKES[Math.floor(Math.random()*JOKES.length)]];
-    box.innerHTML="<ul style='margin:6px 0 0 16px'>"+list.map(j=>`<li>${j}</li>`).join("")+"</ul>";
+  /* ===== Drag & Z-index ===== */
+  let zCounter = 10;
+  function bringToFront(win){ win.style.zIndex = ++zCounter; }
+  $$('.window').forEach(win=>{
+    const bar = win.querySelector('.titlebar'); if(!bar) return;
+    let sx=0, sy=0, ox=0, oy=0, dragging=false;
+    bar.addEventListener('mousedown', e=>{ dragging=true; bringToFront(win); sx=e.clientX; sy=e.clientY; const r=win.getBoundingClientRect(); ox=r.left; oy=r.top; document.body.style.userSelect='none'; });
+    window.addEventListener('mousemove', e=>{ if(!dragging) return; const nx=ox+(e.clientX-sx); const ny=oy+(e.clientY-sy); win.style.left = Math.max(8, Math.min(innerWidth - win.offsetWidth - 8, nx)) + 'px'; win.style.top = Math.max(60, Math.min(innerHeight - 80, ny)) + 'px';});
+    window.addEventListener('mouseup', ()=>{ dragging=false; document.body.style.userSelect='auto'; });
+    win.addEventListener('mousedown', ()=>bringToFront(win));
   });
+  function centerAll(){
+    const wins=[ '#winQuiz', '#winTtt', '#winChat', '#winMedia' ].map(id=>$(id)).filter(Boolean);
+    let x=40, y=90;
+    wins.forEach(w=>{ w.style.left=x+'px'; w.style.top=y+'px'; w.style.display='block'; bringToFront(w); x+=40; y+=30; });
+  }
 
-  /* ===== Hangok ===== */
-  const A_PRANK=document.getElementById('prank');
-  const A_TALENT=document.getElementById('talent');
+  /* ===== Hangok + Időjárás ===== */
+  const A_PRANK=$('#prank'), A_TALENT=$('#talent');
   function stopAll(){ try{A_PRANK?.pause(); A_TALENT?.pause();}catch{} }
   function playById(id){
     stopAll();
-    const a = (id==='talent'?A_TALENT:A_PRANK);
-    if (!a) return;
-    a.currentTime=0;
+    const a = id==='talent' ? A_TALENT : A_PRANK;
+    if(!a) return; a.currentTime=0;
     a.play?.().catch(()=>alert('Kattints az oldalra, hogy a böngésző engedje a hangot!'));
   }
-  document.querySelectorAll('[data-sound]').forEach(b=>b.addEventListener('click',e=>{
-    const r=b.getBoundingClientRect(); window.burstConfetti?.(r.left+r.width/2, r.top+scrollY);
-    playById(b.getAttribute('data-sound'));
-  }));
-  document.getElementById('stopAll')?.addEventListener('click', stopAll);
-  document.getElementById('rewind')?.addEventListener('click', ()=>{ if(A_PRANK) A_PRANK.currentTime=0; if(A_TALENT) A_TALENT.currentTime=0; });
-  document.getElementById('pause')?.addEventListener('click', ()=>{ try{A_PRANK?.pause();}catch{} try{A_TALENT?.pause();}catch{} });
-  document.getElementById('resume')?.addEventListener('click', ()=>{ if(A_PRANK && !A_PRANK.paused) A_PRANK.play(); else if(A_TALENT && !A_TALENT.paused) A_TALENT.play(); });
+  $$('[data-sound]').forEach(b=>b.addEventListener('click',()=>playById(b.getAttribute('data-sound'))));
+  $('#stopAll')?.addEventListener('click', stopAll);
+  $('#btnWx')?.addEventListener('click', ()=>{ const WX=["Ma 100% esély van poénzáporra! ☔😂","Holnap napsütés és röhögéshullám várható. 🌞🤣","Viharos nevetés közeleg! 💨😆","Derült ég, de a szomszéd viccei beborítanak. 🌤","Nevetési front: mosoly észlelve. 🌦"]; const wx=$('#wx'); if(wx) wx.textContent=rnd(WX); });
+  (function tick(){ const d=new Date(); const c=$('#clock'); if(c) c.textContent=d.toLocaleTimeString('hu-HU',{hour12:false}); requestAnimationFrame(tick); })();
 
-  /* ===== Időjárás + óra ===== */
-  document.getElementById('btnWx')?.addEventListener('click',()=>{ const wx=document.getElementById('wx'); if(wx) wx.textContent=WX[Math.floor(Math.random()*WX.length)]; });
-  (function tick(){ const d=new Date(); const c=document.getElementById('clock'); if(c) c.textContent=d.toLocaleTimeString('hu-HU',{hour12:false}); requestAnimationFrame(tick); })();
+  /* ===== Chat ===== */
+  const chatBox=$('#chatBox'), chatInput=$('#chatInput'), chatSend=$('#chatSend');
+  if(chatBox && chatInput && chatSend){
+    function pushMsg(text,who='user'){ const b=document.createElement('div'); b.className='msg '+(who==='user'?'user':'bot'); b.textContent=text; chatBox.appendChild(b); chatBox.scrollTop=chatBox.scrollHeight; }
+    const botFallback=["Értem… vagy mégsem? 🤔 Mesélj többet!","Kávé után minden jobb. Kérsz? ☕","Mondanék egy viccet, de félek, hogy a böngésződ lefagy a nevetéstől.","Ha ez egy rejtvény, akkor JÓL csinálod. 😄","Hmm… érdekes. Nézd meg a Kvízt!"];
+    const botVicc=["Miért vitt a számítógép esernyőt? – Vírusos idő lesz.","Mit mond a nulla a nyolcasnak? – Szép öved van!","A kávé a válasz. Mi is volt a kérdés? 🤔"];
+    function botReply(t0){
+      const t=t0.toLowerCase();
+      if(/szia|helló|hello|hali/.test(t)) return "Szia! A 3D részecskéim is köszönnek. 😎";
+      if(/hogy vagy\??/.test(t)) return "Remekül! Mint a FPS a gamer gépen. 🚀";
+      if(/vicc|po[eé]n/.test(t)) return rnd(botVicc);
+      if(/k[aá]v[eé]/.test(t)) return "Kávé? Mindig! ☕ Addig kvíz vagy amőba?";
+      if(/seg[ií]ts|help|hogyan/.test(t)) return "Segítek: alul a dokkban nyisd meg az ablakokat. Húzogatni is lehet őket!";
+      if(/j[aá]t[eé]k|game/.test(t)) return "Kvíz? Amőba? Vagy mindkettő! 🎮";
+      if(/\?$/.test(t)) return "Jó kérdés! Ha én tudnám, már shaderbe is beégettem volna. 🤖";
+      return rnd(botFallback);
+    }
+    function sendChat(){ const val=chatInput.value.trim(); if(!val) return; pushMsg(val,'user'); chatInput.value=''; setTimeout(()=>pushMsg(botReply(val),'bot'),350); }
+    chatSend.addEventListener('click', sendChat);
+    chatInput.addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat(); });
+  }
 
   /* ===== Kvíz ===== */
   const QUESTIONS=[
@@ -465,37 +392,28 @@ window.addEventListener('DOMContentLoaded', () => {
     {q:"CSS mire jó?",a:["Adatbázis","Stílus","Szerver","Teszt"],c:1},
   ];
   const lbKey='quizLeaderboardV1';
-  const lbEl=document.querySelector('#lbTable tbody');
+  const lbBody = $('#lbBody');
   function loadLB(){ try{return JSON.parse(localStorage.getItem(lbKey)||'[]')}catch{return []} }
   function saveLB(arr){ localStorage.setItem(lbKey, JSON.stringify(arr.slice(0,20))); }
   function formatTime(ms){ return (ms/1000).toFixed(1)+'s'; }
   function renderLB(){
-    if(!lbEl) return;
+    if(!lbBody) return;
     const lb = loadLB().sort((a,b)=> (b.score - a.score) || (a.time - b.time));
-    lbEl.innerHTML = lb.slice(0,10).map((r,i)=>`<tr><td>${i+1}</td><td>${r.name||'Névtelen'}</td><td>${r.score}/15</td><td>${formatTime(r.time)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Még nincs eredmény.</td></tr>';
+    lbBody.innerHTML = lb.slice(0,10).map((r,i)=>`<tr><td style="padding:6px;border-bottom:1px solid #e5e7eb">${i+1}</td><td style="padding:6px;border-bottom:1px solid #e5e7eb">${r.name||'Névtelen'}</td><td style="padding:6px;border-bottom:1px solid #e5e7eb">${r.score}/15</td><td style="padding:6px;border-bottom:1px solid #e5e7eb">${formatTime(r.time)}</td></tr>`).join('') || '<tr><td colspan="4" style="padding:6px;color:#555">Még nincs eredmény.</td></tr>';
   }
   renderLB();
 
-  const quizStart=document.getElementById('quizStart');
-  const quizHud=document.getElementById('quizHud');
-  const quizQWrap=document.getElementById('quizQWrap');
-  const quizDone=document.getElementById('quizDone');
-  const qIdxEl=document.getElementById('qIdx');
-  const qScoreEl=document.getElementById('qScore');
-  const qTimeEl=document.getElementById('qTime');
-  const qBar=document.getElementById('qBar');
-  const qText=document.getElementById('qText');
-  const qAns=document.getElementById('qAns');
-  const quizSummary=document.getElementById('quizSummary');
+  const quizStart=$('#quizStart'), quizHud=$('#quizHud'), quizQWrap=$('#quizQWrap'), quizDone=$('#quizDone');
+  const qIdxEl=$('#qIdx'), qScoreEl=$('#qScore'), qTimeEl=$('#qTime'), qBar=$('#qBar'), qText=$('#qText'), qAns=$('#qAns'), quizSummary=$('#quizSummary');
 
-  if (document.getElementById('quizGo')) {
+  if($('#quizGo')){
     let qi=0,qScore=0,qStart=0,qTimer=null,qEndAt=0,player='';
-    document.getElementById('quizGo').addEventListener('click', startQuiz);
-    document.getElementById('quizAgain')?.addEventListener('click', ()=>{ if(quizStart&&quizDone){ quizStart.style.display='block'; quizDone.style.display='none'; }});
-    document.getElementById('quizReset')?.addEventListener('click', ()=>{ if(confirm('Biztos törlöd a toplistát?')){ localStorage.removeItem(lbKey); renderLB(); }});
+    $('#quizGo').addEventListener('click', startQuiz);
+    $('#quizAgain')?.addEventListener('click', ()=>{ if(quizStart&&quizDone){ quizStart.style.display='block'; quizDone.style.display='none'; }});
+    $('#quizReset')?.addEventListener('click', ()=>{ if(confirm('Biztos törlöd a toplistát?')){ localStorage.removeItem(lbKey); renderLB(); }});
 
     function startQuiz(){
-      player = (document.getElementById('playerName')?.value || document.getElementById('name')?.value || 'Vendég').trim();
+      player = ($('#playerName')?.value || $('#name')?.value || 'Vendég').trim();
       qi=0; qScore=0;
       if(quizStart) quizStart.style.display='none';
       if(quizDone) quizDone.style.display='none';
@@ -530,71 +448,32 @@ window.addEventListener('DOMContentLoaded', () => {
       if(quizQWrap) quizQWrap.style.display='none';
       if(quizDone) quizDone.style.display='block';
       if(quizSummary) quizSummary.innerHTML=`<p><b>${player}</b>, eredményed: <b>${qScore}/15</b>, idő: <b>${(totalMs/1000).toFixed(1)}s</b>.</p>`;
-      const lb=loadLB(); lb.push({name:player,score:qScore,time:totalMs,date:Date.now()});
-      saveLB(lb.sort((a,b)=> (b.score-a.score) || (a.time-b.time))); renderLB();
-      window.burstConfetti?.(innerWidth/2,160,180);
+      const lb=loadLB(); lb.push({name:player,score:qScore,time:totalMs,date:Date.now()}); saveLB(lb.sort((a,b)=> (b.score-a.score) || (a.time-b.time))); renderLB();
     }
   }
 
   /* ===== Amőba ===== */
-  const tttGrid=document.getElementById('tttGrid');
-  const tttInfo=document.getElementById('tttInfo');
-  const tttCpu=document.getElementById('tttCpu');
-  if (tttGrid && tttInfo) {
+  const tttGrid=$('#tttGrid'), tttInfo=$('#tttInfo'), tttCpu=$('#tttCpu');
+  if(tttGrid && tttInfo){
     let board, playerTurn, gameOver;
-    function initTTT(){ board=Array(9).fill(null); playerTurn='X'; gameOver=false; tttGrid.innerHTML=''; for(let i=0;i<9;i++){ const c=document.createElement('div'); c.className='ttt-cell'; c.dataset.idx=i; c.addEventListener('click',()=>tttPlay(i)); tttGrid.appendChild(c);} tttInfo.textContent="Te kezdesz: X"; }
+    function initTTT(){ board=Array(9).fill(null); playerTurn='X'; gameOver=false; tttGrid.innerHTML=''; for(let i=0;i<9;i++){ const c=document.createElement('div'); c.className='ttt-cell'; c.addEventListener('click',()=>tttPlay(i)); tttGrid.appendChild(c);} tttInfo.textContent="Te kezdesz: X"; }
     function winLines(){return [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];}
-    function winner(){ for(const [a,b1,c] of winLines()){ if(board[a]&&board[a]===board[b1]&&board[a]===board[c]) return {p:board[a],line:[a,b1,c]}; } if(board.every(Boolean)) return {p:'D',line:[]}; return null; }
-    const rndPick = a => a[Math.floor(Math.random()*a.length)];
-    function bestMove(mark){ const opp=mark==='X'?'O':'X';
+    function winner(){ for(const [a,b,c] of winLines()){ if(board[a]&&board[a]===board[b]&&board[a]===board[c]) return {p:board[a],line:[a,b,c]}; } if(board.every(Boolean)) return {p:'D',line:[]}; return null; }
+    const pick = a => a[Math.floor(Math.random()*a.length)];
+    function bestMove(mark){
+      const opp=mark==='X'?'O':'X';
       for(let i=0;i<9;i++){ if(!board[i]){ board[i]=mark; if(winner()?.p===mark){ board[i]=null; return i;} board[i]=null; } }
       for(let i=0;i<9;i++){ if(!board[i]){ board[i]=opp;  if(winner()?.p===opp ){ board[i]=null; return i;} board[i]=null; } }
-      if(!board[4]) return 4; const corners=[0,2,6,8].filter(i=>!board[i]); if(corners.length) return rndPick(corners); const sides=[1,3,5,7].filter(i=>!board[i]); if(sides.length) return rndPick(sides); return board.findIndex(v=>!v);
+      if(!board[4]) return 4; const corners=[0,2,6,8].filter(i=>!board[i]); if(corners.length) return pick(corners); const sides=[1,3,5,7].filter(i=>!board[i]); if(sides.length) return pick(sides); return board.findIndex(v=>!v);
     }
-    function tttPlay(i){ if(gameOver||board[i])return; board[i]=playerTurn; renderTTT(); const w=winner(); if(w){endTTT(w);return;}
-      if(tttCpu?.checked){ playerTurn='O'; setTimeout(()=>{ const mv=bestMove('O'); if(mv>=0&&!gameOver){ board[mv]='O'; renderTTT(); const w2=winner(); if(w2){endTTT(w2);return;} playerTurn='X'; tttInfo.textContent="Te jössz: X"; }},250);
+    function tttPlay(i){
+      if(gameOver||board[i])return; board[i]=playerTurn; renderTTT(); const w=winner(); if(w){end(w);return;}
+      if(tttCpu?.checked){ playerTurn='O'; setTimeout(()=>{ const mv=bestMove('O'); if(mv>=0&&!gameOver){ board[mv]='O'; renderTTT(); const w2=winner(); if(w2){end(w2);return;} playerTurn='X'; tttInfo.textContent="Te jössz: X"; }},250);
       } else { playerTurn=(playerTurn==='X'?'O':'X'); tttInfo.textContent=`Következő: ${playerTurn}`; }
     }
     function renderTTT(){ [...tttGrid.children].forEach((cell,i)=>{ cell.textContent=board[i]||''; cell.classList.remove('win'); }); }
-    function endTTT(res){ gameOver=true; if(res.p==='D'){ tttInfo.textContent="Döntetlen!"; return; } res.line.forEach(idx=>tttGrid.children[idx].classList.add('win')); if(res.p==='X'){ tttInfo.textContent="Gratulálok, ügyes vagy! 🎉 Te nyertél!"; window.burstConfetti?.(innerWidth/2, innerHeight/3, 160);} else { tttInfo.textContent="A gép nyert. Újra?"; } }
-    document.getElementById('tttReset')?.addEventListener('click', initTTT);
-    initTTT();
-  }
-
-  /* ===== Chat ===== */
-  const chatBox=document.getElementById('chatBox');
-  const chatInput=document.getElementById('chatInput');
-  const chatSend=document.getElementById('chatSend');
-  if (chatBox && chatInput && chatSend) {
-    function pushMsg(text,who='user'){ const b=document.createElement('div'); b.className='msg '+(who==='user'?'user':'bot'); b.textContent=text; chatBox.appendChild(b); chatBox.scrollTop=chatBox.scrollHeight; }
-    const botFallback=["Értem… vagy mégsem? 🤔 Mesélj többet!","Kávé után minden jobb. Kérsz? ☕","Mondanék egy viccet, de félek, hogy a böngésződ lefagy a nevetéstől.","Ha ez egy rejtvény, akkor JÓL csinálod. 😄","Hmm… érdekes. Kattints a Játékok menüpontra közben!"];
-    const botVicc=["Miért vitt a számítógép esernyőt? – Vírusos idő lesz.","Mit mond a nulla a nyolcasnak? – Szép öved van!","A kávé a válasz. Mi is volt a kérdés? 🤔"];
-    function botReply(t0){
-      const t=t0.toLowerCase();
-      if(/szia|helló|hello|hali/.test(t)) return "Szia! Hogy vagy? Én 0–1 között érzem magam. 😎";
-      if(/hogy vagy\??/.test(t)) return "Remekül! A hullámaim is ezt mutatják. 🌊";
-      if(/vicc|po[eé]n/.test(t)) return rnd(botVicc);
-      if(/k[aá]v[eé]/.test(t)) return "Kávé? Mindig! ☕ Addig is: nyomd meg a „Még egy poén” gombot!";
-      if(/seg[ií]ts|help|hogyan/.test(t)) return "Segítek: fent a menüben a Játékoknál van Kő–Papír–Olló és Számkitaláló, a Kvízben pedig 15 kérdés vár!";
-      if(/j[aá]t[eé]k|game/.test(t)) return "Játszunk! Menj a Játékok vagy az Amőba menübe! 🎮";
-      if(/unalom|unatkoz/.test(t)) return "Unalom ellen: 2x poéngenerátor, 1x kvíz, 1x amőba. Jelentkezz vissza, ha hatott! 😁";
-      if(t.length>80) return "Ez hosszú volt! Egy TL;DR-t is kérhetek? 😅";
-      if(/\?$/.test(t)) return "Jó kérdés! Ha én tudnám, már memében is elmondtam volna. 🤖";
-      return rnd(botFallback);
-    }
-    function sendChat(){ const val=chatInput.value.trim(); if(!val) return; pushMsg(val,'user'); chatInput.value=''; setTimeout(()=>pushMsg(botReply(val),'bot'),400); }
-    chatSend.addEventListener('click', sendChat);
-    chatInput.addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat(); });
-
-    /* Nudge */
-    const nudge=document.getElementById('chatNudge');
-    const nudgeText=document.getElementById('chatNudgeText');
-    const nudges=["Akarsz velem beszélgetni? 🙂","Mesélek egy viccet, ha rám kattintasz!","Kérdezz valamit, nem harapok!","Unatkozol? Gyere csetelni! 💬","Tudok jobb poént, mint a szomszédé. 😉"];
-    let nudgeTimer=null;
-    function scheduleNudge(){ clearTimeout(nudgeTimer); nudgeTimer=setTimeout(()=>{ if(nudgeText&&nudge){ nudgeText.textContent=rnd(nudges); nudge.classList.add('show'); } }, 16000+Math.random()*8000); }
-    nudge?.addEventListener('click', ()=>{ nudge.classList.remove('show'); document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.remove('active')); document.querySelector('[data-view="chat"]')?.classList.add('active'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById('chat')?.classList.add('active'); scheduleNudge(); });
-    document.addEventListener('click', e=>{ if(nudge && !nudge.contains(e.target)) nudge.classList.remove('show'); });
-    scheduleNudge(); setInterval(scheduleNudge, 90000);
+    function end(res){ gameOver=true; if(res.p==='D'){ tttInfo.textContent="Döntetlen!"; return; } res.line.forEach(idx=>tttGrid.children[idx].classList.add('win')); if(res.p==='X'){ tttInfo.textContent="Gratulálok, ügyes vagy! 🎉 Te nyertél!"; } else tttInfo.textContent="A gép nyert. Újra?"; }
+    $('#tttReset')?.addEventListener('click', initTTT); initTTT();
   }
 });
 </script>
