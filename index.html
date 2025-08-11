@@ -196,7 +196,7 @@
 <audio id="talent" src="tehetseges.mp3.m4a" preload="auto"></audio>
 <div class="stamp">Viccközpont <b>v5</b></div>
 <script>
-  // ==== Adatok ====
+// ==== Adatok ====
 const jokes = [
   "Miért nem megy a lift? Mert fel van dobva!",
   "Miért nem szereti a számítógép a hideget? Mert lefagy.",
@@ -214,12 +214,13 @@ const weatherJokes = [
   "Ködös reggel, tiszta hülyeséggel."
 ];
 
+// Online képlinkek (nyugodtan cserélheted a sajátjaidra)
 const memes = [
-  "https://i.imgur.com/YO2zR3x.jpeg",
-  "https://i.imgur.com/ZKQGpmH.jpeg",
-  "https://i.imgur.com/2rFjJkz.jpeg",
-  "https://i.imgur.com/pR0JH5o.jpeg",
-  "https://i.imgur.com/oHrlh7x.jpeg"
+  "https://i.imgur.com/9b0JkXK.jpg",
+  "https://i.imgur.com/jtH2q1S.jpg",
+  "https://i.imgur.com/0v5jHfS.jpg",
+  "https://i.imgur.com/8PZ9u0V.jpg",
+  "https://i.imgur.com/fy5A2M3.jpg"
 ];
 
 // ==== Segédfüggvények ====
@@ -232,28 +233,27 @@ document.getElementById("btnJoke").addEventListener("click", () => {
   document.getElementById("jokeBox").textContent = randomItem(jokes);
 });
 document.getElementById("btnThree").addEventListener("click", () => {
-  document.getElementById("jokeBox").innerHTML =
-    jokes.sort(() => 0.5 - Math.random()).slice(0, 3).join("<br>");
+  const pick = jokes.slice().sort(() => 0.5 - Math.random()).slice(0, 3);
+  document.getElementById("jokeBox").innerHTML = "<ul style='margin:6px 0 0 16px'>" +
+    pick.map(j => `<li>${j}</li>`).join("") + "</ul>";
 });
 
 // ==== Hanggombok ====
-document.querySelectorAll("#card-sounds button").forEach(btn => {
+document.querySelectorAll("#card-sounds [data-sound]").forEach(btn => {
   btn.addEventListener("click", () => {
     const id = btn.getAttribute("data-sound");
     const audio = document.getElementById(id);
+    try { document.getElementById("prank").pause(); } catch {}
+    try { document.getElementById("talent").pause(); } catch {}
     audio.currentTime = 0;
-    audio.play();
+    audio.play().catch(()=>alert("Kattints az oldalra, hogy a böngésző engedje a hangot!"));
   });
 });
 document.getElementById("miniPlay").addEventListener("click", () => {
-  const audio = document.getElementById("prank");
-  audio.currentTime = 0;
-  audio.play();
+  const a = document.getElementById("prank"); a.currentTime=0; a.play().catch(()=>{});
 });
 document.getElementById("miniTalent").addEventListener("click", () => {
-  const audio = document.getElementById("talent");
-  audio.currentTime = 0;
-  audio.play();
+  const a = document.getElementById("talent"); a.currentTime=0; a.play().catch(()=>{});
 });
 document.getElementById("miniLogout").addEventListener("click", () => {
   location.reload();
@@ -264,11 +264,9 @@ document.querySelectorAll("#quizA button").forEach(btn => {
   btn.addEventListener("click", () => {
     const answer = btn.getAttribute("data-a");
     const res = document.getElementById("quizR");
-    if (answer === "alvas") {
-      res.textContent = "Helyes! 😄";
-    } else {
-      res.textContent = "Ez most nem jött be. 😅";
-    }
+    if (answer === "alvas") res.textContent = "Helyes! 😄";
+    else if (answer === "tea") res.textContent = "Majdnem! 🍵";
+    else res.textContent = "Ez most nem jött be. 😅";
   });
 });
 
@@ -276,43 +274,40 @@ document.querySelectorAll("#quizA button").forEach(btn => {
 document.getElementById("btnWx").addEventListener("click", () => {
   document.getElementById("wx").textContent = randomItem(weatherJokes);
 });
+document.getElementById("wx").textContent = "Nyomd meg a gombot egy poénos jelentésért!";
 
 // ==== Mém generátor ====
+// Alapértelmezett mém betöltése, hogy már induláskor legyen kép
+document.getElementById("memeImg").src = randomItem(memes);
 document.getElementById("btnMeme").addEventListener("click", () => {
   document.getElementById("memeImg").src = randomItem(memes);
 });
 
 // ==== Mini játékok ====
 document.getElementById("btnRPS").addEventListener("click", () => {
-  const choices = ["Kő", "Papír", "Olló"];
+  const choices = ["Kő","Papír","Olló"];
   const user = prompt("Válassz: Kő, Papír vagy Olló?");
   if (!user) return;
   const comp = randomItem(choices);
-  let result;
+  let result = "Vesztettél!";
   if (user === comp) result = "Döntetlen!";
   else if (
     (user === "Kő" && comp === "Olló") ||
     (user === "Papír" && comp === "Kő") ||
     (user === "Olló" && comp === "Papír")
   ) result = "Nyertél!";
-  else result = "Vesztettél!";
-  document.getElementById("gameOutput").textContent =
-    `Te: ${user} | Gép: ${comp} → ${result}`;
+  document.getElementById("gameOutput").textContent = `Te: ${user} | Gép: ${comp} → ${result}`;
 });
 
 document.getElementById("btnGuess").addEventListener("click", () => {
   const num = Math.floor(Math.random() * 10) + 1;
   const guess = prompt("Gondoltam egy számra 1 és 10 között. Tipp?");
-  if (parseInt(guess) === num) {
-    document.getElementById("gameOutput").textContent =
-      `Eltaláltad! (${num}) 🎉`;
-  } else {
-    document.getElementById("gameOutput").textContent =
-      `Nem talált! A szám: ${num}`;
-  }
+  const out = document.getElementById("gameOutput");
+  if (parseInt(guess,10) === num) out.textContent = `Eltaláltad! (${num}) 🎉`;
+  else out.textContent = `Nem talált! A szám: ${num}`;
 });
 
-// ==== Belépés folyamat ====
+// ==== Belépés + kávéfőzés ====
 document.getElementById("form").addEventListener("submit", e => {
   e.preventDefault();
   const name = document.getElementById("name").value.trim();
@@ -320,31 +315,28 @@ document.getElementById("form").addEventListener("submit", e => {
   const pwd = document.getElementById("pwd").value.trim();
   const err = document.getElementById("err");
 
-  if (!name || !email || !pwd) {
-    err.textContent = "Minden mezőt tölts ki!";
-    return;
-  }
-  if (!email.includes("@")) {
-    err.textContent = "Helytelen email formátum!";
-    return;
-  }
+  if (!name || !email || !pwd) { err.textContent = "Minden mezőt tölts ki!"; return; }
+  if (!email.includes("@")) { err.textContent = "Helytelen email formátum!"; return; }
   err.textContent = "";
 
-  document.getElementById("loading").style.display = "grid";
-  const texts = ["Kávészemek őrlése…", "Víz melegítése…", "Cukor adagolása…", "Humor ellenőrzése…"];
-  let idx = 0;
-  const interval = setInterval(() => {
-    document.getElementById("loadingText").textContent = texts[idx++ % texts.length];
-  }, 1000);
+  const loading = document.getElementById("loading");
+  const loadingText = document.getElementById("loadingText");
+  loading.style.display = "grid";
+  const texts = ["Kávészemek őrlése…","Víz melegítése…","Cukor adagolása…","Humor ellenőrzése…"];
+  let i = 0;
+  const iv = setInterval(()=>{ loadingText.textContent = texts[i++ % texts.length]; }, 900);
 
-  setTimeout(() => {
-    clearInterval(interval);
-    document.getElementById("loading").style.display = "none";
-    document.getElementById("uname").textContent = name;
+  setTimeout(()=> {
+    clearInterval(iv);
+    loading.style.display = "none";
+    document.getElementById("uname").textContent = name || "Vendég";
     document.getElementById("form").style.display = "none";
     document.getElementById("ok").style.display = "block";
     document.getElementById("loginCard").classList.add("mini");
     document.getElementById("dash").style.display = "grid";
+    // első poén és egy kis hang
+    document.getElementById("jokeBox").textContent = randomItem(jokes);
+    try { const a = document.getElementById("prank"); a.currentTime=0; a.play(); } catch {}
   }, 4000);
 });
 </script>
