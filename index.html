@@ -1,91 +1,131 @@
 <!doctype html>
 <html lang="hu">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Viccközpont v10 – Chat + Amőba + Kvíz (stabil)</title>
-  <style>
-    :root{
-      --bg:#0a0f1f; --glass:rgba(255,255,255,.06); --line:rgba(255,255,255,.16);
-      --text:#e6ecff; --muted:#a7b1d6;
-      --brand1:#7c3aed; --brand2:#22d3ee;
-      --ok:#22c55e; --info:#60a5fa; --warn:#f59e0b; --danger:#ef4444;
-      --goodGrad:linear-gradient(90deg,#22c55e,#16a34a);
-      --infoGrad:linear-gradient(90deg,#60a5fa,#3b82f6);
-      --warnGrad:linear-gradient(90deg,#f59e0b,#fbbf24);
-      --badGrad: linear-gradient(90deg,#ef4444,#dc2626);
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0}
-    body{color:var(--text); background:var(--bg); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viccközpont v10 – stabil + kvíz-háttér</title>
+<style>
+  :root{
+    --bg:#0a0f1f; --glass:rgba(255,255,255,.06); --line:rgba(255,255,255,.16);
+    --text:#e6ecff; --muted:#a7b1d6;
+    --ok:#22c55e; --info:#60a5fa; --warn:#f59e0b; --danger:#ef4444;
+    --goodGrad:linear-gradient(90deg,#22c55e,#16a34a);
+    --infoGrad:linear-gradient(90deg,#60a5fa,#3b82f6);
+    --warnGrad:linear-gradient(90deg,#f59e0b,#fbbf24);
+    --badGrad:linear-gradient(90deg,#ef4444,#dc2626);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{color:var(--text); background:var(--bg); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden}
 
-    /* Vicces, folyamatosan változó háttér */
-    #bgCanvas{position:fixed; inset:0; z-index:0;}
-    #fxCanvas{position:fixed; inset:0; z-index:2; pointer-events:none}
+  /* Háttér vásznak (WAVE) */
+  #bgCanvas{position:fixed; inset:0; z-index:0;
+    background:
+      radial-gradient(1200px 800px at 120% -20%,#22d3ee15 0 40%,transparent 60%),
+      radial-gradient(1000px 700px at -20% 120%,#7c3aed15 0 40%,transparent 60%),
+      #0a0f1f;
+  }
+  #fxCanvas{position:fixed; inset:0; z-index:2; pointer-events:none}
 
-    /* Appbar */
-    header.appbar{position:sticky; top:0; z-index:3; display:flex; align-items:center; gap:12px; padding:12px 16px;
-      background:linear-gradient(180deg, rgba(15,22,44,.85), rgba(15,22,44,.55)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line)}
-    .logo{display:flex; align-items:center; gap:10px; font-weight:900; letter-spacing:.4px}
-    .logo .dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(90deg,var(--brand1),var(--brand2));box-shadow:0 0 18px #22d3ee90}
-    nav.tabs{margin-left:auto; display:flex; gap:6px; flex-wrap:wrap}
-    .tab{padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:var(--glass); color:var(--text); cursor:pointer; font-weight:700}
-    .tab.active{background:linear-gradient(90deg,#7c3aed,#22d3ee); color:#061225; border-color:transparent}
+  /* Appbar */
+  header.appbar{position:sticky; top:0; z-index:3; display:flex; align-items:center; gap:12px; padding:12px 16px;
+    background:linear-gradient(180deg, rgba(15,22,44,.85), rgba(15,22,44,.55)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line)}
+  .logo{display:flex; align-items:center; gap:10px; font-weight:900}
+  .logo .dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(90deg,#7c3aed,#22d3ee);box-shadow:0 0 18px #22d3ee90}
+  nav.tabs{margin-left:auto; display:flex; gap:6px; flex-wrap:wrap}
+  .tab{padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:var(--glass); color:var(--text); cursor:pointer; font-weight:700}
+  .tab.active{background:linear-gradient(90deg,#7c3aed,#22d3ee); color:#061225; border-color:transparent}
 
-    main{max-width:1200px; margin:20px auto; padding:0 16px; position:relative; z-index:1;}
+  main{max-width:1200px; margin:20px auto; padding:0 16px; position:relative; z-index:1;}
 
-    /* Auth */
-    .auth{max-width:480px; margin:50px auto; padding:24px; border-radius:16px;
-      background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
-      border:1px solid var(--line); backdrop-filter:blur(10px); box-shadow:0 30px 80px rgba(0,0,0,.35)}
-    .auth h1{margin:0 0 6px}
-    .muted{color:var(--muted)}
-    label{display:block; font-weight:800; margin:14px 0 6px}
-    input{
-      width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line);
-      background:rgba(255,255,255,.06); color:var(--text); outline:none; font-size:15px}
-    .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border:0; border-radius:12px;
-      font-weight:900; cursor:pointer; background:var(--goodGrad); color:#062215; box-shadow:0 10px 30px rgba(34,197,94,.25); margin-top:16px; width:100%}
-    .err{color:#fecaca; font-weight:800; min-height:18px; margin-top:10px}
+  /* Auth */
+  .auth{max-width:480px; margin:50px auto; padding:24px; border-radius:16px;
+    background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+    border:1px solid var(--line); backdrop-filter:blur(10px); box-shadow:0 30px 80px rgba(0,0,0,.35)}
+  .auth h1{margin:0 0 6px}
+  .muted{color:var(--muted)}
+  label{display:block; font-weight:800; margin:14px 0 6px}
+  input{
+    width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line);
+    background:rgba(255,255,255,.06); color:var(--text); outline:none; font-size:15px}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border:0; border-radius:12px;
+    font-weight:900; cursor:pointer; background:var(--goodGrad); color:#062215; box-shadow:0 10px 30px rgba(34,197,94,.25); margin-top:16px; width:100%}
+  .err{color:#fecaca; font-weight:800; min-height:18px; margin-top:10px}
 
-    /* Views */
-    section.view{display:none; animation:fade .35s ease both}
-    section.view.active{display:block}
-    @keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+  /* Views */
+  section.view{display:none; animation:fade .35s ease both}
+  section.view.active{display:block}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
 
-    /* Grid + Cards */
-    .grid{display:grid; grid-template-columns:repeat(12,1fr); gap:16px}
-    @media (max-width:980px){ .grid{grid-template-columns:repeat(8,1fr)} }
-    @media (max-width:640px){ .grid{grid-template-columns:repeat(4,1fr)} }
-    .card{background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
-      border:1px solid var(--line); border-radius:16px; padding:16px; backdrop-filter:blur(10px); box-shadow:0 16px 50px rgba(0,0,0,.3)}
-    .title{font-weight:900; margin:0 0 8px}
-    .box{border:1px solid var(--line); border-radius:12px; background:rgba(10,12,22,.6); padding:12px; min-height:36px}
-    .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
-    .chip{padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:var(--glass); cursor:pointer; font-weight:800}
-    .chip.ok{background:var(--goodGrad); color:#062215; border-color:transparent}
-    .chip.info{background:var(--infoGrad); color:#071321; border-color:transparent}
-    .chip.warn{background:var(--warnGrad); color:#2b1a03; border-color:transparent}
-    .chip.danger{background:var(--badGrad); color:#2b0a0a; border-color:transparent}
-    .span-8{grid-column:span 8} .span-6{grid-column:span 6} .span-4{grid-column:span 4}
-    @media (max-width:980px){ .span-8,.span-6,.span-4{grid-column:span 8} }
-    @media (max-width:640px){ .span-8,.span-6,.span-4{grid-column:span 4} }
+  /* Grid + Cards */
+  .grid{display:grid; grid-template-columns:repeat(12,1fr); gap:16px}
+  @media (max-width:980px){ .grid{grid-template-columns:repeat(8,1fr)} }
+  @media (max-width:640px){ .grid{grid-template-columns:repeat(4,1fr)} }
+  .card{background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
+    border:1px solid var(--line); border-radius:16px; padding:16px; backdrop-filter:blur(10px); box-shadow:0 16px 50px rgba(0,0,0,.3)}
+  .title{font-weight:900; margin:0 0 8px}
+  .box{border:1px solid var(--line); border-radius:12px; background:rgba(10,12,22,.6); padding:12px; min-height:36px}
+  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+  .chip{padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:var(--glass); cursor:pointer; font-weight:800}
+  .chip.ok{background:var(--goodGrad); color:#062215; border-color:transparent}
+  .chip.info{background:var(--infoGrad); color:#071321; border-color:transparent}
+  .chip.warn{background:var(--warnGrad); color:#2b1a03; border-color:transparent}
+  .chip.danger{background:var(--badGrad); color:#2b0a0a; border-color:transparent}
+  .span-8{grid-column:span 8} .span-6{grid-column:span 6} .span-4{grid-column:span 4}
+  @media (max-width:980px){ .span-8,.span-6,.span-4{grid-column:span 8} }
+  @media (max-width:640px){ .span-8,.span-6,.span-4{grid-column:span 4} }
 
-    /* Vicces, folyamatosan változó háttér */
-    #bgCanvas{position:fixed; inset:0; z-index:0; background:
-      radial-gradient(800px 600px at 120% -20%, #22d3ee20 0 40%, transparent 60%),
-      radial-gradient(700px 500px at -20% 120%, #7c3aed20 0 40%, transparent 60%),
-      repeating-conic-gradient(from 0deg, #ffcf33 0 10deg, #ff6b6b 10deg 20deg, #4cd8ff 20deg 30deg, #9bff8a 30deg 40deg);
-      filter: saturate(1.1);
-    }
+  /* Kvíz UI */
+  .quizHud{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px}
+  .badge{padding:6px 10px; background:#1f2b4d; border:1px solid var(--line); border-radius:999px}
+  .meter{flex:1; height:10px; background:#203056; border:1px solid var(--line); border-radius:999px; overflow:hidden}
+  .meter>span{display:block; height:100%; width:100%; background:var(--badGrad); transform-origin:left; transform:scaleX(1); transition:transform .2s linear}
+  .answers{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:10px}
+  .ans{padding:12px; border-radius:12px; border:1px solid var(--line); background:rgba(14,18,30,.75); cursor:pointer; font-weight:800}
+  .ans.correct{outline:2px solid #22c55eaa}
+  .ans.wrong{outline:2px solid #ef4444aa}
+  .table{width:100%; border-collapse:collapse; margin-top:10px}
+  .table th,.table td{border-bottom:1px solid var(--line); padding:8px; text-align:left}
+  .table th{opacity:.8; font-weight:800}
 
-    /* Kvíz doboz még olvashatóbb legyen ezen a háttéren */
-    body.quiz-theme #quizCard {
-      background: rgba(6,10,20,.72);
-      border: 1px solid rgba(255,255,255,.18);
-      box-shadow: 0 30px 80px rgba(0,0,0,.5);
-    }
-  </style>
+  /* Loading overlay */
+  #loading{position:fixed; inset:0; display:none; place-items:center; z-index:4;
+    background:rgba(8,12,30,.6); backdrop-filter:blur(6px)}
+  .loader{width:min(360px,92vw); padding:18px; border-radius:14px;
+    background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+    border:1px solid var(--line); text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.45)}
+
+  /* Amőba */
+  .ttt-grid{display:grid; grid-template-columns:repeat(3,100px); grid-template-rows:repeat(3,100px); gap:8px; justify-content:center}
+  .ttt-cell{display:grid; place-items:center; font-size:36px; font-weight:900; border-radius:12px; background:rgba(255,255,255,.07); border:1px solid var(--line); cursor:pointer; user-select:none}
+  .ttt-cell.win{background:linear-gradient(180deg, rgba(34,197,94,.25), rgba(34,197,94,.15))}
+  .ttt-panel{display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:10px}
+
+  /* Chat */
+  .chat-wrap{max-width:900px; margin:0 auto}
+  .chat-box{height:380px; border:1px solid var(--line); background:rgba(10,12,22,.55); border-radius:14px; padding:12px; overflow:auto; scroll-behavior:smooth}
+  .msg{max-width:70%; padding:10px 12px; border-radius:12px; margin:8px 0; line-height:1.3; word-wrap:break-word}
+  .user{margin-left:auto; background:linear-gradient(180deg, rgba(96,165,250,.25), rgba(96,165,250,.15)); border:1px solid #60a5fa55}
+  .bot{margin-right:auto; background:linear-gradient(180deg, rgba(124,58,237,.25), rgba(124,58,237,.15)); border:1px solid #7c3aed55}
+  .chat-input{display:flex; gap:8px; margin-top:10px}
+  .chat-input input{flex:1}
+  .chat-tip{font-size:12px; color:#c9d1ff99; margin-top:6px}
+
+  /* Külön kvíz-téma a HÁTTÉRHEZ (csak a kvíz nézetben aktiv) */
+  body.quiz-theme #bgCanvas{
+    background:
+      radial-gradient(900px 600px at 110% -10%, #22d3ee22 0 40%, transparent 60%),
+      radial-gradient(800px 500px at -10% 110%, #7c3aed22 0 40%, transparent 60%),
+      repeating-conic-gradient(from 0deg,
+        #ffd166 0 14deg, #ef476f 14deg 28deg, #06d6a0 28deg 42deg, #118ab2 42deg 56deg);
+    filter:saturate(1.2);
+  }
+  body.quiz-theme #quizCard{
+    background:rgba(6,10,20,.78);
+    border:1px solid rgba(255,255,255,.18);
+    box-shadow:0 30px 80px rgba(0,0,0,.55);
+  }
+</style>
 </head>
 <body>
 <canvas id="bgCanvas"></canvas>
@@ -169,6 +209,53 @@
     </div>
   </section>
 
+  <!-- Játékok -->
+  <section id="games" class="view">
+    <div class="grid">
+      <!-- Kő-Papír-Olló -->
+      <div class="card span-6">
+        <h3 class="title">Kő–Papír–Olló</h3>
+        <div class="row" style="margin-top:8px; flex-wrap:nowrap">
+          <button class="chip ok pick" data-pick="Kő">🪨 Kő</button>
+          <button class="chip info pick" data-pick="Papír">📄 Papír</button>
+          <button class="chip danger pick" data-pick="Olló">✂️ Olló</button>
+          <button id="rpsReset" class="chip warn">Reset</button>
+        </div>
+        <div class="row score" style="margin-top:8px">
+          <span class="badge">Te: <b id="youScore">0</b></span>
+          <span class="badge">Gép: <b id="cpuScore">0</b></span>
+        </div>
+        <div id="rpsOut" class="box" style="margin-top:10px">Válassz egyet!</div>
+      </div>
+
+      <!-- Számkitaláló -->
+      <div class="card span-6">
+        <h3 class="title">Számkitaláló</h3>
+        <div class="row" style="margin-top:8px">
+          <input id="guessIn" type="number" min="1" max="10" placeholder="1–10" style="width:120px">
+          <button id="guessBtn" class="chip ok">Tipp!</button>
+          <button id="guessNew" class="chip info">Új szám</button>
+        </div>
+        <div id="guessOut" class="box" style="margin-top:10px">Tippelj 1 és 10 között!</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Időjárás -->
+  <section id="weather" class="view">
+    <div class="grid">
+      <div class="card span-6">
+        <h3 class="title">Poénos időjárás</h3>
+        <div id="wx" class="box">Nyomd meg a gombot!</div>
+        <button id="btnWx" class="chip ok" style="margin-top:10px">Friss jelentés</button>
+      </div>
+      <div class="card span-6">
+        <h3 class="title">Mini-óra</h3>
+        <div id="clock" class="box">--:--:--</div>
+      </div>
+    </div>
+  </section>
+
   <!-- Kvíz Bajnokság -->
   <section id="quizpro" class="view">
     <div class="grid">
@@ -221,29 +308,214 @@
     </div>
   </section>
 
+  <!-- Amőba -->
+  <section id="tictactoe" class="view">
+    <div class="card">
+      <h3 class="title">Amőba (Tic-Tac-Toe)</h3>
+      <div class="ttt-grid" id="tttGrid"></div>
+      <div id="tttInfo" class="box" style="margin-top:10px;text-align:center">Te kezdesz: X</div>
+      <div class="ttt-panel">
+        <button id="tttReset" class="chip info">Újrakezd</button>
+        <label class="row" style="gap:6px">
+          <input type="checkbox" id="tttCpu" checked>
+          <span class="muted">Játék a gép ellen</span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <!-- Chat -->
+  <section id="chat" class="view">
+    <div class="card chat-wrap">
+      <h3 class="title">Chat – beszélgetek veled, sőt „fel is ajánlom magam” 😏</h3>
+      <div id="chatBox" class="chat-box"></div>
+      <div class="chat-input">
+        <input id="chatInput" type="text" placeholder="Írj valamit… (pl. szia, vicc, hogy vagy, segíts)">
+        <button id="chatSend" class="chip ok">Küldés</button>
+      </div>
+      <div class="chat-tip">Tipp: írj „vicc”, „poén”, „kávé”, „unalom”, „segíts”, „játék”, stb.</div>
+    </div>
+  </section>
 </main>
+
+<!-- Chat meghívó buborék -->
+<div id="chatNudge" class="chat-nudge" style="display:none"></div>
 
 <!-- Hangok -->
 <audio id="prank"  src="prank_short.mp3"    preload="auto"></audio>
 <audio id="talent" src="tehetseges.mp3.m4a" preload="auto"></audio>
 
 <script>
-  /* ===== Vicces háttér ===== */
-  let colorIndex = 0;
-  const colors = [
-    'linear-gradient(45deg, #ff8a00, #e52e71)',
-    'linear-gradient(45deg, #ffbf00, #ff7f50)',
-    'linear-gradient(45deg, #00d2ff, #3a7bd5)',
-    'linear-gradient(45deg, #48c6ef, #6f86d6)',
-    'linear-gradient(45deg, #6a11cb, #2575fc)'
-  ];
+/* ===== Hullámos háttér + konfetti ===== */
+const bg = document.getElementById('bgCanvas'), g = bg.getContext('2d');
+const fx = document.getElementById('fxCanvas'), fg = fx.getContext('2d');
+function fit(){ bg.width=fx.width=innerWidth; bg.height=fx.height=innerHeight; } addEventListener('resize', fit); fit();
+let t=0; window.waveSpeed=0.006;
+(function loop(){ t+=window.waveSpeed; g.clearRect(0,0,bg.width,bg.height);
+  for(let i=-24;i<24;i++){
+    g.beginPath(); g.moveTo(0,bg.height/2);
+    for(let x=0;x<=bg.width;x+=8){
+      const y = bg.height/2 + Math.sin(i/8 + t + x/140)*40 + i*5;
+      g.lineTo(x,y);
+    }
+    g.strokeStyle = `hsla(${(i*10+t*180)%360},80%,65%,.45)`; g.lineWidth=2; g.stroke();
+  } requestAnimationFrame(loop);
+})();
+const confetti=[]; function burstConfetti(cx=innerWidth/2,cy=innerHeight/2,n=120){
+  for(let i=0;i<n;i++){ confetti.push({x:cx,y:cy,vx:(Math.random()*2-1)*4,vy:(Math.random()*-1-0.5)*6,g:0.12+Math.random()*0.1,life:60+Math.random()*40,c:`hsl(${Math.random()*360},90%,60%)`,s:2+Math.random()*3}); }
+}
+(function fxloop(){ fg.clearRect(0,0,fx.width,fx.height);
+  for(let i=confetti.length-1;i>=0;i--){ const p=confetti[i]; p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.life--; fg.fillStyle=p.c; fg.fillRect(p.x,p.y,p.s,p.s*2); if(p.life<=0||p.y>fx.height+20) confetti.splice(i,1);}
+  requestAnimationFrame(fxloop);
+})();
 
-  function changeBackground() {
-    document.body.style.background = colors[colorIndex];
-    colorIndex = (colorIndex + 1) % colors.length;
-    setTimeout(changeBackground, 5000);
-  }
-  changeBackground();
+/* ===== Segédek ===== */
+const $=s=>document.querySelector(s); const $$=s=>document.querySelectorAll(s); const rnd=a=>a[Math.floor(Math.random()*a.length)];
+
+/* ===== Adatok ===== */
+const JOKES=["Miért nem megy a lift? Mert fel van húzva!","Mit mond a nulla a nyolcasnak? – Szép öved van!","A kávé a válasz. Mi is volt a kérdés? 🤔","A madarak nem használják a Facebookot, van Twitterük.","Miért vitt a számítógép esernyőt? – Vírusos idő lesz.","Mit csinál a csiga a kocsmában? – Csúszik."];
+const WX=["Ma 100% esély van poénzáporra! ☔😂","Holnap napsütés és röhögéshullám várható. 🌞🤣","Viharos nevetés közeleg! 💨😆","Derült ég, de a szomszéd viccei beborítanak. 🌤","Nevetési front: mosoly észlelve. 🌦"];
+
+/* ===== Login ===== */
+const loading=$('#loading'), loadingText=$('#loadingText');
+$('#form').addEventListener('submit', e=>{
+  e.preventDefault();
+  const name=$('#name').value.trim(), email=$('#email').value.trim(), pwd=$('#pwd').value.trim(), err=$('#err'); err.textContent='';
+  if(!name||!email.includes('@')||pwd.length<4){ err.textContent='Ellenőrizd a mezőket!'; return; }
+  loading.style.display='grid';
+  const texts=["Kávészemek őrlése…","Víz melegítése…","Csésze előkészítése…","Humor ellenőrzése…"]; let i=0; const iv=setInterval(()=>{loadingText.textContent=texts[i++%texts.length];},800);
+  setTimeout(()=>{ clearInterval(iv); loading.style.display='none'; $('#loginView').style.display='none'; $('#appbar').style.display='flex'; $('#jokeBox').textContent=rnd(JOKES); const o=window.waveSpeed; window.waveSpeed=0.02; burstConfetti(innerWidth/2,120); setTimeout(()=>window.waveSpeed=o,1800); },1400);
+});
+
+/* ===== Tabs + kvíz-téma ===== */
+$$('#tabs .tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    $$('#tabs .tab').forEach(t=>t.classList.remove('active')); tab.classList.add('active');
+    const view=tab.getAttribute('data-view');
+    $$('.view').forEach(v=>v.classList.remove('active')); $('#'+view).classList.add('active');
+    if(view==='quizpro') document.body.classList.add('quiz-theme'); else document.body.classList.remove('quiz-theme');
+  });
+});
+
+/* ===== Poén generátor ===== */
+$('#btnJoke').addEventListener('click',()=>$('#jokeBox').textContent=rnd(JOKES));
+$('#btnThree').addEventListener('click',()=>{ const list=[rnd(JOKES),rnd(JOKES),rnd(JOKES)]; $('#jokeBox').innerHTML="<ul style='margin:6px 0 0 16px'>"+list.map(j=>`<li>${j}</li>`).join("")+"</ul>"; });
+
+/* ===== Hangok ===== */
+const A_PRANK=$('#prank'), A_TALENT=$('#talent');
+function stopAll(){try{A_PRANK.pause();A_TALENT.pause();}catch{}}
+function playById(id){ stopAll(); const a=id==='talent'?A_TALENT:A_PRANK; a.currentTime=0; a.play().catch(()=>alert('Kattints az oldalra, hogy a böngésző engedje a hangot!')); }
+$$('[data-sound]').forEach(b=>b.addEventListener('click',e=>{ const r=e.target.getBoundingClientRect(); burstConfetti(r.left+r.width/2, r.top+scrollY); playById(b.getAttribute('data-sound')); }));
+
+/* ===== Játékok ===== */
+let you=0,cpu=0; const youEl=$('#youScore'), cpuEl=$('#cpuScore'), rpsOut=$('#rpsOut');
+$('#rpsReset').addEventListener('click',()=>{you=0;cpu=0;youEl.textContent=0;cpuEl.textContent=0;rpsOut.textContent='Válassz egyet!';});
+$('#games').querySelectorAll('.pick').forEach(p=>p.addEventListener('click',e=>{
+  const user=p.getAttribute('data-pick'), comp=rnd(['Kő','Papír','Olló']); let res='Vesztettél!';
+  if(user===comp) res='Döntetlen!'; else if((user==='Kő'&&comp==='Olló')||(user==='Papír'&&comp==='Kő')||(user==='Olló'&&comp==='Papír')){res='Nyertél!'; you++; const r=e.target.getBoundingClientRect(); burstConfetti(r.left+r.width/2, r.top+scrollY);} else cpu++;
+  youEl.textContent=you; cpuEl.textContent=cpu; rpsOut.textContent=`Te: ${user} | Gép: ${comp} → ${res}`;
+}));
+let secret=1+Math.floor(Math.random()*10);
+$('#guessBtn').addEventListener('click',()=>{ const v=parseInt($('#guessIn').value,10); if(isNaN(v)){$('#guessOut').textContent='Adj meg egy számot!';return;}
+  if(v===secret){ $('#guessOut').textContent=`Eltaláltad! (${secret}) 🎉`; burstConfetti(innerWidth/2, innerHeight/2);} else if(v<secret) $('#guessOut').textContent='Nagyobb! ⬆️'; else $('#guessOut').textContent='Kisebb! ⬇️';
+});
+$('#guessNew').addEventListener('click',()=>{ secret=1+Math.floor(Math.random()*10); $('#guessOut').textContent='Új szám kész!'; $('#guessIn').value=''; });
+
+/* ===== Időjárás + óra ===== */
+$('#btnWx').addEventListener('click',()=>$('#wx').textContent=rnd(WX));
+(function tick(){ const d=new Date(); $('#clock').textContent=d.toLocaleTimeString('hu-HU',{hour12:false}); requestAnimationFrame(tick); })();
+
+/* ===== Kvíz ===== */
+const QUESTIONS=[
+  {q:"Melyik állat alszik a legtöbbet?",a:["Koala","Oroszlán","Macska","Panda"],c:0},
+  {q:"Melyik bolygó a „vörös”?",a:["Mars","Vénusz","Jupiter","Szaturnusz"],c:0},
+  {q:"Mennyi 9×7?",a:["56","63","72","49"],c:1},
+  {q:"Mi a H2O?",a:["Oxigén","Hidrogén","Víz","Sósav"],c:2},
+  {q:"Melyik főváros? Bécs",a:["Svájc","Ausztria","Belgium","Csehország"],c:1},
+  {q:"Melyik növény fűszer?",a:["Bazsalikom","Nyírfa","Fenyő","Tölgy"],c:0},
+  {q:"HTML-ben linket melyik tag?",a:["<div>","<a>","<link>","<p>"],c:1},
+  {q:"Mennyi a π kb.?",a:["2.14","3.14","3.41","4.13"],c:1},
+  {q:"Melyik nem programnyelv?",a:["Python","Ruby","Photoshop","Go"],c:2},
+  {q:"Magyarország fővárosa?",a:["Debrecen","Győr","Budapest","Szeged"],c:2},
+  {q:"RGB-ben a B?",a:["Black","Blue","Brown","Bright"],c:1},
+  {q:"Hány nap egy hét?",a:["5","6","7","8"],c:2},
+  {q:"Melyik reptet?",a:["Strucc","Sas","Pingvin","Kivi"],c:1},
+  {q:"HTTP S betűje?",a:["Secure","Simple","Serial","Service"],c:0},
+  {q:"CSS mire jó?",a:["Adatbázis","Stílus","Szerver","Teszt"],c:1},
+];
+const lbKey='quizLeaderboardV1', lbEl=document.querySelector('#lbTable tbody');
+function loadLB(){try{return JSON.parse(localStorage.getItem(lbKey)||'[]')}catch{return []}}
+function saveLB(arr){localStorage.setItem(lbKey,JSON.stringify(arr.slice(0,20)));}
+function formatTime(ms){return (ms/1000).toFixed(1)+'s';}
+function renderLB(){ const lb=loadLB().sort((a,b)=>(b.score-a.score)||(a.time-b.time));
+  lbEl.innerHTML=lb.slice(0,10).map((r,i)=>`<tr><td>${i+1}</td><td>${r.name||'Névtelen'}</td><td>${r.score}/15</td><td>${formatTime(r.time)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Még nincs eredmény.</td></tr>';
+}
+renderLB();
+const quizStart=$('#quizStart'), quizHud=$('#quizHud'), quizQWrap=$('#quizQWrap'), quizDone=$('#quizDone');
+const qIdxEl=$('#qIdx'), qScoreEl=$('#qScore'), qTimeEl=$('#qTime'), qBar=$('#qBar'), qText=$('#qText'), qAns=$('#qAns'), quizSummary=$('#quizSummary');
+let qi=0,qScore=0,qStart=0,qTimer=null,qEndAt=0,player='';
+function startQuiz(){ player=($('#playerName').value||$('#name').value||'Vendég').trim(); qi=0;qScore=0; quizStart.style.display='none'; quizDone.style.display='none'; quizHud.style.display='flex'; quizQWrap.style.display='block'; qStart=performance.now(); nextQuestion(); }
+function nextQuestion(){
+  if(qi>=QUESTIONS.length){ return finishQuiz(); }
+  const Q=QUESTIONS[qi]; qIdxEl.textContent=(qi+1); qScoreEl.textContent=qScore; qText.textContent=Q.q; qAns.innerHTML='';
+  Q.a.forEach((txt,idx)=>{ const b=document.createElement('button'); b.className='ans'; b.textContent=txt; b.addEventListener('click',()=>choose(idx)); qAns.appendChild(b); });
+  const D=15000; qEndAt=performance.now()+D; if(qTimer) cancelAnimationFrame(qTimer);
+  (function tickBar(){ const left=Math.max(0,qEndAt-performance.now()); const ratio=left/D; qBar.style.transform=`scaleX(${ratio})`; qTimeEl.textContent=((performance.now()-qStart)/1000).toFixed(1)+'s';
+    if(left<=0){ lock(false); setTimeout(()=>{qi++;nextQuestion();},600);} else { qTimer=requestAnimationFrame(tickBar); }
+  })();
+  function choose(idx){ if(qTimer){cancelAnimationFrame(qTimer); qTimer=null;} const ok=(idx===Q.c); if(ok) qScore++; lock(ok,idx); setTimeout(()=>{qi++;nextQuestion();},600); }
+  function lock(ok,picked=-1){ [...qAns.children].forEach((btn,i)=>{ if(i===Q.c) btn.classList.add('correct'); if(i===picked&&i!==Q.c) btn.classList.add('wrong'); btn.disabled=true; }); }
+}
+function finishQuiz(){
+  if(qTimer){cancelAnimationFrame(qTimer); qTimer=null;}
+  const totalMs=performance.now()-qStart; quizHud.style.display='none'; quizQWrap.style.display='none'; quizDone.style.display='block';
+  quizSummary.innerHTML=`<p><b>${player}</b>, eredményed: <b>${qScore}/15</b>, idő: <b>${formatTime(totalMs)}</b>.</p>`;
+  const lb=loadLB(); lb.push({name:player,score:qScore,time:totalMs,date:Date.now()});
+  saveLB(lb.sort((a,b)=>(b.score-a.score)||(a.time-b.time))); renderLB(); burstConfetti(innerWidth/2,160,180);
+}
+document.getElementById('quizGo').addEventListener('click', startQuiz);
+document.getElementById('quizAgain').addEventListener('click', ()=>{ quizStart.style.display='block'; quizDone.style.display='none'; });
+document.getElementById('quizReset').addEventListener('click', ()=>{ if(confirm('Biztos törlöd a toplistát?')){ localStorage.removeItem(lbKey); renderLB(); }});
+
+/* ===== Amőba (fixelt AI) ===== */
+const tttGrid=$('#tttGrid'), tttInfo=$('#tttInfo'), tttCpu=$('#tttCpu'); let board, playerTurn, gameOver;
+function initTTT(){ board=Array(9).fill(null); playerTurn='X'; gameOver=false; tttGrid.innerHTML=''; for(let i=0;i<9;i++){ const c=document.createElement('div'); c.className='ttt-cell'; c.dataset.idx=i; c.addEventListener('click',()=>tttPlay(i)); tttGrid.appendChild(c);} tttInfo.textContent="Te kezdesz: X"; }
+function winLines(){return [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];}
+function winner(){ for(const [a,b1,c] of winLines()){ if(board[a]&&board[a]===board[b1]&&board[a]===board[c]) return {p:board[a],line:[a,b1,c]}; } if(board.every(Boolean)) return {p:'D',line:[]}; return null; }
+function bestMove(mark){ const opp=mark==='X'?'O':'X';
+  for(let i=0;i<9;i++){ if(!board[i]){ board[i]=mark; if(winner()?.p===mark){ board[i]=null; return i;} board[i]=null; } }
+  for(let i=0;i<9;i++){ if(!board[i]){ board[i]=opp;  if(winner()?.p===opp ){ board[i]=null; return i;} board[i]=null; } }
+  if(!board[4]) return 4; const corners=[0,2,6,8].filter(i=>!board[i]); if(corners.length) return rnd(corners); const sides=[1,3,5,7].filter(i=>!board[i]); if(sides.length) return rnd(sides); return board.findIndex(v=>!v);
+}
+function tttPlay(i){ if(gameOver||board[i])return; board[i]=playerTurn; renderTTT(); const w=winner(); if(w){endTTT(w);return;}
+  if(tttCpu.checked){ playerTurn='O'; setTimeout(()=>{ const mv=bestMove('O'); if(mv>=0&&!gameOver){ board[mv]='O'; renderTTT(); const w2=winner(); if(w2){endTTT(w2);return;} playerTurn='X'; tttInfo.textContent="Te jössz: X"; }},250);
+  } else { playerTurn=(playerTurn==='X'?'O':'X'); tttInfo.textContent=`Következő: ${playerTurn}`; }
+}
+function renderTTT(){ [...tttGrid.children].forEach((cell,i)=>{ cell.textContent=board[i]||''; cell.classList.remove('win'); }); }
+function endTTT(res){ gameOver=true; if(res.p==='D'){ tttInfo.textContent="Döntetlen!"; return; } res.line.forEach(idx=>tttGrid.children[idx].classList.add('win'));
+  if(res.p==='X'){ tttInfo.textContent="Gratulálok, ügyes vagy! 🎉 Te nyertél!"; burstConfetti(innerWidth/2, innerHeight/3, 160);} else { tttInfo.textContent="A gép nyert. Újra?"; }
+}
+$('#tttReset').addEventListener('click', initTTT); initTTT();
+
+/* ===== Chat ===== */
+const chatBox=$('#chatBox'), chatInput=$('#chatInput');
+function pushMsg(txt,who='user'){ const b=document.createElement('div'); b.className='msg '+(who==='user'?'user':'bot'); b.textContent=txt; chatBox.appendChild(b); chatBox.scrollTop=chatBox.scrollHeight; }
+const botFallback=["Értem… vagy mégsem? 🤔 Mesélj többet!","Kávé után minden jobb. Kérsz? ☕","Mondanék egy viccet, de félek, hogy a böngésződ lefagy a nevetéstől.","Ha ez egy rejtvény, akkor JÓL csinálod. 😄","Hmm… érdekes. Kattints a Játékok menüpontra közben!"];
+const botVicc=["Miért vitt a számítógép esernyőt? – Vírusos idő lesz.","Mit mond a nulla a nyolcasnak? – Szép öved van!","A kávé a válasz. Mi is volt a kérdés? 🤔"];
+function botReply(t0){ const t=t0.toLowerCase();
+  if(/szia|helló|hello|hali/.test(t)) return "Szia! Hogy vagy? Én 0–1 között érzem magam. 😎";
+  if(/hogy vagy\??/.test(t)) return "Remekül! A hullámaim is ezt mutatják. 🌊";
+  if(/vicc|po[eé]n/.test(t)) return rnd(botVicc);
+  if(/k[aá]v[eé]/.test(t)) return "Kávé? Mindig! ☕ Addig is: nyomd meg a „Még egy poén” gombot!";
+  if(/seg[ií]ts|help|hogyan/.test(t)) return "Segítek: fent a menüben a Játékoknál van Kő–Papír–Olló és Számkitaláló, a Kvízben pedig 15 kérdés vár!";
+  if(/j[aá]t[eé]k|game/.test(t)) return "Játszunk! Menj a Játékok vagy az Amőba menübe! 🎮";
+  if(/unalom|unatkoz/.test(t)) return "Unalom ellen felírom: 2x poéngenerátor, 1x kvíz, 1x amőba. Jelentkezzen vissza, ha hatott! 😁";
+  if(t.length>80) return "Ez hosszú volt! Egy TL;DR-t is kérhetek? 😅";
+  if(/\?$/.test(t)) return "Jó kérdés! Ha én tudnám, már memében is elmondtam volna. 🤖";
+  return rnd(botFallback);
+}
+document.getElementById('chatSend').addEventListener('click', ()=>{ const v=chatInput.value.trim(); if(!v) return; pushMsg(v,'user'); chatInput.value=''; setTimeout(()=>pushMsg(botReply(v),'bot'),400); });
+chatInput.addEventListener('keydown',e=>{ if(e.key==='Enter'){ document.getElementById('chatSend').click(); }});
 </script>
 </body>
 </html>
