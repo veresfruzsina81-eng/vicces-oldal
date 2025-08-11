@@ -1,22 +1,44 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="hu">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Vicces Belépő</title>
 <style>
-  body{font-family:Arial, sans-serif; text-align:center; padding:50px; background:#f0f0f0}
-  #popup{display:none; position:fixed; inset:0; background:rgba(0,0,0,.75);
-         display:flex; align-items:center; justify-content:center; z-index:1000}
-  #popup img{max-width:85vw; max-height:85vh; border:5px solid #fff; border-radius:12px}
+  :root { --bg:#f0f0f0; --dim:rgba(0,0,0,.75); }
+  * { box-sizing:border-box }
+  html,body { height:100%; margin:0; }
+  body { font-family: Arial, sans-serif; background: var(--bg); text-align:center; padding:48px; }
+
+  /* TELJES KÉPERNYŐS POPUP – kezdetben rejtve! */
+  #popup {
+    position: fixed;
+    inset: 0;
+    display: none;            /* <-- csak ez! (nincs második display) */
+    align-items: center;
+    justify-content: center;
+    background: var(--dim);
+    z-index: 9999;
+    animation: fadeIn .25s ease forwards;
+  }
+  #popup img {
+    max-width: 85vw;
+    max-height: 85vh;
+    border: 5px solid #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+  @keyframes fadeOut { to { opacity:0 } }
 </style>
 </head>
 <body>
 
 <h1>Üdv a vicces oldalon! 😎</h1>
-<p>Belépés után felugrik egy kép és szól egy hang.</p>
+<p>Belépéskor felugró kép és hang!</p>
 
 <!-- felugró overlay -->
-<div id="popup">
+<div id="popup" aria-hidden="true">
   <img src="pop_up.jpg.jpg" alt="Vicces kép">
 </div>
 
@@ -24,21 +46,33 @@
 <audio id="prank" src="prank_short.mp3" preload="auto"></audio>
 
 <script>
-window.addEventListener("load", () => {
-  const popup = document.getElementById("popup");
-  const audio = document.getElementById("prank");
+  function showPopup(ms=3000){
+    const popup = document.getElementById('popup');
+    popup.style.display = 'flex';
+    // auto close
+    const timer = setTimeout(hide, ms);
+    // close on click
+    popup.addEventListener('click', () => { clearTimeout(timer); hide(); }, { once:true });
 
-  // mutatjuk a képet
-  popup.style.display = "flex";
+    function hide(){
+      popup.style.animation = 'fadeOut .25s ease forwards';
+      setTimeout(() => { popup.style.display = 'none'; popup.style.animation=''; }, 250);
+    }
+  }
 
-  // hang indítása (ha tiltva az autoplay, első kattintásra indul)
-  audio.play().catch(() => {
-    document.body.addEventListener("click", () => audio.play(), { once:true });
+  window.addEventListener('DOMContentLoaded', () => {
+    const audio = document.getElementById('prank');
+
+    // hang indítása (autoplay lehet tiltva)
+    const start = () => audio.play().catch(() => {
+      // első kattintásra indítjuk
+      document.body.addEventListener('click', () => audio.play(), { once:true });
+    });
+    start();
+
+    // popup megjelenítése
+    showPopup(3000);
   });
-
-  // 3 mp múlva bezárjuk a képet
-  setTimeout(() => { popup.style.display = "none"; }, 3000);
-});
 </script>
 
 </body>
