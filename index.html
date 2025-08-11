@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Viccközpont v9 – Modern + Kvíz Bajnokság</title>
+<title>Viccközpont v10 – Modern + Kvíz Bajnokság</title>
 <style>
   :root{
     --bg:#0a0f1f; --panel:#0f162c; --glass:rgba(255,255,255,.06);
@@ -19,14 +19,17 @@
   html,body{height:100%;margin:0}
   body{color:var(--text); background:var(--bg); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden}
 
-  /* Hullámos háttér */
-  #bgCanvas{position:fixed; inset:0; z-index:-1; background:
-    radial-gradient(1200px 800px at 120% -20%,#22d3ee15 0 40%,transparent 60%),
-    radial-gradient(1000px 700px at -20% 120%,#7c3aed15 0 40%,transparent 60%),
-    #0a0f1f}
+  /* Háttér vásznak */
+  #bgCanvas{position:fixed; inset:0; z-index:0;
+    background:
+      radial-gradient(1200px 800px at 120% -20%,#22d3ee15 0 40%,transparent 60%),
+      radial-gradient(1000px 700px at -20% 120%,#7c3aed15 0 40%,transparent 60%),
+      #0a0f1f;
+  }
+  #fxCanvas{position:fixed; inset:0; z-index:2; pointer-events:none}
 
   /* Appbar */
-  header.appbar{position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:12px; padding:12px 16px;
+  header.appbar{position:sticky; top:0; z-index:3; display:flex; align-items:center; gap:12px; padding:12px 16px;
     background:linear-gradient(180deg, rgba(15,22,44,.85), rgba(15,22,44,.55)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line)}
   .logo{display:flex; align-items:center; gap:10px; font-weight:900; letter-spacing:.4px}
   .logo .dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(90deg,var(--brand1),var(--brand2));box-shadow:0 0 18px #22d3ee90}
@@ -34,7 +37,7 @@
   .tab{padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:var(--glass); color:var(--text); cursor:pointer; font-weight:700}
   .tab.active{background:linear-gradient(90deg,#7c3aed,#22d3ee); color:#061225; border-color:transparent}
 
-  main{max-width:1200px; margin:20px auto; padding:0 16px}
+  main{max-width:1200px; margin:20px auto; padding:0 16px; position:relative; z-index:1;}
 
   /* Auth */
   .auth{max-width:480px; margin:50px auto; padding:24px; border-radius:16px;
@@ -85,13 +88,21 @@
   .table{width:100%; border-collapse:collapse; margin-top:10px}
   .table th,.table td{border-bottom:1px solid var(--line); padding:8px; text-align:left}
   .table th{opacity:.8; font-weight:800}
+
+  /* Loading overlay (login alatt) */
+  #loading{position:fixed; inset:0; display:none; place-items:center; z-index:4;
+    background:rgba(8,12,30,.6); backdrop-filter:blur(6px)}
+  .loader{width:min(360px,92vw); padding:18px; border-radius:14px;
+    background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+    border:1px solid var(--line); text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.45)}
 </style>
 </head>
 <body>
 <canvas id="bgCanvas"></canvas>
+<canvas id="fxCanvas"></canvas>
 
 <header class="appbar" id="appbar" style="display:none">
-  <div class="logo"><span class="dot"></span> Viccközpont <small style="opacity:.7;font-weight:600;margin-left:6px">v9</small></div>
+  <div class="logo"><span class="dot"></span> Viccközpont <small style="opacity:.7;font-weight:600;margin-left:6px">v10</small></div>
   <nav class="tabs" id="tabs">
     <button class="tab active" data-view="home">Főoldal</button>
     <button class="tab" data-view="sounds">Hangok</button>
@@ -100,6 +111,9 @@
     <button class="tab" data-view="quizpro">Kvíz Bajnokság</button>
   </nav>
 </header>
+
+<!-- Loading overlay -->
+<div id="loading"><div class="loader"><div id="loadingText">Kávészemek őrlése…</div></div></div>
 
 <main id="app">
   <!-- LOGIN -->
@@ -216,14 +230,14 @@
       <div class="card span-8" id="quizCard">
         <h3 class="title">Kvíz Bajnokság – 15 kérdés, 15 mp/kérdés</h3>
 
-        <!-- Start panel -->
+        <!-- Start -->
         <div id="quizStart">
           <div class="row" style="margin:8px 0">
             <label for="playerName" style="margin:0 10px 0 0; font-weight:800">Név:</label>
             <input id="playerName" type="text" placeholder="Neved" style="max-width:240px">
             <button id="quizGo" class="chip ok">Indít</button>
           </div>
-          <p class="muted" style="margin-top:8px">Válaszolj gyorsan és pontosan! A helyes válasz: +1 pont. Lejárt idő = 0 pont.</p>
+          <p class="muted" style="margin-top:8px">Válaszolj gyorsan és pontosan! Lejárt idő = 0 pont.</p>
         </div>
 
         <!-- HUD -->
@@ -234,13 +248,13 @@
           <div class="meter"><span id="qBar"></span></div>
         </div>
 
-        <!-- Question panel -->
+        <!-- Kérdés -->
         <div id="quizQWrap" style="display:none">
-          <div id="qText" class="box">Kérdés szövege…</div>
+          <div id="qText" class="box">Kérdés…</div>
           <div id="qAns" class="answers"></div>
         </div>
 
-        <!-- Finish panel -->
+        <!-- Befejezés -->
         <div id="quizDone" style="display:none">
           <h3 class="title" style="margin-top:6px">Eredmény</h3>
           <div class="box" id="quizSummary"></div>
@@ -269,20 +283,48 @@
 
 <script>
 /* ===== Hullámos háttér ===== */
-const cvs = document.getElementById('bgCanvas'), ctx = cvs.getContext('2d');
-function fit(){ cvs.width = innerWidth; cvs.height = innerHeight; } addEventListener('resize', fit); fit();
-let t=0; (function loop(){ t+=0.006; ctx.clearRect(0,0,cvs.width,cvs.height);
+const bg = document.getElementById('bgCanvas'), g = bg.getContext('2d');
+const fx = document.getElementById('fxCanvas'), fg = fx.getContext('2d');
+function fit(){ bg.width=fx.width=innerWidth; bg.height=fx.height=innerHeight; } addEventListener('resize', fit); fit();
+let t=0, waveSpeed=0.006;
+(function loop(){ t+=waveSpeed; g.clearRect(0,0,bg.width,bg.height);
   for(let i=-24;i<24;i++){
-    ctx.beginPath(); ctx.moveTo(0,cvs.height/2);
-    for(let x=0;x<=cvs.width;x+=8){
-      const y = cvs.height/2 + Math.sin(i/8 + t + x/140)*40 + i*5;
-      ctx.lineTo(x,y);
+    g.beginPath(); g.moveTo(0,bg.height/2);
+    for(let x=0;x<=bg.width;x+=8){
+      const y = bg.height/2 + Math.sin(i/8 + t + x/140)*40 + i*5;
+      g.lineTo(x,y);
     }
-    ctx.strokeStyle = `hsla(${(i*10+t*180)%360},80%,65%,.45)`; ctx.lineWidth=2; ctx.stroke();
+    g.strokeStyle = `hsla(${(i*10+t*180)%360},80%,65%,.45)`; g.lineWidth=2; g.stroke();
   } requestAnimationFrame(loop);
 })();
 
-/* ===== Segéd ===== */
+/* ===== Egyszerű konfetti engine ===== */
+const confetti = [];
+function burstConfetti(cx=innerWidth/2, cy=innerHeight/2, n=120){
+  for(let i=0;i<n;i++){
+    confetti.push({
+      x: cx, y: cy,
+      vx:(Math.random()*2-1)*4,
+      vy:(Math.random()*-1-0.5)*6,
+      g: 0.12 + Math.random()*0.1,
+      life: 60+Math.random()*40,
+      c: `hsl(${Math.random()*360},90%,60%)`,
+      s: 2+Math.random()*3
+    });
+  }
+}
+(function fxloop(){
+  fg.clearRect(0,0,fx.width,fx.height);
+  for(let i=confetti.length-1;i>=0;i--){
+    const p=confetti[i];
+    p.vy += p.g; p.x += p.vx; p.y += p.vy; p.life--;
+    fg.fillStyle = p.c; fg.fillRect(p.x, p.y, p.s, p.s*2);
+    if(p.life<=0 || p.y>fx.height+20) confetti.splice(i,1);
+  }
+  requestAnimationFrame(fxloop);
+})();
+
+/* ===== Segédek ===== */
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 const rnd = a => a[Math.floor(Math.random()*a.length)];
@@ -304,7 +346,8 @@ const WX = [
   "Nevetési front: mosoly észlelve. 🌦"
 ];
 
-/* ===== Login ===== */
+/* ===== Login + loader + bulis háttér ===== */
+const loading = $('#loading'), loadingText=$('#loadingText');
 $('#form').addEventListener('submit', e=>{
   e.preventDefault();
   const name = $('#name').value.trim();
@@ -313,13 +356,23 @@ $('#form').addEventListener('submit', e=>{
   const err  = $('#err');
   err.textContent='';
   if(!name || !email.includes('@') || pwd.length<4){ err.textContent='Ellenőrizd a mezőket!'; return; }
-  const btn = e.submitter || $('#form button[type="submit"]');
-  btn.disabled = true; btn.textContent = 'Beléptetés…';
+
+  loading.style.display='grid';
+  const texts = ["Kávészemek őrlése…","Víz melegítése…","Csésze előkészítése…","Humor ellenőrzése…"];
+  let i=0; const iv=setInterval(()=>{ loadingText.textContent=texts[i++%texts.length]; }, 800);
+
   setTimeout(()=>{
+    clearInterval(iv);
+    loading.style.display='none';
+    // app megnyit
     $('#loginView').style.display='none';
     $('#appbar').style.display='flex';
     $('#jokeBox').textContent = rnd(JOKES);
-  }, 700);
+
+    // bulis háttér + konfetti
+    const original = waveSpeed; waveSpeed = 0.02; burstConfetti(innerWidth/2, 120);
+    setTimeout(()=> waveSpeed = original, 1800);
+  }, 1400);
 });
 
 /* ===== Tabs ===== */
@@ -342,8 +395,18 @@ $('#btnThree').addEventListener('click', ()=>{
 /* ===== Hangok ===== */
 const A_PRANK = $('#prank'), A_TALENT = $('#talent');
 function stopAll(){ try{A_PRANK.pause();A_TALENT.pause();}catch{} }
-function playById(id){ stopAll(); const a = id==='talent'?A_TALENT:A_PRANK; a.currentTime=0; a.play().catch(()=>alert('Kattints az oldalra, hogy a böngésző engedje a hangot!')); $('#nowPlaying').textContent = 'Most szól: ' + (id==='talent'?'Tehetséges':'Prank'); }
-$$('[data-sound]').forEach(b=>b.addEventListener('click', ()=> playById(b.getAttribute('data-sound'))));
+function playById(id){
+  stopAll();
+  const a = id==='talent'?A_TALENT:A_PRANK;
+  a.currentTime=0;
+  a.play().catch(()=>alert('Kattints az oldalra, hogy a böngésző engedje a hangot!'));
+  $('#nowPlaying').textContent = 'Most szól: ' + (id==='talent'?'Tehetséges':'Prank');
+}
+$$('[data-sound]').forEach(b=>b.addEventListener('click', e=>{
+  const rect = e.target.getBoundingClientRect();
+  burstConfetti(rect.left+rect.width/2, rect.top+scrollY);
+  playById(b.getAttribute('data-sound'));
+}));
 $('#stopAll').addEventListener('click', ()=>{ stopAll(); $('#nowPlaying').textContent='Semmi sem szól.'; });
 $('#rewind').addEventListener('click', ()=>{ A_PRANK.currentTime=0; A_TALENT.currentTime=0; });
 $('#pause').addEventListener('click', ()=>{ try{A_PRANK.pause();}catch{} try{A_TALENT.pause();}catch{} });
@@ -353,12 +416,14 @@ $('#resume').addEventListener('click', ()=>{ if(!A_PRANK.paused) A_PRANK.play();
 let you=0,cpu=0; const youEl=$('#youScore'), cpuEl=$('#cpuScore'), rpsOut=$('#rpsOut');
 $('#rpsReset').addEventListener('click', ()=>{you=0;cpu=0;youEl.textContent=0;cpuEl.textContent=0;rpsOut.textContent='Válassz egyet!';});
 $('#games').querySelectorAll('.pick').forEach(p=>{
-  p.addEventListener('click', ()=>{
+  p.addEventListener('click', (e)=>{
     const user = p.getAttribute('data-pick');
     const comp = rnd(['Kő','Papír','Olló']);
     let res='Vesztettél!';
     if(user===comp) res='Döntetlen!';
-    else if( (user==='Kő'&&comp==='Olló') || (user==='Papír'&&comp==='Kő') || (user==='Olló'&&comp==='Papír') ) { res='Nyertél!'; you++; } else cpu++;
+    else if( (user==='Kő'&&comp==='Olló') || (user==='Papír'&&comp==='Kő') || (user==='Olló'&&comp==='Papír') ) { res='Nyertél!'; you++; 
+      const r = e.target.getBoundingClientRect(); burstConfetti(r.left+r.width/2, r.top+scrollY);
+    } else cpu++;
     youEl.textContent = you; cpuEl.textContent = cpu; rpsOut.textContent = `Te: ${user} | Gép: ${comp} → ${res}`;
   });
 });
@@ -366,7 +431,8 @@ let secret = 1 + Math.floor(Math.random()*10);
 $('#guessBtn').addEventListener('click', ()=>{
   const v = parseInt($('#guessIn').value,10);
   if(isNaN(v)) { $('#guessOut').textContent='Adj meg egy számot!'; return; }
-  if(v===secret) $('#guessOut').textContent=`Eltaláltad! (${secret}) 🎉`; else if(v<secret) $('#guessOut').textContent='Nagyobb! ⬆️'; else $('#guessOut').textContent='Kisebb! ⬇️';
+  if(v===secret){ $('#guessOut').textContent=`Eltaláltad! (${secret}) 🎉`; burstConfetti(innerWidth/2, innerHeight/2); }
+  else if(v<secret) $('#guessOut').textContent='Nagyobb! ⬆️'; else $('#guessOut').textContent='Kisebb! ⬇️';
 });
 $('#guessNew').addEventListener('click', ()=>{ secret = 1 + Math.floor(Math.random()*10); $('#guessOut').textContent='Új szám kész!'; $('#guessIn').value=''; });
 
@@ -382,7 +448,7 @@ const QUESTIONS = [
   {q:"Mi a H2O?", a:["Oxigén","Hidrogén","Víz","Sósav"], c:2},
   {q:"Melyik főváros? Bécs", a:["Svájc","Ausztria","Belgium","Csehország"], c:1},
   {q:"Melyik növény fűszer?", a:["Bazsalikom","Nyírfa","Fenyő","Tölgy"], c:0},
-  {q:"HTML-ben linket melyik tag?”, a:["<div>","<a>","<link>","<p>"], c:1},
+  {q:"HTML-ben linket melyik tag?", a:["<div>","<a>","<link>","<p>"], c:1},
   {q:"Mennyi a π kb.?", a:["2.14","3.14","3.41","4.13"], c:1},
   {q:"Melyik nem programnyelv?", a:["Python","Ruby","Photoshop","Go"], c:2},
   {q:"Magyarország fővárosa?", a:["Debrecen","Győr","Budapest","Szeged"], c:2},
@@ -394,10 +460,10 @@ const QUESTIONS = [
 ];
 
 const lbKey = 'quizLeaderboardV1';
-const lbEl = $('#lbTable tbody');
+const lbEl = document.querySelector('#lbTable tbody');
 function loadLB(){ try{ return JSON.parse(localStorage.getItem(lbKey)||'[]'); }catch{return []} }
 function saveLB(arr){ localStorage.setItem(lbKey, JSON.stringify(arr.slice(0,20))); }
-function formatTime(s){ return (s/1000).toFixed(1)+'s'; }
+function formatTime(ms){ return (ms/1000).toFixed(1)+'s'; }
 function renderLB(){
   const lb = loadLB().sort((a,b)=> b.score-a.score || a.time-b.time);
   lbEl.innerHTML = lb.slice(0,10).map((r,i)=>`<tr><td>${i+1}</td><td>${r.name||'Névtelen'}</td><td>${r.score}/15</td><td>${formatTime(r.time)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Még nincs eredmény.</td></tr>';
@@ -434,7 +500,7 @@ function nextQuestion(){
     b.addEventListener('click', ()=> choose(idx));
     qAns.appendChild(b);
   });
-  // 15 mp idő
+  // 15 mp
   const D = 15000;
   qEndAt = performance.now() + D;
   tickBar();
@@ -445,7 +511,7 @@ function nextQuestion(){
     const ratio = left / D;
     qBar.style.transform = `scaleX(${ratio})`;
     qTimeEl.textContent = ((performance.now()-qStart)/1000).toFixed(1)+'s';
-    if(left<=0){ // idő lejárt
+    if(left<=0){
       lock(false);
       setTimeout(()=>{ qi++; nextQuestion(); }, 600);
     }else{
@@ -460,7 +526,6 @@ function nextQuestion(){
     setTimeout(()=>{ qi++; nextQuestion(); }, 600);
   }
   function lock(correct, pickedIdx=-1){
-    // színezés
     [...qAns.children].forEach((btn,i)=>{
       if(i===Q.c) btn.classList.add('correct');
       if(i===pickedIdx && i!==Q.c) btn.classList.add('wrong');
@@ -476,16 +541,16 @@ function finishQuiz(){
   quizQWrap.style.display='none';
   quizDone.style.display='block';
   quizSummary.innerHTML = `<p><b>${player}</b>, eredményed: <b>${qScore}/15</b>, idő: <b>${formatTime(qTotalMs)}</b>.</p>`;
-  // mentés toplistába
   const lb = loadLB();
   lb.push({name:player, score:qScore, time:qTotalMs, date:Date.now()});
   saveLB(lb.sort((a,b)=> b.score-a.score || a.time-b.time));
   renderLB();
+  burstConfetti(innerWidth/2, 160, 180);
 }
 
-$('#quizGo').addEventListener('click', startQuiz);
-$('#quizAgain').addEventListener('click', ()=>{ quizStart.style.display='block'; quizDone.style.display='none'; });
-$('#quizReset').addEventListener('click', ()=>{ if(confirm('Biztos törlöd a toplistát?')){ localStorage.removeItem(lbKey); renderLB(); }});
+document.getElementById('quizGo').addEventListener('click', startQuiz);
+document.getElementById('quizAgain').addEventListener('click', ()=>{ quizStart.style.display='block'; quizDone.style.display='none'; });
+document.getElementById('quizReset').addEventListener('click', ()=>{ if(confirm('Biztos törlöd a toplistát?')){ localStorage.removeItem(lbKey); renderLB(); }});
 </script>
 </body>
 </html>
