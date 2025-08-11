@@ -1,272 +1,249 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="hu">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Viccközpont v10</title>
-<style>
-  body,html {margin:0;padding:0;font-family:Arial, sans-serif;overflow-x:hidden;}
-  #loginView, #loading, #appbar {display:none;}
-  #loginView {display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}
-  #loginView input, #loginView button {margin:5px;padding:10px;font-size:16px;}
-  #loading {place-items:center;height:100vh;font-size:24px;}
-  #appbar {background:#333;color:#fff;padding:10px;display:flex;gap:10px;}
-  .section {padding:20px;}
-  #quizArea, #tictactoe, #chatArea {margin-top:20px;}
-  #quizArea button, #tictactoe button, #chatArea button {padding:10px;margin:5px;}
-  #lbTable {border-collapse:collapse;width:100%;}
-  #lbTable th, #lbTable td {border:1px solid #ccc;padding:8px;text-align:left;}
-  canvas {position:fixed;top:0;left:0;z-index:-1;}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viccközpont v10 – Chat + Amőba + Kvíz (stabil)</title>
+  <style>
+    :root{
+      --bg:#0a0f1f; --glass:rgba(255,255,255,.06); --line:rgba(255,255,255,.16);
+      --text:#e6ecff; --muted:#a7b1d6;
+      --brand1:#7c3aed; --brand2:#22d3ee;
+      --ok:#22c55e; --info:#60a5fa; --warn:#f59e0b; --danger:#ef4444;
+      --goodGrad:linear-gradient(90deg,#22c55e,#16a34a);
+      --infoGrad:linear-gradient(90deg,#60a5fa,#3b82f6);
+      --warnGrad:linear-gradient(90deg,#f59e0b,#fbbf24);
+      --badGrad: linear-gradient(90deg,#ef4444,#dc2626);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{color:var(--text); background:var(--bg); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden}
+
+    /* Vicces, folyamatosan változó háttér */
+    #bgCanvas{position:fixed; inset:0; z-index:0;}
+    #fxCanvas{position:fixed; inset:0; z-index:2; pointer-events:none}
+
+    /* Appbar */
+    header.appbar{position:sticky; top:0; z-index:3; display:flex; align-items:center; gap:12px; padding:12px 16px;
+      background:linear-gradient(180deg, rgba(15,22,44,.85), rgba(15,22,44,.55)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line)}
+    .logo{display:flex; align-items:center; gap:10px; font-weight:900; letter-spacing:.4px}
+    .logo .dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(90deg,var(--brand1),var(--brand2));box-shadow:0 0 18px #22d3ee90}
+    nav.tabs{margin-left:auto; display:flex; gap:6px; flex-wrap:wrap}
+    .tab{padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:var(--glass); color:var(--text); cursor:pointer; font-weight:700}
+    .tab.active{background:linear-gradient(90deg,#7c3aed,#22d3ee); color:#061225; border-color:transparent}
+
+    main{max-width:1200px; margin:20px auto; padding:0 16px; position:relative; z-index:1;}
+
+    /* Auth */
+    .auth{max-width:480px; margin:50px auto; padding:24px; border-radius:16px;
+      background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      border:1px solid var(--line); backdrop-filter:blur(10px); box-shadow:0 30px 80px rgba(0,0,0,.35)}
+    .auth h1{margin:0 0 6px}
+    .muted{color:var(--muted)}
+    label{display:block; font-weight:800; margin:14px 0 6px}
+    input{
+      width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line);
+      background:rgba(255,255,255,.06); color:var(--text); outline:none; font-size:15px}
+    .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border:0; border-radius:12px;
+      font-weight:900; cursor:pointer; background:var(--goodGrad); color:#062215; box-shadow:0 10px 30px rgba(34,197,94,.25); margin-top:16px; width:100%}
+    .err{color:#fecaca; font-weight:800; min-height:18px; margin-top:10px}
+
+    /* Views */
+    section.view{display:none; animation:fade .35s ease both}
+    section.view.active{display:block}
+    @keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+
+    /* Grid + Cards */
+    .grid{display:grid; grid-template-columns:repeat(12,1fr); gap:16px}
+    @media (max-width:980px){ .grid{grid-template-columns:repeat(8,1fr)} }
+    @media (max-width:640px){ .grid{grid-template-columns:repeat(4,1fr)} }
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
+      border:1px solid var(--line); border-radius:16px; padding:16px; backdrop-filter:blur(10px); box-shadow:0 16px 50px rgba(0,0,0,.3)}
+    .title{font-weight:900; margin:0 0 8px}
+    .box{border:1px solid var(--line); border-radius:12px; background:rgba(10,12,22,.6); padding:12px; min-height:36px}
+    .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+    .chip{padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:var(--glass); cursor:pointer; font-weight:800}
+    .chip.ok{background:var(--goodGrad); color:#062215; border-color:transparent}
+    .chip.info{background:var(--infoGrad); color:#071321; border-color:transparent}
+    .chip.warn{background:var(--warnGrad); color:#2b1a03; border-color:transparent}
+    .chip.danger{background:var(--badGrad); color:#2b0a0a; border-color:transparent}
+    .span-8{grid-column:span 8} .span-6{grid-column:span 6} .span-4{grid-column:span 4}
+    @media (max-width:980px){ .span-8,.span-6,.span-4{grid-column:span 8} }
+    @media (max-width:640px){ .span-8,.span-6,.span-4{grid-column:span 4} }
+
+    /* Vicces, folyamatosan változó háttér */
+    #bgCanvas{position:fixed; inset:0; z-index:0; background:
+      radial-gradient(800px 600px at 120% -20%, #22d3ee20 0 40%, transparent 60%),
+      radial-gradient(700px 500px at -20% 120%, #7c3aed20 0 40%, transparent 60%),
+      repeating-conic-gradient(from 0deg, #ffcf33 0 10deg, #ff6b6b 10deg 20deg, #4cd8ff 20deg 30deg, #9bff8a 30deg 40deg);
+      filter: saturate(1.1);
+    }
+
+    /* Kvíz doboz még olvashatóbb legyen ezen a háttéren */
+    body.quiz-theme #quizCard {
+      background: rgba(6,10,20,.72);
+      border: 1px solid rgba(255,255,255,.18);
+      box-shadow: 0 30px 80px rgba(0,0,0,.5);
+    }
+  </style>
 </head>
 <body>
+<canvas id="bgCanvas"></canvas>
+<canvas id="fxCanvas"></canvas>
 
-<div id="loginView">
-  <h1>Viccközpont Belépés</h1>
-  <form id="form">
-    <input id="name" placeholder="Név">
-    <input id="email" placeholder="Email">
-    <input id="pwd" type="password" placeholder="Jelszó">
-    <div id="err" style="color:red;"></div>
-    <button type="submit">Belépés</button>
-  </form>
-</div>
+<header class="appbar" id="appbar" style="display:none">
+  <div class="logo"><span class="dot"></span> Viccközpont <small style="opacity:.7;font-weight:600;margin-left:6px">v10</small></div>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-view="home">Főoldal</button>
+    <button class="tab" data-view="sounds">Hangok</button>
+    <button class="tab" data-view="games">Játékok</button>
+    <button class="tab" data-view="weather">Időjárás</button>
+    <button class="tab" data-view="quizpro">Kvíz Bajnokság</button>
+    <button class="tab" data-view="tictactoe">Amőba</button>
+    <button class="tab" data-view="chat">Chat</button>
+  </nav>
+</header>
 
-<div id="loading"><div id="loadingText">Betöltés...</div></div>
+<!-- Loading overlay -->
+<div id="loading"><div class="loader"><div id="loadingText">Kávészemek őrlése…</div></div></div>
 
-<div id="appbar">
-  <button onclick="showSection('quizArea')">Kvíz</button>
-  <button onclick="showSection('tictactoe')">Amőba</button>
-  <button onclick="showSection('chatArea')">Chat</button>
-</div>
+<main id="app">
+  <!-- LOGIN -->
+  <section id="loginView" class="auth">
+    <h1>Bejelentkezés</h1>
+    <p class="muted">Humor, hangok és mini-játékok – modern kiadásban. 🔊🎮</p>
+    <form id="form" novalidate>
+      <label for="name">Név</label>
+      <input id="name" type="text" required placeholder="Név">
+      <label for="email">Email</label>
+      <input id="email" type="email" required placeholder="valami@email.hu">
+      <label for="pwd">Jelszó</label>
+      <input id="pwd" type="password" minlength="4" required placeholder="••••">
+      <button class="btn" type="submit">Belépek</button>
+      <div id="err" class="err"></div>
+    </form>
+  </section>
 
-<div class="section" id="quizArea" style="display:none;">
-  <h2>Kvíz</h2>
-  <div id="quizQ"></div>
-  <div id="quizOpts"></div>
-  <div id="quizTimer"></div>
-  <div id="lb"></div>
-</div>
+  <!-- Főoldal -->
+  <section id="home" class="view active">
+    <div class="grid">
+      <div class="card span-8">
+        <h3 class="title">Poén generátor</h3>
+        <div id="jokeBox" class="box">Nyomd meg valamelyik gombot! 😄</div>
+        <div class="row" style="margin-top:10px">
+          <button id="btnJoke" class="chip ok">Még egy poén</button>
+          <button id="btnThree" class="chip info">3 gyors poén</button>
+        </div>
+      </div>
+      <div class="card span-4">
+        <h3 class="title">Gyors hang</h3>
+        <div class="row">
+          <button class="chip ok" data-sound="prank">Prank ▶️</button>
+          <button class="chip info" data-sound="talent">Tehetséges ▶️</button>
+        </div>
+      </div>
+    </div>
+  </section>
 
-<div class="section" id="tictactoe" style="display:none;">
-  <h2>Amőba</h2>
-  <div id="board" style="display:grid;grid-template-columns:repeat(3,80px);gap:5px;"></div>
-  <div id="tttMsg"></div>
-</div>
+  <!-- Hangok -->
+  <section id="sounds" class="view">
+    <div class="grid">
+      <div class="card span-6">
+        <h3 class="title">Hang panel</h3>
+        <p class="muted">Válassz hangot – indításkor a másik leáll.</p>
+        <div class="row">
+          <button class="chip ok" data-sound="prank">Prank ▶️</button>
+          <button class="chip info" data-sound="talent">Tehetséges ▶️</button>
+          <button class="chip warn" id="stopAll">Leállít</button>
+        </div>
+      </div>
+      <div class="card span-6">
+        <h3 class="title">Lejátszás vezérlés</h3>
+        <div class="row">
+          <button class="chip" id="rewind">⏪ Vissza</button>
+          <button class="chip" id="pause">⏸️ Szünet</button>
+          <button class="chip" id="resume">▶️ Folytat</button>
+        </div>
+        <div id="nowPlaying" class="box" style="margin-top:10px">Semmi sem szól.</div>
+      </div>
+    </div>
+  </section>
 
-<div class="section" id="chatArea" style="display:none;">
-  <h2>Chat</h2>
-  <div id="chatLog" style="border:1px solid #ccc;height:200px;overflow-y:auto;padding:5px;"></div>
-  <input id="chatInput" placeholder="Írj valamit...">
-  <button onclick="sendChat()">Küldés</button>
-</div>
+  <!-- Kvíz Bajnokság -->
+  <section id="quizpro" class="view">
+    <div class="grid">
+      <div class="card span-8" id="quizCard">
+        <h3 class="title">Kvíz Bajnokság – 15 kérdés, 15 mp/kérdés</h3>
+
+        <!-- Start -->
+        <div id="quizStart">
+          <div class="row" style="margin:8px 0">
+            <label for="playerName" style="margin:0 10px 0 0; font-weight:800">Név:</label>
+            <input id="playerName" type="text" placeholder="Neved" style="max-width:240px">
+            <button id="quizGo" class="chip ok">Indít</button>
+          </div>
+          <p class="muted" style="margin-top:8px">Válaszolj gyorsan és pontosan! Lejárt idő = 0 pont.</p>
+        </div>
+
+        <!-- HUD -->
+        <div id="quizHud" class="quizHud" style="display:none">
+          <span class="badge">Kérdés: <b id="qIdx">1</b>/15</span>
+          <span class="badge">Pont: <b id="qScore">0</b></span>
+          <span class="badge">Idő: <b id="qTime">0.0s</b></span>
+          <div class="meter"><span id="qBar"></span></div>
+        </div>
+
+        <!-- Kérdés -->
+        <div id="quizQWrap" style="display:none">
+          <div id="qText" class="box">Kérdés…</div>
+          <div id="qAns" class="answers"></div>
+        </div>
+
+        <!-- Befejezés -->
+        <div id="quizDone" style="display:none">
+          <h3 class="title" style="margin-top:6px">Eredmény</h3>
+          <div class="box" id="quizSummary"></div>
+          <div class="row" style="margin-top:10px">
+            <button id="quizAgain" class="chip info">Újra</button>
+            <button id="quizReset" class="chip danger">Toplista törlése</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card span-4">
+        <h3 class="title">Toplista (helyi)</h3>
+        <table class="table" id="lbTable">
+          <thead><tr><th>#</th><th>Név</th><th>Pont</th><th>Idő</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="muted">A toplista az eszközödön tárolódik (LocalStorage).</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Hangok -->
+<audio id="prank"  src="prank_short.mp3"    preload="auto"></audio>
+<audio id="talent" src="tehetseges.mp3.m4a" preload="auto"></audio>
 
 <script>
-// ---- Hullámos háttér javítva ----
-let t = 0;
-window.waveSpeed = 0.006;
-const canvas = document.createElement('canvas');
-document.body.prepend(canvas);
-const ctx = canvas.getContext('2d');
-function resizeCanvas(){
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-function drawWave(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  const colors = ['#ff006e','#8338ec','#3a86ff','#ffbe0b','#fb5607'];
-  const amp = 50;
-  const freq = 0.02;
-  for (let j=0;j<colors.length;j++){
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height/2);
-    for (let x=0; x<canvas.width; x++){
-      const y = Math.sin((x*freq)+(t+j)) * amp + (canvas.height/2);
-      ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = colors[j];
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-  t += window.waveSpeed;
-  requestAnimationFrame(drawWave);
-}
-drawWave();
+  /* ===== Vicces háttér ===== */
+  let colorIndex = 0;
+  const colors = [
+    'linear-gradient(45deg, #ff8a00, #e52e71)',
+    'linear-gradient(45deg, #ffbf00, #ff7f50)',
+    'linear-gradient(45deg, #00d2ff, #3a7bd5)',
+    'linear-gradient(45deg, #48c6ef, #6f86d6)',
+    'linear-gradient(45deg, #6a11cb, #2575fc)'
+  ];
 
-// ---- Login javítva ----
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('loginView').style.display='flex';
-  const form = document.getElementById('form');
-  const loading = document.getElementById('loading');
-  const loadingText = document.getElementById('loadingText');
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    const name  = document.getElementById('name').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const pwd   = document.getElementById('pwd').value.trim();
-    const err   = document.getElementById('err');
-    err.textContent = '';
-    if (!name || !email.includes('@') || pwd.length < 4) {
-      err.textContent = 'Ellenőrizd a mezőket!';
-      return;
-    }
-    loading.style.display = 'grid';
-    const texts = ["Kávészemek őrlése…","Víz melegítése…","Csésze előkészítése…","Humor ellenőrzése…"];
-    let i=0; 
-    const iv=setInterval(()=>{ loadingText.textContent=texts[i++%texts.length]; }, 800);
-    setTimeout(()=>{
-      clearInterval(iv);
-      loading.style.display='none';
-      document.getElementById('loginView').style.display='none';
-      document.getElementById('appbar').style.display='flex';
-      window.waveSpeed = 0.02;
-      setTimeout(()=> window.waveSpeed = 0.006, 1800);
-    }, 1400);
-  });
-});
-
-// ---- Kvíz ----
-let quizQuestions = [
-  {q:"Melyik a világ legnagyobb állata?", o:["Kék bálna","Afrikai elefánt","Zöld anakonda"], a:0},
-  {q:"Hány nap van egy évben?", o:["365","366","364"], a:0},
-];
-let score=0, currentQ=0, quizTimer, quizStartTime;
-function startQuiz(){
-  score=0;currentQ=0;
-  quizStartTime=Date.now();
-  showQuestion();
-}
-function showQuestion(){
-  const q = quizQuestions[currentQ];
-  document.getElementById('quizQ').textContent = q.q;
-  const optsDiv = document.getElementById('quizOpts');
-  optsDiv.innerHTML='';
-  q.o.forEach((opt,i)=>{
-    const btn = document.createElement('button');
-    btn.textContent = opt;
-    btn.onclick = ()=> checkAnswer(i);
-    optsDiv.appendChild(btn);
-  });
-  let timeLeft = 15;
-  document.getElementById('quizTimer').textContent = timeLeft;
-  clearInterval(quizTimer);
-  quizTimer = setInterval(()=>{
-    timeLeft--;
-    document.getElementById('quizTimer').textContent = timeLeft;
-    if (timeLeft<=0){clearInterval(quizTimer);nextQuestion();}
-  },1000);
-}
-function checkAnswer(i){
-  if (i === quizQuestions[currentQ].a) score++;
-  nextQuestion();
-}
-function nextQuestion(){
-  currentQ++;
-  if (currentQ<quizQuestions.length) showQuestion();
-  else finishQuiz();
-}
-function loadLB(){return JSON.parse(localStorage.getItem('lb')||'[]');}
-function saveLB(data){localStorage.setItem('lb',JSON.stringify(data));}
-function showLeaderboard(){
-  const lb = loadLB();
-  let html = "<h3>Toplista</h3><table id='lbTable'><tr><th>Név</th><th>Pont</th><th>Idő</th></tr>";
-  lb.forEach(e=>{html += `<tr><td>${e.name}</td><td>${e.score}</td><td>${e.time}s</td></tr>`;});
-  html += "</table>";
-  document.getElementById('lb').innerHTML = html;
-}
-function finishQuiz(){
-  const timeTaken = Math.floor((Date.now() - quizStartTime) / 1000);
-  alert(`Kvíz vége! Pontszám: ${score}/${quizQuestions.length}`);
-  const lb = loadLB();
-  lb.push({ name: document.getElementById('name').value, score, time: timeTaken });
-  saveLB(lb.sort((a,b) => (b.score - a.score) || (a.time - b.time)));
-  showLeaderboard();
-}
-
-// ---- Amőba ----
-let board = Array(9).fill(null);
-function startTTT(){
-  board.fill(null);
-  const b = document.getElementById('board');
-  b.innerHTML='';
-  for(let i=0;i<9;i++){
-    const cell = document.createElement('button');
-    cell.style.height='80px';
-    cell.onclick = ()=> move(i,'X');
-    b.appendChild(cell);
+  function changeBackground() {
+    document.body.style.background = colors[colorIndex];
+    colorIndex = (colorIndex + 1) % colors.length;
+    setTimeout(changeBackground, 5000);
   }
-  document.getElementById('tttMsg').textContent='';
-}
-function move(i,mark){
-  if (board[i]) return;
-  board[i]=mark;
-  document.getElementById('board').children[i].textContent = mark;
-  if (winner(board)?.p){document.getElementById('tttMsg').textContent="Gratulálok, ügyes vagy!";return;}
-  if (!board.includes(null)){document.getElementById('tttMsg').textContent="Döntetlen!";return;}
-  const aiMove = bestMove('O');
-  if (aiMove!==null) move(aiMove,'O');
-}
-function winner(b){
-  const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-  for (let [a,c,d] of wins){
-    if (b[a] && b[a]===b[c] && b[a]===b[d]) return {p:b[a]};
-  }
-  return null;
-}
-function rnd(arr){return arr[Math.floor(Math.random()*arr.length)];}
-function bestMove(mark){
-  const opp = mark==='X'?'O':'X';
-  for (let i=0;i<9;i++){
-    if (!board[i]){board[i]=mark;if (winner(board)?.p===mark){board[i]=null;return i;}board[i]=null;}
-  }
-  for (let i=0;i<9;i++){
-    if (!board[i]){board[i]=opp;if (winner(board)?.p===opp){board[i]=null;return i;}board[i]=null;}
-  }
-  if (!board[4]) return 4;
-  const corners=[0,2,6,8].filter(i=>!board[i]);
-  if (corners.length) return rnd(corners);
-  const sides=[1,3,5,7].filter(i=>!board[i]);
-  if (sides.length) return rnd(sides);
-  return board.findIndex(v=>!v);
-}
-
-// ---- Chat ----
-const chatLog = [];
-function sendChat(){
-  const inp = document.getElementById('chatInput');
-  const msg = inp.value.trim();
-  if (!msg) return;
-  addChat('Te', msg);
-  inp.value='';
-  respond(msg);
-}
-function addChat(user,text){
-  const log = document.getElementById('chatLog');
-  const div = document.createElement('div');
-  div.innerHTML = `<b>${user}:</b> ${text}`;
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
-}
-function respond(msg){
-  const low = msg.toLowerCase();
-  let res;
-  if (low.includes('szia')) res="Szia haver! Hogy vagy?";
-  else if (low.includes('hogy vagy')) res="Én mindig jól vagyok 😄";
-  else if (low.includes('vicc')) res="Hallod, a tegnapi viccemet még a gép sem értette!";
-  else res=["Hmm... érdekes 😏","Nem tudom, de jól hangzik!","Biztos vagy ebben?","Ez tetszik!"][Math.floor(Math.random()*4)];
-  setTimeout(()=> addChat('Bot',res),500);
-}
-
-// ---- Section váltás ----
-function showSection(id){
-  document.querySelectorAll('.section').forEach(s=>s.style.display='none');
-  document.getElementById(id).style.display='block';
-  if (id==='quizArea') startQuiz();
-  if (id==='tictactoe') startTTT();
-}
+  changeBackground();
 </script>
-
 </body>
 </html>
