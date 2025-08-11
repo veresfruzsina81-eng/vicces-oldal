@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Modern Bejelentkezés – kávéfőzéssel</title>
+<title>Készen állsz? – Bejelentkezés</title>
 <style>
   :root{
     --bg1:#1f3b73; --bg2:#6a11cb; --glass:rgba(255,255,255,.08);
@@ -14,14 +14,11 @@
   html,body{height:100%;margin:0}
   body{
     font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-    background:
-      radial-gradient(1200px 900px at -10% -10%, #ffffff22, transparent 60%),
-      radial-gradient(900px 800px at 110% 110%, #00d4ff22, transparent 60%),
-      linear-gradient(135deg, var(--bg1), var(--bg2));
+    background:linear-gradient(135deg, var(--bg1), var(--bg2));
     color:var(--text);
     display:grid; place-items:center; padding:24px;
   }
-  .card{
+  .card,.ready-box{
     width:min(420px, 92vw);
     background:var(--glass);
     border:1px solid var(--line);
@@ -32,37 +29,34 @@
     animation:pop .45s ease both;
   }
   @keyframes pop{from{transform:translateY(10px) scale(.985);opacity:.0}to{transform:none;opacity:1}}
-  h1{margin:0 0 6px; font-size:26px; letter-spacing:.2px}
+  h1,h2{margin-top:0}
   p.hint{margin:0 0 18px; color:var(--muted); font-size:14px}
   label{display:block; margin:14px 0 6px; font-weight:600}
   input{
     width:100%; padding:12px 14px; border-radius:12px; font-size:15px;
     border:1px solid var(--line); background:rgba(5,10,20,.6); color:var(--text);
-    transition:border-color .2s, box-shadow .2s, transform .06s;
   }
-  input:focus{outline:none; border-color:var(--accent2); box-shadow:0 0 0 4px #60a5fa33}
   .btn{
     margin-top:16px; width:100%; padding:12px 16px; border:0; border-radius:12px;
     background:linear-gradient(90deg,#22c55e,#16a34a); color:#052e1b; font-weight:800; cursor:pointer;
-    letter-spacing:.2px; display:inline-flex; align-items:center; justify-content:center; gap:10px;
-    transition:filter .2s, transform .06s;
   }
-  .btn:hover{filter:brightness(1.05)}
-  .btn:active{transform:translateY(1px)}
   .err{min-height:18px; margin-top:10px; color:#fecaca; font-weight:600}
-
-  /* Siker nézet */
   .success{display:none; text-align:center}
   .check{
     margin:10px auto 8px; width:72px; height:72px; border-radius:50%;
     background:radial-gradient(circle at 30% 30%, #ffffff44, #ffffff11);
     border:2px solid #34d399; display:grid; place-items:center;
-    animation:pop .4s ease both;
   }
-  a.link{color:var(--accent2); text-decoration:none}
-  a.link:hover{text-decoration:underline}
-
-  /* ☕ KÁVÉFŐZŐ TÖLTŐKÉPERNYŐ */
+  /* Ready screen */
+  .ready-buttons {
+    display: flex; justify-content: center; gap: 15px; margin-top: 15px;
+  }
+  .ready-buttons button {
+    background: #667eea; border: none; color: white; padding: 10px 18px;
+    border-radius: 8px; cursor: pointer; font-size: 16px;
+  }
+  #readyMsg { margin-top: 15px; font-size: 14px; color: var(--muted); }
+  /* Loading */
   .loading{
     position:fixed; inset:0; display:none; place-items:center;
     background:rgba(6,11,23,.65); backdrop-filter: blur(6px); z-index:9999;
@@ -72,20 +66,14 @@
     border-radius:18px; width:min(360px, 92vw); padding:20px; text-align:center;
     box-shadow:0 20px 60px rgba(0,0,0,.45);
   }
-  .coffee{
-    margin:6px auto 14px; width:80px; height:80px; position:relative;
-  }
-  .cup{
-    width:80px; height:50px; border:3px solid #fff; border-top:none; border-radius:0 0 20px 20px;
-    position:absolute; bottom:0; left:0;
-  }
-  .handle{
-    position:absolute; right:-14px; bottom:18px; width:24px; height:24px;
-    border:3px solid #fff; border-left:none; border-radius:0 20px 20px 0;
-  }
+  .coffee{margin:6px auto 14px; width:80px; height:80px; position:relative;}
+  .cup{width:80px; height:50px; border:3px solid #fff; border-top:none;
+    border-radius:0 0 20px 20px; position:absolute; bottom:0;}
+  .handle{position:absolute; right:-14px; bottom:18px; width:24px; height:24px;
+    border:3px solid #fff; border-left:none; border-radius:0 20px 20px 0;}
   .steam span{
     position:absolute; left:20px; width:6px; height:6px; background:#fff; border-radius:50%;
-    filter:blur(1px); opacity:.9; animation:rise 2s linear infinite;
+    animation:rise 2s linear infinite;
   }
   .steam span:nth-child(2){ left:40px; animation-delay:.4s }
   .steam span:nth-child(3){ left:58px; animation-delay:.8s }
@@ -94,115 +82,121 @@
     20%{opacity:.8}
     100%{transform:translateY(-40px) scale(1.1); opacity:0}
   }
-  .bar{
-    height:10px; background:#0b1220; border-radius:8px; border:1px solid var(--line); overflow:hidden;
-  }
-  .fill{
-    height:100%; width:0%; background:linear-gradient(90deg,#60a5fa,#22d3ee);
-    animation:fill 1.6s ease-in-out infinite;
-  }
-  @keyframes fill{
-    0%{width:0%} 60%{width:86%} 100%{width:100%}
-  }
-  .loading p{margin:10px 0 0; color:#dbeafe; font-size:14px}
 </style>
 </head>
 <body>
-  <main class="card">
-    <h1>Bejelentkezés</h1>
-    <p class="hint">Csak tréfa: semmit nem mentünk el. Belépés után hang szól. 🔊</p>
+  <!-- Készen állsz képernyő -->
+  <div id="readyScreen" class="ready-box">
+    <h2>Készen állsz?</h2>
+    <div class="ready-buttons">
+      <button id="yesBtn">Igen</button>
+      <button id="noBtn">Nem</button>
+    </div>
+    <p id="readyMsg"></p>
+  </div>
 
+  <!-- Bejelentkező kártya -->
+  <main class="card" id="loginCard" style="display:none">
+    <h1>Bejelentkezés</h1>
+    <p class="hint">Csak tréfa: belépés után hang szól. 🔊</p>
     <form id="form" novalidate>
       <label for="name">Név</label>
-      <input id="name" name="name" type="text" placeholder="Pl. Kiss Pista" required />
+      <input id="name" name="name" type="text" required />
       <label for="email">Email</label>
-      <input id="email" name="email" type="email" placeholder="valaki@pelda.hu" autocomplete="email" inputmode="email" required />
+      <input id="email" name="email" type="email" required />
       <label for="pwd">Jelszó</label>
-      <input id="pwd" name="pwd" type="password" placeholder="••••••••" minlength="4" required />
-      <button id="submitBtn" class="btn" type="submit">Belépek</button>
-      <div id="err" class="err" aria-live="polite"></div>
+      <input id="pwd" name="pwd" type="password" minlength="4" required />
+      <button class="btn" type="submit">Belépek</button>
+      <div id="err" class="err"></div>
     </form>
-
     <section id="ok" class="success">
-      <div class="check">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M5 13l4 4L19 7" stroke="#34d399" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
+      <div class="check">✅</div>
       <h2>Üdv, <span id="uname"></span>! 😎</h2>
-      <p>Sikeres bejelentkezés.</p>
-      <p><a href="#" id="play" class="link">Lejátszás újra</a> · <a href="#" id="back" class="link">Kijelentkezés</a></p>
+      <p><a href="#" id="play">Lejátszás újra</a> · <a href="#" id="back">Kijelentkezés</a></p>
     </section>
   </main>
 
-  <!-- ☕ KÁVÉFŐZÉS OVERLAY -->
-  <div id="loading" class="loading" aria-hidden="true">
+  <!-- Kávéfőző overlay -->
+  <div id="loading" class="loading">
     <div class="loader">
       <div class="coffee">
         <div class="cup"></div>
         <div class="handle"></div>
-        <div class="steam">
-          <span></span><span></span><span></span>
-        </div>
+        <div class="steam"><span></span><span></span><span></span></div>
       </div>
-      <div class="bar"><div class="fill"></div></div>
-      <p>Belépés folyamatban… kávé főzése ☕</p>
+      <p id="loadingText">Kávé főzése…</p>
     </div>
   </div>
 
-  <!-- Hang (tedd a gyökérbe): prank_short.mp3 -->
   <audio id="prank" src="prank_short.mp3" preload="auto"></audio>
 
 <script>
-  const form  = document.getElementById('form');
-  const err   = document.getElementById('err');
-  const ok    = document.getElementById('ok');
-  const uname = document.getElementById('uname');
-  const audio = document.getElementById('prank');
-  const play  = document.getElementById('play');
-  const back  = document.getElementById('back');
-  const loading = document.getElementById('loading');
+const readyScreen = document.getElementById('readyScreen');
+const loginCard = document.getElementById('loginCard');
+const yesBtn = document.getElementById('yesBtn');
+const noBtn = document.getElementById('noBtn');
+const readyMsg = document.getElementById('readyMsg');
 
-  function valid() {
-    form.email.value = (form.email.value||'').trim();
-    if(!form.checkValidity()){ form.reportValidity(); return false; }
-    return true;
-  }
+yesBtn.addEventListener('click', () => {
+  readyScreen.style.display = "none";
+  loginCard.style.display = "block";
+});
+noBtn.addEventListener('click', () => {
+  readyMsg.textContent = "Akkor igyál még egy kávét! ☕";
+});
 
-  form.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    err.textContent = '';
-    if(!valid()) return;
+const form  = document.getElementById('form');
+const err   = document.getElementById('err');
+const ok    = document.getElementById('ok');
+const uname = document.getElementById('uname');
+const audio = document.getElementById('prank');
+const play  = document.getElementById('play');
+const back  = document.getElementById('back');
+const loading = document.getElementById('loading');
+const loadingText = document.getElementById('loadingText');
 
-    // ☕ megjelenítjük a kávéfőző overlayt
-    loading.style.display = 'grid';
+const funnyMessages = [
+  "Kávészemek őrlése…","Cukor kimérése…","Habos tej előkészítése…",
+  "Presszó indítása…","Illat ellenőrzése…","Pohár előmelegítése…",
+  "Csokiszórás…","Utolsó kevergetés…","Hab formázása…",
+  "Kiskanál polírozása…","Kávé kész! ☕"
+];
+let msgIndex = 0, msgInterval;
 
-    // szimulált „feldolgozás” (1.8s), közben gomb disable nem kell, overlay blokkol
-    await new Promise(r=>setTimeout(r, 1800));
+form.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  err.textContent = '';
+  if(!form.checkValidity()){ form.reportValidity(); return; }
 
-    // overlay el
-    loading.style.display = 'none';
-
-    // siker képernyő + hang
-    uname.textContent = (form.name.value||'').trim();
-    form.style.display = 'none';
-    ok.style.display = 'block';
-
-    try { audio.currentTime = 0; await audio.play(); }
-    catch {
-      // ha blokkolt az autoplay, első kattintásra indul
-      document.body.addEventListener('click', ()=>audio.play(), {once:true});
+  loading.style.display = 'grid';
+  msgIndex = 0;
+  loadingText.textContent = funnyMessages[msgIndex];
+  msgInterval = setInterval(()=>{
+    msgIndex++;
+    if(msgIndex < funnyMessages.length){
+      loadingText.textContent = funnyMessages[msgIndex];
     }
-  });
+  }, 500);
 
-  play?.addEventListener('click', (e)=>{ e.preventDefault(); try{ audio.currentTime=0; audio.play(); }catch{} });
-  back?.addEventListener('click', (e)=>{
-    e.preventDefault();
-    ok.style.display='none';
-    form.reset();
-    form.style.display='block';
-    try{ audio.pause(); }catch{}
-  });
+  await new Promise(r=>setTimeout(r, 4000));
+  clearInterval(msgInterval);
+  loading.style.display = 'none';
+
+  uname.textContent = form.name.value.trim();
+  form.style.display = 'none';
+  ok.style.display = 'block';
+  try { audio.currentTime = 0; await audio.play(); }
+  catch { document.body.addEventListener('click', ()=>audio.play(), {once:true}); }
+});
+
+play.addEventListener('click', e=>{ e.preventDefault(); audio.currentTime=0; audio.play(); });
+back.addEventListener('click', e=>{
+  e.preventDefault();
+  ok.style.display='none';
+  form.reset();
+  form.style.display='block';
+  audio.pause();
+});
 </script>
 </body>
 </html>
