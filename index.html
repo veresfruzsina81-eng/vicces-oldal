@@ -161,17 +161,34 @@ const funnyMessages = [
   "Csokiszórás…","Utolsó kevergetés…","Hab formázása…",
   "Kiskanál polírozása…","Kávé kész! ☕"
 ];
-let msgIndex = 0, msgInterval;
+
+// Véletlen vicces kérdések + válaszok
+const funnyPrompts = [
+  {q:"Nem vagy álmos? 😴", a:"Akkor pihenj még egyet! 🛌"},
+  {q:"Hozol nekem is sütit? 🍪", a:"Pedig szerettem volna sütit... 😢"},
+  {q:"Biztos tudod a jelszavad? 🔑", a:"Akkor inkább gyakorolj még! 😄"},
+  {q:"Készen állsz a nagy poénra? 😂", a:"Akkor majd máskor! 😉"},
+  {q:"Megmostad a bögréket? ☕", a:"Piszkos bögréből nem iszunk! 🧼"}
+];
 
 form.addEventListener('submit', async (e)=>{
   e.preventDefault();
   err.textContent = '';
   if(!form.checkValidity()){ form.reportValidity(); return; }
 
+  // Kérdés bejelentkezés előtt
+  const randomPrompt = funnyPrompts[Math.floor(Math.random()*funnyPrompts.length)];
+  const okToProceed = confirm(randomPrompt.q);
+  if(!okToProceed){
+    err.textContent = randomPrompt.a;
+    return;
+  }
+
+  // ☕ Megjelenítjük a kávéfőző overlayt
   loading.style.display = 'grid';
-  msgIndex = 0;
+  let msgIndex = 0;
   loadingText.textContent = funnyMessages[msgIndex];
-  msgInterval = setInterval(()=>{
+  const msgInterval = setInterval(()=>{
     msgIndex++;
     if(msgIndex < funnyMessages.length){
       loadingText.textContent = funnyMessages[msgIndex];
