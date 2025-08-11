@@ -1,75 +1,23 @@
 <!DOCTYPE html>
 <html lang="hu">
-<head>
-    <meta charset="UTF-8">
-    <title>Vicces Belépő</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f0f0f0;
-            padding: 50px;
-        }
-        #popup {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1000;
-            background: white;
-            border: 3px solid #333;
-            padding: 10px;
-        }
-        #popup img {
-            max-width: 300px;
-        }
-        #overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 999;
-        }
-    </style>
-</head>
+<head><meta charset="UTF-8"><title>Vicces Belépő</title><style>body{font-family:sans-serif;text-align:center;padding:2em;}#popup{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);align-items:center;justify-content:center;}#popup img{max-width:80%;border-radius:12px;}#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);}</style></head>
 <body>
-
 <h1>Üdv a vicces oldalon! 😎</h1>
-<p>Belépés után felugrik egy kép és szól egy hang.</p>
-
+<p>Belépéskor felugró kép és hang!</p>
 <div id="overlay"></div>
-<div id="popup">
-    <img src="pop_up.png" alt="Vicces kép">
-</div>
-
-<audio id="prank" src="prank_short.mp3" preload="auto"></audio>
-
+<div id="popup"><img src="pop_up.png" alt="Vicces kép"></div>
+<audio id="prank" src="prank_short.mp3"></audio>
 <script>
 window.addEventListener("load", () => {
-    const audio = document.getElementById("prank");
-    const popup = document.getElementById("popup");
-    const overlay = document.getElementById("overlay");
-
-    // Kép + hang megjelenítése
-    function showPopup() {
-        popup.style.display = "block";
-        overlay.style.display = "block";
-        audio.play().catch(() => {
-            console.log("Kattints az oldalra a hang indításához.");
-        });
-    }
-
-    // Első kattintásra induljon, ha az automatikus lejátszás tiltva van
-    document.body.addEventListener("click", showPopup, { once: true });
-
-    // Automatikus indulás
-    setTimeout(showPopup, 1000);
+  const popup = document.getElementById("popup"),
+        overlay = document.getElementById("overlay"),
+        audio = document.getElementById("prank");
+  popup.style.display = overlay.style.display = "flex";
+  audio.play().catch(() => {
+    document.body.addEventListener("click", () => audio.play(), {once:true});
+  });
+  setTimeout(() => { popup.style.display = overlay.style.display = "none"; }, 3000);
 });
 </script>
-
 </body>
 </html>
