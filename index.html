@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Viccközpont v10+ – Chat + Amőba + Kvíz</title>
+<title>Viccközpont v10 – Chat + Amőba + Kvíz (fix)</title>
 <style>
   :root{
     --bg:#0a0f1f; --glass:rgba(255,255,255,.06); --line:rgba(255,255,255,.16);
@@ -76,7 +76,7 @@
   @media (max-width:980px){ .span-8,.span-6,.span-4{grid-column:span 8} }
   @media (max-width:640px){ .span-8,.span-6,.span-4{grid-column:span 4} }
 
-  /* Kvíz Bajnokság UI */
+  /* Kvíz */
   .quizHud{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px}
   .badge{padding:6px 10px; background:#1f2b4d; border:1px solid var(--line); border-radius:999px}
   .meter{flex:1; height:10px; background:#203056; border:1px solid var(--line); border-radius:999px; overflow:hidden}
@@ -89,7 +89,7 @@
   .table th,.table td{border-bottom:1px solid var(--line); padding:8px; text-align:left}
   .table th{opacity:.8; font-weight:800}
 
-  /* Loading overlay (login) */
+  /* Loading overlay */
   #loading{position:fixed; inset:0; display:none; place-items:center; z-index:4;
     background:rgba(8,12,30,.6); backdrop-filter:blur(6px)}
   .loader{width:min(360px,92vw); padding:18px; border-radius:14px;
@@ -130,7 +130,7 @@
 <canvas id="fxCanvas"></canvas>
 
 <header class="appbar" id="appbar" style="display:none">
-  <div class="logo"><span class="dot"></span> Viccközpont <small style="opacity:.7;font-weight:600;margin-left:6px">v10+</small></div>
+  <div class="logo"><span class="dot"></span> Viccközpont <small style="opacity:.7;font-weight:600;margin-left:6px">v10</small></div>
   <nav class="tabs" id="tabs">
     <button class="tab active" data-view="home">Főoldal</button>
     <button class="tab" data-view="sounds">Hangok</button>
@@ -299,7 +299,7 @@
         <h3 class="title">Toplista (helyi)</h3>
         <table class="table" id="lbTable">
           <thead><tr><th>#</th><th>Név</th><th>Pont</th><th>Idő</th></tr></thead>
-        <tbody></tbody>
+          <tbody></tbody>
         </table>
         <p class="muted">A toplista az eszközödön tárolódik (LocalStorage).</p>
       </div>
@@ -427,12 +427,10 @@ $('#form').addEventListener('submit', e=>{
   setTimeout(()=>{
     clearInterval(iv);
     loading.style.display='none';
-    // app megnyit
     $('#loginView').style.display='none';
     $('#appbar').style.display='flex';
     $('#jokeBox').textContent = rnd(JOKES);
 
-    // bulis háttér + konfetti
     const original = waveSpeed; waveSpeed = 0.02; burstConfetti(innerWidth/2, 120);
     setTimeout(()=> waveSpeed = original, 1800);
   }, 1400);
@@ -603,7 +601,7 @@ function finishQuiz(){
   quizSummary.innerHTML = `<p><b>${player}</b>, eredményed: <b>${qScore}/15</b>, idő: <b>${formatTime(qTotalMs)}</b>.</p>`;
   const lb = loadLB();
   lb.push({name:player, score:qScore, time:qTotalMs, date:Date.now()});
-  saveLB(lb.sort((a,b)=> b.score-a.score || a.time-b.time));
+  saveLB(lb.sort((a,b)=> b.score-a.score || a.time-b-time));
   renderLB();
   burstConfetti(innerWidth/2, 160, 180);
 }
@@ -611,7 +609,7 @@ document.getElementById('quizGo').addEventListener('click', startQuiz);
 document.getElementById('quizAgain').addEventListener('click', ()=>{ quizStart.style.display='block'; quizDone.style.display='none'; });
 document.getElementById('quizReset').addEventListener('click', ()=>{ if(confirm('Biztos törlöd a toplistát?')){ localStorage.removeItem(lbKey); renderLB(); }});
 
-/* ===== Amőba (Tic-Tac-Toe) ===== */
+/* ===== Amőba (Tic-Tac-Toe) – FIXELT AI ===== */
 const tttGrid = $('#tttGrid'), tttInfo = $('#tttInfo'), tttCpu = $('#tttCpu');
 let board, playerTurn, gameOver;
 function initTTT(){
@@ -628,26 +626,40 @@ function initTTT(){
   }
   tttInfo.textContent = "Te kezdesz: X";
 }
-function lines(){ return [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]; }
+function winLines(){ return [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]; }
 function winner(b){
-  for(const [a,b1,c] of lines()){
+  for(const [a,b1,c] of winLines()){
     if(board[a] && board[a]===board[b1] && board[a]===board[c]) return {p:board[a], line:[a,b1,c]};
   }
-  if(board.every(Boolean)) return {p:'D', line:[]}; // draw
+  if(board.every(Boolean)) return {p:'D', line:[]};
   return null;
 }
-function bestMove(mark){ // egyszerű „okos” AI: nyerés→blokkolás→közép→sarkok→oldalak
-  const opp = mark==='X'?'O':'X';
-  // win
-  for(let i=0;i<9;i++){ if(!board[i]){ board[i]=mark; if(winner(board)?.p===mark){ board[i]=null; return i; } board[i]=null; } }
-  // block
-  for(let i=0;i<9;i(){ if(!board[i]){ board[i]=opp; if(winner(board)?.p===opp){ board[i]=null; return i; } board[i]=null; } }
-  // center
-  if(!board[4]) return 4;
-  // corners
+function bestMove(mark){ // egyszerű „okos” AI: win→block→center→corners→sides
+  const opp = mark==='X' ? 'O' : 'X';
+
+  // 1) Nyerni tud?
+  for (let i = 0; i < 9; i++) {
+    if (!board[i]) {
+      board[i] = mark;
+      if (winner(board)?.p === mark) { board[i] = null; return i; }
+      board[i] = null;
+    }
+  }
+  // 2) Blokkolni kell?
+  for (let i = 0; i < 9; i++) {
+    if (!board[i]) {
+      board[i] = opp;
+      if (winner(board)?.p === opp) { board[i] = null; return i; }
+      board[i] = null;
+    }
+  }
+  // 3) Közép
+  if (!board[4]) return 4;
+  // 4) Sarkok
   const corners=[0,2,6,8].filter(i=>!board[i]); if(corners.length) return rnd(corners);
-  // sides
+  // 5) Oldalak
   const sides=[1,3,5,7].filter(i=>!board[i]); if(sides.length) return rnd(sides);
+  // 6) Bármi
   return board.findIndex(v=>!v);
 }
 function tttPlay(i){
@@ -655,10 +667,8 @@ function tttPlay(i){
   board[i]=playerTurn;
   renderTTT();
   const w = winner(board);
-  if(w){
-    endTTT(w);
-    return;
-  }
+  if(w){ endTTT(w); return; }
+
   if(tttCpu.checked){
     playerTurn = 'O';
     setTimeout(()=>{
@@ -677,14 +687,11 @@ function tttPlay(i){
   }
 }
 function renderTTT(){
-  [...tttGrid.children].forEach((cell,i)=>{
-    cell.textContent = board[i] || '';
-  });
+  [...tttGrid.children].forEach((cell,i)=>{ cell.textContent = board[i] || ''; cell.classList.remove('win'); });
 }
 function endTTT(res){
   gameOver = true;
   if(res.p==='D'){ tttInfo.textContent = "Döntetlen!"; return; }
-  // highlight
   res.line.forEach(idx => tttGrid.children[idx].classList.add('win'));
   if(res.p==='X'){
     tttInfo.textContent = "Gratulálok, ügyes vagy! 🎉 Te nyertél!";
@@ -719,15 +726,13 @@ const botVicc = [
 ];
 function botReply(txt){
   const t = txt.toLowerCase();
-  // kulcsszavak
   if(/szia|helló|hello|hali/.test(t)) return "Szia! Hogy vagy? Én 0–1 között érzem magam. 😎";
-  if(/hogy vagy|hogy vagy\?/.test(t)) return "Remekül! A hullámaim is ezt mutatják. 🌊";
+  if(/hogy vagy\??/.test(t)) return "Remekül! A hullámaim is ezt mutatják. 🌊";
   if(/vicc|po[eé]n/.test(t)) return rnd(botVicc);
   if(/k[aá]v[eé]/.test(t)) return "Kávé? Mindig! ☕ Addig is: nyomd meg a „Még egy poén” gombot!";
   if(/seg[ií]ts|help|hogyan/.test(t)) return "Segítek: fent a menüben a Játékoknál van Kő–Papír–Olló és Számkitaláló, a Kvízben pedig 15 kérdés vár!";
   if(/j[aá]t[eé]k|game/.test(t)) return "Játszunk! Menj a Játékok vagy az Amőba menübe! 🎮";
   if(/unalom|unatkoz/.test(t)) return "Unalom ellen felírom: 2x poéngenerátor, 1x kvíz, 1x amőba. Jelentkezzen vissza, ha hatott! 😁";
-  // általános csípős, „okos” megjegyzés
   if(t.length>80) return "Ez hosszú volt! Egy TL;DR-t is kérhetek? 😅";
   if(/\?$/.test(t)) return "Jó kérdés! Ha én tudnám, már memében is elmondtam volna. 🤖";
   return rnd(botFallback);
@@ -757,11 +762,10 @@ function scheduleNudge(){
   nudgeTimer = setTimeout(()=>{
     nudgeText.textContent = rnd(nudges);
     nudge.classList.add('show');
-  }, 16000 + Math.random()*8000); // 16–24s
+  }, 16000 + Math.random()*8000);
 }
 nudge.addEventListener('click', ()=>{
   nudge.classList.remove('show');
-  // nyissuk meg a chat nézetet
   $$('#tabs .tab').forEach(t=>t.classList.remove('active'));
   document.querySelector('[data-view="chat"]').classList.add('active');
   $$('.view').forEach(v=>v.classList.remove('active'));
@@ -772,7 +776,7 @@ document.addEventListener('click', e=>{
   if(!nudge.contains(e.target)) nudge.classList.remove('show');
 });
 scheduleNudge();
-setInterval(scheduleNudge, 90000); // kb. 1,5 percenként újra próbálkozik
+setInterval(scheduleNudge, 90000);
 </script>
 </body>
 </html>
