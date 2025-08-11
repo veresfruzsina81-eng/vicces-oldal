@@ -5,79 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Készen állsz? – Bejelentkezés</title>
 <style>
-  :root{
-    --bg1:#1f3b73; --bg2:#6a11cb; --glass:rgba(255,255,255,.08);
-    --line:rgba(255,255,255,.15); --text:#e8eefc; --muted:#b8c1ff;
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%;margin:0}
-  body{
-    font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;
-    background:linear-gradient(135deg, var(--bg1), var(--bg2));
-    color:var(--text);
-    display:grid; place-items:center; padding:24px;
-  }
-  .card{
-    width:min(420px, 92vw);
-    background:var(--glass);
-    border:1px solid var(--line);
-    backdrop-filter: blur(12px);
-    border-radius:18px;
-    padding:26px 24px;
-    box-shadow:0 30px 80px rgba(0,0,0,.35);
-    animation:pop .45s ease both;
-  }
+  :root{--bg1:#1f3b73;--bg2:#6a11cb;--glass:rgba(255,255,255,.08);--line:rgba(255,255,255,.15);--text:#e8eefc;--muted:#b8c1ff;}
+  *{box-sizing:border-box} html,body{height:100%;margin:0}
+  body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);display:grid;place-items:center;padding:24px}
+  .card{width:min(420px,92vw);background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(12px);border-radius:18px;padding:26px 24px;box-shadow:0 30px 80px rgba(0,0,0,.35);animation:pop .45s ease both}
   @keyframes pop{from{transform:translateY(10px) scale(.985);opacity:0}to{transform:none;opacity:1}}
-  h1,h2{margin-top:0}
-  p.hint{margin:0 0 18px; color:var(--muted); font-size:14px}
-  label{display:block; margin:14px 0 6px; font-weight:600}
-  input{
-    width:100%; padding:12px 14px; border-radius:12px; font-size:15px;
-    border:1px solid var(--line); background:rgba(5,10,20,.6); color:var(--text);
-  }
-  .btn{
-    margin-top:16px; width:100%; padding:12px 16px; border:0; border-radius:12px;
-    background:linear-gradient(90deg,#22c55e,#16a34a); color:#052e1b; font-weight:800; cursor:pointer;
-  }
-  .btn.secondary{
-    background:linear-gradient(90deg,#60a5fa,#3b82f6); color:#061327; margin-top:10px;
-  }
-  .err{min-height:18px; margin-top:10px; color:#fecaca; font-weight:600}
-  .success{display:none; text-align:center}
-  .check{
-    margin:10px auto 8px; width:72px; height:72px; border-radius:50%;
-    background:radial-gradient(circle at 30% 30%, #ffffff44, #ffffff11);
-    border:2px solid #34d399; display:grid; place-items:center;
-  }
-  .jokeBox{
-    margin:10px auto 0; padding:10px 12px; border-radius:12px;
-    border:1px solid var(--line); background:rgba(5,10,20,.35); color:#eaf2ff; min-height:24px;
-  }
-  .loading{
-    position:fixed; inset:0; display:none; place-items:center;
-    background:rgba(6,11,23,.65); backdrop-filter: blur(6px); z-index:9999;
-  }
-  .loader{
-    background:rgba(255,255,255,.06); border:1px solid var(--line);
-    border-radius:18px; width:min(360px, 92vw); padding:20px; text-align:center;
-    box-shadow:0 20px 60px rgba(0,0,0,.45);
-  }
-  .coffee{margin:6px auto 14px; width:80px; height:80px; position:relative;}
-  .cup{width:80px; height:50px; border:3px solid #fff; border-top:none;
-    border-radius:0 0 20px 20px; position:absolute; bottom:0;}
-  .handle{position:absolute; right:-14px; bottom:18px; width:24px; height:24px;
-    border:3px solid #fff; border-left:none; border-radius:0 20px 20px 0;}
-  .steam span{
-    position:absolute; left:20px; width:6px; height:6px; background:#fff; border-radius:50%;
-    animation:rise 2s linear infinite;
-  }
-  .steam span:nth-child(2){ left:40px; animation-delay:.4s }
-  .steam span:nth-child(3){ left:58px; animation-delay:.8s }
-  @keyframes rise{
-    0%{transform:translateY(0) scale(.8); opacity:0}
-    20%{opacity:.8}
-    100%{transform:translateY(-40px) scale(1.1); opacity:0}
-  }
+  h1,h2{margin-top:0} p.hint{margin:0 0 18px;color:var(--muted);font-size:14px}
+  label{display:block;margin:14px 0 6px;font-weight:600}
+  input{width:100%;padding:12px 14px;border-radius:12px;font-size:15px;border:1px solid var(--line);background:rgba(5,10,20,.6);color:var(--text)}
+  .btn{margin-top:16px;width:100%;padding:12px 16px;border:0;border-radius:12px;background:linear-gradient(90deg,#22c55e,#16a34a);color:#052e1b;font-weight:800;cursor:pointer}
+  .btn.secondary{background:linear-gradient(90deg,#60a5fa,#3b82f6);color:#061327;margin-top:10px}
+  .err{min-height:18px;margin-top:10px;color:#fecaca;font-weight:600}
+  .success{display:none;text-align:center}
+  .check{margin:10px auto 8px;width:72px;height:72px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#ffffff44,#ffffff11);border:2px solid #34d399;display:grid;place-items:center}
+  .jokeBox{margin:10px auto 0;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(5,10,20,.35);color:#eaf2ff;min-height:24px}
+  .loading{position:fixed;inset:0;display:none;place-items:center;background:rgba(6,11,23,.65);backdrop-filter:blur(6px);z-index:9999}
+  .loader{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:18px;width:min(360px,92vw);padding:20px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+  .coffee{margin:6px auto 14px;width:80px;height:80px;position:relative}
+  .cup{width:80px;height:50px;border:3px solid #fff;border-top:none;border-radius:0 0 20px 20px;position:absolute;bottom:0}
+  .handle{position:absolute;right:-14px;bottom:18px;width:24px;height:24px;border:3px solid #fff;border-left:none;border-radius:0 20px 20px 0}
+  .steam span{position:absolute;left:20px;width:6px;height:6px;background:#fff;border-radius:50%;animation:rise 2s linear infinite}
+  .steam span:nth-child(2){left:40px;animation-delay:.4s} .steam span:nth-child(3){left:58px;animation-delay:.8s}
+  @keyframes rise{0%{transform:translateY(0) scale(.8);opacity:0}20%{opacity:.8}100%{transform:translateY(-40px) scale(1.1);opacity:0}}
 </style>
 </head>
 <body>
@@ -123,7 +72,7 @@
 
   <!-- Hangok -->
   <audio id="prank" src="prank_short.mp3" preload="auto"></audio>
-  <audio id="talent" src="tehetseges.mp3" preload="auto"></audio>
+  <audio id="talent" src="tehetseges.mp3.m4a" preload="auto"></audio>
 
 <script>
 const form  = document.getElementById('form');
@@ -212,7 +161,7 @@ playTalent.addEventListener('click', async ()=>{
   }
 });
 
-// Extra: újrajátszás / kijelentkezés
+// Újrajátszás / kijelentkezés
 play.addEventListener('click', e=>{ e.preventDefault(); audio.currentTime=0; audio.play(); });
 back.addEventListener('click', e=>{
   e.preventDefault();
