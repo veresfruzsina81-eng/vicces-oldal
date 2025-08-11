@@ -1,48 +1,47 @@
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-<meta charset="UTF-8">
-<title>Vicces Belépő</title>
-<style>
-    body {
-        font-family: Arial, sans-serif;
-        text-align: center;
-        background-color: white;
-        margin: 0;
-        padding: 0;
-    }
-    h1 {
-        margin-top: 50px;
-    }
-    /* Felugró kép stílusa */
-    #popup {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.7);
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-    }
-    #popup img {
-        max-width: 80%;
-        max-height: 80%;
-        border: 5px solid white;
-        border-radius: 10px;
-    }
-</style>
+    <meta charset="UTF-8">
+    <title>Vicces Belépő</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            margin-top: 50px;
+        }
+        #popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        #popup img {
+            max-width: 90%;
+            max-height: 90%;
+            border: 5px solid white;
+            border-radius: 10px;
+        }
+    </style>
 </head>
 <body>
 
 <h1>Üdv a vicces oldalon! 😎</h1>
-<p>Belépés után felugrik egy kép és szól egy hang.</p>
+<p>Belépés után felugrik egy kép és szól a hang.</p>
 
-<!-- Felugró overlay a képpel (base64 beágyazva) -->
+<!-- Felugró overlay -->
 <div id="popup">
-    <img src="data:image/jpeg;base64,{{IDE_ILLLESZD_A_BASE64_KÉPET}}" alt="Vicces kép">
+    <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAgGBgkKDQkJCQkJCQkJCQkJCQkJCQ0JCQkJHQ4fHh0OHBwgGSsgIBogGhwcIDUpLCorMDAwHyctPTYrPC4oKCkBCQkJDQsNFQ4ODSYVFRUmJiYmJjImJiYnJiYyJicmJzInJiYmJiYmJiYmJiYnJicmJiYyJiYmJjImJiYm...NAGYON_HOSSZÚ_BASE64_ADAT...==" alt="Vicces kép">
 </div>
 
 <!-- Hang -->
@@ -53,10 +52,10 @@ window.addEventListener("load", () => {
     const popup = document.getElementById("popup");
     const audio = document.getElementById("prank");
 
-    // Kép megjelenítése
+    // Mutatjuk a képet
     popup.style.display = "flex";
 
-    // Hang lejátszás (ha tiltva van az autoplay, kattintásra indul)
+    // Hang lejátszása
     audio.play().catch(() => {
         document.body.addEventListener("click", () => audio.play(), { once: true });
     });
