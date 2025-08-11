@@ -40,6 +40,9 @@
     margin-top:16px; width:100%; padding:12px 16px; border:0; border-radius:12px;
     background:linear-gradient(90deg,#22c55e,#16a34a); color:#052e1b; font-weight:800; cursor:pointer;
   }
+  .btn.secondary{
+    background:linear-gradient(90deg,#60a5fa,#3b82f6); color:#061327; margin-top:10px;
+  }
   .err{min-height:18px; margin-top:10px; color:#fecaca; font-weight:600}
   .success{display:none; text-align:center}
   .check{
@@ -47,15 +50,16 @@
     background:radial-gradient(circle at 30% 30%, #ffffff44, #ffffff11);
     border:2px solid #34d399; display:grid; place-items:center;
   }
+  .jokeBox{
+    margin:10px auto 0; padding:10px 12px; border-radius:12px;
+    border:1px solid var(--line); background:rgba(5,10,20,.35); color:#eaf2ff; min-height:24px;
+  }
   /* Ready screen */
-  .ready-buttons {
-    display: flex; justify-content: center; gap: 15px; margin-top: 15px;
-  }
+  .ready-buttons { display:flex; justify-content:center; gap:15px; margin-top:15px }
   .ready-buttons button {
-    background: #667eea; border: none; color: white; padding: 10px 18px;
-    border-radius: 8px; cursor: pointer; font-size: 16px;
+    background:#667eea; border:0; color:white; padding:10px 18px; border-radius:8px; cursor:pointer; font-size:16px;
   }
-  #readyMsg { margin-top: 15px; font-size: 14px; color: var(--muted); }
+  #readyMsg { margin-top:15px; font-size:14px; color:var(--muted) }
   /* Loading */
   .loading{
     position:fixed; inset:0; display:none; place-items:center;
@@ -109,10 +113,17 @@
       <button class="btn" type="submit">Belépek</button>
       <div id="err" class="err"></div>
     </form>
+
+    <!-- Siker nézet + poén gomb -->
     <section id="ok" class="success">
       <div class="check">✅</div>
       <h2>Üdv, <span id="uname"></span>! 😎</h2>
-      <p><a href="#" id="play">Lejátszás újra</a> · <a href="#" id="back">Kijelentkezés</a></p>
+      <div id="jokeBox" class="jokeBox"></div>
+      <button id="moreJoke" class="btn secondary" type="button">Még egy poén</button>
+      <p style="margin-top:10px">
+        <a href="#" id="play" class="hint">Lejátszás újra</a> ·
+        <a href="#" id="back" class="hint">Kijelentkezés</a>
+      </p>
     </section>
   </main>
 
@@ -136,14 +147,8 @@ const loginCard = document.getElementById('loginCard');
 const yesBtn = document.getElementById('yesBtn');
 const noBtn = document.getElementById('noBtn');
 const readyMsg = document.getElementById('readyMsg');
-
-yesBtn.addEventListener('click', () => {
-  readyScreen.style.display = "none";
-  loginCard.style.display = "block";
-});
-noBtn.addEventListener('click', () => {
-  readyMsg.textContent = "Akkor igyál még egy kávét! ☕";
-});
+yesBtn.addEventListener('click', () => { readyScreen.style.display="none"; loginCard.style.display="block"; });
+noBtn.addEventListener('click', () => { readyMsg.textContent="Akkor igyál még egy kávét! ☕"; });
 
 const form  = document.getElementById('form');
 const err   = document.getElementById('err');
@@ -154,6 +159,8 @@ const play  = document.getElementById('play');
 const back  = document.getElementById('back');
 const loading = document.getElementById('loading');
 const loadingText = document.getElementById('loadingText');
+const jokeBox = document.getElementById('jokeBox');
+const moreJoke = document.getElementById('moreJoke');
 
 const funnyMessages = [
   "Kávészemek őrlése…","Cukor kimérése…","Habos tej előkészítése…",
@@ -162,7 +169,6 @@ const funnyMessages = [
   "Kiskanál polírozása…","Kávé kész! ☕"
 ];
 
-// Véletlen vicces kérdések + válaszok
 const funnyPrompts = [
   {q:"Nem vagy álmos? 😴", a:"Akkor pihenj még egyet! 🛌"},
   {q:"Hozol nekem is sütit? 🍪", a:"Pedig szerettem volna sütit... 😢"},
@@ -171,39 +177,46 @@ const funnyPrompts = [
   {q:"Megmostad a bögréket? ☕", a:"Piszkos bögréből nem iszunk! 🧼"}
 ];
 
+const jokes = [
+  "Miért nem iszik a számítógép kávét? – Mert fél a crash-től! 💥",
+  "A jelszavam olyan erős, hogy még én se tudom…",
+  "Ha nem indul a hang: rázd meg a bögrét! ☕",
+  "A kávé a válasz. Mi is volt a kérdés? 🤔",
+  "Figyelem! A humor túlzott fogyasztása mosolyt okozhat. 😁",
+  "404: Süti nem található. 🍪",
+  "Ne vedd komolyan, ez csak tréfa. 😉"
+];
+function randomJoke(){ return jokes[Math.floor(Math.random()*jokes.length)]; }
+
 form.addEventListener('submit', async (e)=>{
   e.preventDefault();
   err.textContent = '';
   if(!form.checkValidity()){ form.reportValidity(); return; }
 
-  // Kérdés bejelentkezés előtt
-  const randomPrompt = funnyPrompts[Math.floor(Math.random()*funnyPrompts.length)];
-  const okToProceed = confirm(randomPrompt.q);
-  if(!okToProceed){
-    err.textContent = randomPrompt.a;
-    return;
-  }
+  const ask = funnyPrompts[Math.floor(Math.random()*funnyPrompts.length)];
+  const okToProceed = confirm(ask.q);
+  if(!okToProceed){ err.textContent = ask.a; return; }
 
-  // ☕ Megjelenítjük a kávéfőző overlayt
   loading.style.display = 'grid';
-  let msgIndex = 0;
-  loadingText.textContent = funnyMessages[msgIndex];
-  const msgInterval = setInterval(()=>{
-    msgIndex++;
-    if(msgIndex < funnyMessages.length){
-      loadingText.textContent = funnyMessages[msgIndex];
-    }
-  }, 500);
+  let i = 0;
+  loadingText.textContent = funnyMessages[i];
+  const iv = setInterval(()=>{ i++; if(i<funnyMessages.length){ loadingText.textContent = funnyMessages[i]; } }, 500);
 
   await new Promise(r=>setTimeout(r, 4000));
-  clearInterval(msgInterval);
+  clearInterval(iv);
   loading.style.display = 'none';
 
   uname.textContent = form.name.value.trim();
   form.style.display = 'none';
   ok.style.display = 'block';
+  jokeBox.textContent = randomJoke();
+
   try { audio.currentTime = 0; await audio.play(); }
   catch { document.body.addEventListener('click', ()=>audio.play(), {once:true}); }
+});
+
+moreJoke.addEventListener('click', ()=>{
+  jokeBox.textContent = randomJoke();
 });
 
 play.addEventListener('click', e=>{ e.preventDefault(); audio.currentTime=0; audio.play(); });
