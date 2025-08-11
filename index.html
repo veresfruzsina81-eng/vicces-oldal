@@ -668,6 +668,67 @@ self.addEventListener('fetch',e=>{
 
 3) Ikonok: hozd létre /icons/icon-192.png és /icons/icon-512.png
 -->
+<script>
+// Hang + Időjárás – robusztus inicializálás
+(function(){
+  const cont = document.querySelector('#panelMedia .content'); if(!cont) return;
+  cont.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="chip ok"  data-sound="prank">Prank ▶️</button>
+      <button class="chip info" data-sound="talent">Tehetséges ▶️</button>
+      <button class="chip" id="stopAll">Leállít</button>
+    </div>
+    <div id="soundStatus" class="box" style="margin-bottom:10px">Hang státusz: kész</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button id="btnWx" class="chip ok">Poénos időjárás</button>
+      <div id="wx" class="box">Nyomd meg a gombot!</div>
+    </div>
+    <div style="margin-top:10px"><div class="box" id="clock">--:--:--</div></div>
+  `;
 
+  // Hang elemek vagy fallback
+  let A1 = document.getElementById('prank');
+  let A2 = document.getElementById('talent');
+  const status = document.getElementById('soundStatus');
+
+  function check(src, id){
+    return fetch(src, {method:'HEAD'}).then(r=>{
+      if(!r.ok) throw new Error('not ok');
+      return true;
+    }).catch(()=>{
+      status.textContent = `Hang státusz: hiányzik a(z) ${src} (töltsd fel a repo gyökerébe)`;
+      const a = document.getElementById(id);
+      if(a){ a.removeAttribute('src'); }
+      return false;
+    });
+  }
+
+  // Ellenőrizzük, tényleg elérhető-e a fájl
+  Promise.all([
+    check('prank_short.mp3','prank'),
+    check('tehetseges.mp3.m4a','talent')
+  ]).then(() => {
+    status.textContent = 'Hang státusz: kész (ha mégsem szól, kattints egyet az oldalon és próbáld újra)';
+  });
+
+  function stop(){ try{A1?.pause();A2?.pause()}catch{} }
+  function play(which){
+    stop();
+    const el = which==='talent' ? A2 : A1;
+    if(!el || !el.src){ alert('Hiányzik a hangfájl. Töltsd fel: '+(which==='talent'?'tehetseges.mp3.m4a':'prank_short.mp3')); return; }
+    el.currentTime = 0;
+    el.play().catch(()=>alert('Kérlek kattints az oldalra egyet, majd próbáld újra (autoplay tiltás).'));
+  }
+  document.querySelectorAll('[data-sound]').forEach(b=>b.addEventListener('click',()=>play(b.getAttribute('data-sound'))));
+  document.getElementById('stopAll')?.addEventListener('click',stop);
+
+  // Poénos időjárás + óra
+  const WX=["Ma 100% esély poénzáporra! ☔😂","Holnap napsütés és röhögéshullám. 🌞🤣","Viharos nevetés közeleg! 💨😆","Derült ég, de a szomszéd viccei beborítanak. 🌤"];
+  document.getElementById('btnWx')?.addEventListener('click',()=>{
+    document.getElementById('wx').textContent = WX[Math.floor(Math.random()*WX.length)];
+  });
+  (function tick(){ document.getElementById('clock').textContent = new Date().toLocaleTimeString('hu-HU',{hour12:false}); requestAnimationFrame(tick); })();
+})();
+</script>
 </body>
 </html>
