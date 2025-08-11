@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Viccközpont v10 – stabil + kvíz-háttér</title>
+<title>Viccközpont v10 – modern (stabil, quiz fehér háttérrel)</title>
 <style>
   :root{
     --bg:#0a0f1f; --glass:rgba(255,255,255,.06); --line:rgba(255,255,255,.16);
     --text:#e6ecff; --muted:#a7b1d6;
+    --brand1:#7c3aed; --brand2:#22d3ee;
     --ok:#22c55e; --info:#60a5fa; --warn:#f59e0b; --danger:#ef4444;
     --goodGrad:linear-gradient(90deg,#22c55e,#16a34a);
     --infoGrad:linear-gradient(90deg,#60a5fa,#3b82f6);
@@ -18,7 +19,7 @@
   html,body{height:100%;margin:0}
   body{color:var(--text); background:var(--bg); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden}
 
-  /* Háttér vásznak (WAVE) */
+  /* Háttér vásznak */
   #bgCanvas{position:fixed; inset:0; z-index:0;
     background:
       radial-gradient(1200px 800px at 120% -20%,#22d3ee15 0 40%,transparent 60%),
@@ -27,11 +28,36 @@
   }
   #fxCanvas{position:fixed; inset:0; z-index:2; pointer-events:none}
 
+  /* Kvíz-speciális háttér – csak kvíz nézetben */
+  body.quiz-theme #bgCanvas{
+    background:
+      radial-gradient(1100px 700px at 110% -10%, #22d3ee22 0 40%, transparent 60%),
+      radial-gradient(900px 600px at -10% 110%, #7c3aed22 0 40%, transparent 60%),
+      repeating-conic-gradient(from 0deg,
+        #ffe08a 0 10deg, #ff8fab 10deg 20deg, #9bf6ff 20deg 30deg, #baffc9 30deg 40deg,
+        #ffd6a5 40deg 50deg, #caffbf 50deg 60deg);
+    filter: saturate(1.05);
+  }
+
+  /* Kvíz kártya: FEHÉR háttér a jobb olvashatóságért */
+  body.quiz-theme #quizCard{
+    background:#fff; color:#000;
+    border:1px solid rgba(0,0,0,.1);
+    box-shadow:0 30px 80px rgba(0,0,0,.25);
+  }
+  body.quiz-theme #quizCard .box,
+  body.quiz-theme #quizCard .answers .ans{
+    background:#f9f9f9; color:#000;
+    border:1px solid rgba(0,0,0,.1);
+  }
+  body.quiz-theme #quizCard .ans.correct{outline:2px solid #22c55e}
+  body.quiz-theme #quizCard .ans.wrong{outline:2px solid #ef4444}
+
   /* Appbar */
   header.appbar{position:sticky; top:0; z-index:3; display:flex; align-items:center; gap:12px; padding:12px 16px;
     background:linear-gradient(180deg, rgba(15,22,44,.85), rgba(15,22,44,.55)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line)}
-  .logo{display:flex; align-items:center; gap:10px; font-weight:900}
-  .logo .dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(90deg,#7c3aed,#22d3ee);box-shadow:0 0 18px #22d3ee90}
+  .logo{display:flex; align-items:center; gap:10px; font-weight:900; letter-spacing:.4px}
+  .logo .dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(90deg,var(--brand1),var(--brand2));box-shadow:0 0 18px #22d3ee90}
   nav.tabs{margin-left:auto; display:flex; gap:6px; flex-wrap:wrap}
   .tab{padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:var(--glass); color:var(--text); cursor:pointer; font-weight:700}
   .tab.active{background:linear-gradient(90deg,#7c3aed,#22d3ee); color:#061225; border-color:transparent}
@@ -111,20 +137,17 @@
   .chat-input input{flex:1}
   .chat-tip{font-size:12px; color:#c9d1ff99; margin-top:6px}
 
-  /* Külön kvíz-téma a HÁTTÉRHEZ (csak a kvíz nézetben aktiv) */
-  body.quiz-theme #bgCanvas{
-    background:
-      radial-gradient(900px 600px at 110% -10%, #22d3ee22 0 40%, transparent 60%),
-      radial-gradient(800px 500px at -10% 110%, #7c3aed22 0 40%, transparent 60%),
-      repeating-conic-gradient(from 0deg,
-        #ffd166 0 14deg, #ef476f 14deg 28deg, #06d6a0 28deg 42deg, #118ab2 42deg 56deg);
-    filter:saturate(1.2);
+  /* Chat meghívó buborék */
+  .chat-nudge{
+    position:fixed; right:16px; bottom:16px; z-index:5;
+    display:none; align-items:center; gap:10px; padding:10px 12px;
+    background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+    border:1px solid var(--line); border-radius:14px; box-shadow:0 14px 40px rgba(0,0,0,.4);
+    cursor:pointer; backdrop-filter:blur(10px);
   }
-  body.quiz-theme #quizCard{
-    background:rgba(6,10,20,.78);
-    border:1px solid rgba(255,255,255,.18);
-    box-shadow:0 30px 80px rgba(0,0,0,.55);
-  }
+  .chat-nudge.show{display:flex; animation:pop .35s ease both}
+  .chat-nudge .dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(90deg,var(--brand1),var(--brand2))}
+  @keyframes pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
 </style>
 </head>
 <body>
@@ -205,38 +228,6 @@
           <button class="chip" id="resume">▶️ Folytat</button>
         </div>
         <div id="nowPlaying" class="box" style="margin-top:10px">Semmi sem szól.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Játékok -->
-  <section id="games" class="view">
-    <div class="grid">
-      <!-- Kő-Papír-Olló -->
-      <div class="card span-6">
-        <h3 class="title">Kő–Papír–Olló</h3>
-        <div class="row" style="margin-top:8px; flex-wrap:nowrap">
-          <button class="chip ok pick" data-pick="Kő">🪨 Kő</button>
-          <button class="chip info pick" data-pick="Papír">📄 Papír</button>
-          <button class="chip danger pick" data-pick="Olló">✂️ Olló</button>
-          <button id="rpsReset" class="chip warn">Reset</button>
-        </div>
-        <div class="row score" style="margin-top:8px">
-          <span class="badge">Te: <b id="youScore">0</b></span>
-          <span class="badge">Gép: <b id="cpuScore">0</b></span>
-        </div>
-        <div id="rpsOut" class="box" style="margin-top:10px">Válassz egyet!</div>
-      </div>
-
-      <!-- Számkitaláló -->
-      <div class="card span-6">
-        <h3 class="title">Számkitaláló</h3>
-        <div class="row" style="margin-top:8px">
-          <input id="guessIn" type="number" min="1" max="10" placeholder="1–10" style="width:120px">
-          <button id="guessBtn" class="chip ok">Tipp!</button>
-          <button id="guessNew" class="chip info">Új szám</button>
-        </div>
-        <div id="guessOut" class="box" style="margin-top:10px">Tippelj 1 és 10 között!</div>
       </div>
     </div>
   </section>
@@ -339,7 +330,10 @@
 </main>
 
 <!-- Chat meghívó buborék -->
-<div id="chatNudge" class="chat-nudge" style="display:none"></div>
+<div id="chatNudge" class="chat-nudge">
+  <span class="dot"></span>
+  <span id="chatNudgeText">Akarsz velem beszélgetni?</span>
+</div>
 
 <!-- Hangok -->
 <audio id="prank"  src="prank_short.mp3"    preload="auto"></audio>
@@ -406,20 +400,10 @@ const A_PRANK=$('#prank'), A_TALENT=$('#talent');
 function stopAll(){try{A_PRANK.pause();A_TALENT.pause();}catch{}}
 function playById(id){ stopAll(); const a=id==='talent'?A_TALENT:A_PRANK; a.currentTime=0; a.play().catch(()=>alert('Kattints az oldalra, hogy a böngésző engedje a hangot!')); }
 $$('[data-sound]').forEach(b=>b.addEventListener('click',e=>{ const r=e.target.getBoundingClientRect(); burstConfetti(r.left+r.width/2, r.top+scrollY); playById(b.getAttribute('data-sound')); }));
-
-/* ===== Játékok ===== */
-let you=0,cpu=0; const youEl=$('#youScore'), cpuEl=$('#cpuScore'), rpsOut=$('#rpsOut');
-$('#rpsReset').addEventListener('click',()=>{you=0;cpu=0;youEl.textContent=0;cpuEl.textContent=0;rpsOut.textContent='Válassz egyet!';});
-$('#games').querySelectorAll('.pick').forEach(p=>p.addEventListener('click',e=>{
-  const user=p.getAttribute('data-pick'), comp=rnd(['Kő','Papír','Olló']); let res='Vesztettél!';
-  if(user===comp) res='Döntetlen!'; else if((user==='Kő'&&comp==='Olló')||(user==='Papír'&&comp==='Kő')||(user==='Olló'&&comp==='Papír')){res='Nyertél!'; you++; const r=e.target.getBoundingClientRect(); burstConfetti(r.left+r.width/2, r.top+scrollY);} else cpu++;
-  youEl.textContent=you; cpuEl.textContent=cpu; rpsOut.textContent=`Te: ${user} | Gép: ${comp} → ${res}`;
-}));
-let secret=1+Math.floor(Math.random()*10);
-$('#guessBtn').addEventListener('click',()=>{ const v=parseInt($('#guessIn').value,10); if(isNaN(v)){$('#guessOut').textContent='Adj meg egy számot!';return;}
-  if(v===secret){ $('#guessOut').textContent=`Eltaláltad! (${secret}) 🎉`; burstConfetti(innerWidth/2, innerHeight/2);} else if(v<secret) $('#guessOut').textContent='Nagyobb! ⬆️'; else $('#guessOut').textContent='Kisebb! ⬇️';
-});
-$('#guessNew').addEventListener('click',()=>{ secret=1+Math.floor(Math.random()*10); $('#guessOut').textContent='Új szám kész!'; $('#guessIn').value=''; });
+$('#stopAll').addEventListener('click',()=>{stopAll();$('#nowPlaying')?.textContent='Semmi sem szól.';});
+$('#rewind').addEventListener('click',()=>{ A_PRANK.currentTime=0; A_TALENT.currentTime=0; });
+$('#pause').addEventListener('click',()=>{ try{A_PRANK.pause();}catch{} try{A_TALENT.pause();}catch{} });
+$('#resume').addEventListener('click',()=>{ if(!A_PRANK.paused) A_PRANK.play(); else if(!A_TALENT.paused) A_TALENT.play(); });
 
 /* ===== Időjárás + óra ===== */
 $('#btnWx').addEventListener('click',()=>$('#wx').textContent=rnd(WX));
@@ -454,6 +438,9 @@ renderLB();
 const quizStart=$('#quizStart'), quizHud=$('#quizHud'), quizQWrap=$('#quizQWrap'), quizDone=$('#quizDone');
 const qIdxEl=$('#qIdx'), qScoreEl=$('#qScore'), qTimeEl=$('#qTime'), qBar=$('#qBar'), qText=$('#qText'), qAns=$('#qAns'), quizSummary=$('#quizSummary');
 let qi=0,qScore=0,qStart=0,qTimer=null,qEndAt=0,player='';
+document.getElementById('quizGo').addEventListener('click', startQuiz);
+document.getElementById('quizAgain').addEventListener('click', ()=>{ quizStart.style.display='block'; quizDone.style.display='none'; });
+document.getElementById('quizReset').addEventListener('click', ()=>{ if(confirm('Biztos törlöd a toplistát?')){ localStorage.removeItem(lbKey); renderLB(); }});
 function startQuiz(){ player=($('#playerName').value||$('#name').value||'Vendég').trim(); qi=0;qScore=0; quizStart.style.display='none'; quizDone.style.display='none'; quizHud.style.display='flex'; quizQWrap.style.display='block'; qStart=performance.now(); nextQuestion(); }
 function nextQuestion(){
   if(qi>=QUESTIONS.length){ return finishQuiz(); }
@@ -473,11 +460,8 @@ function finishQuiz(){
   const lb=loadLB(); lb.push({name:player,score:qScore,time:totalMs,date:Date.now()});
   saveLB(lb.sort((a,b)=>(b.score-a.score)||(a.time-b.time))); renderLB(); burstConfetti(innerWidth/2,160,180);
 }
-document.getElementById('quizGo').addEventListener('click', startQuiz);
-document.getElementById('quizAgain').addEventListener('click', ()=>{ quizStart.style.display='block'; quizDone.style.display='none'; });
-document.getElementById('quizReset').addEventListener('click', ()=>{ if(confirm('Biztos törlöd a toplistát?')){ localStorage.removeItem(lbKey); renderLB(); }});
 
-/* ===== Amőba (fixelt AI) ===== */
+/* ===== Amőba (AI fix) ===== */
 const tttGrid=$('#tttGrid'), tttInfo=$('#tttInfo'), tttCpu=$('#tttCpu'); let board, playerTurn, gameOver;
 function initTTT(){ board=Array(9).fill(null); playerTurn='X'; gameOver=false; tttGrid.innerHTML=''; for(let i=0;i<9;i++){ const c=document.createElement('div'); c.className='ttt-cell'; c.dataset.idx=i; c.addEventListener('click',()=>tttPlay(i)); tttGrid.appendChild(c);} tttInfo.textContent="Te kezdesz: X"; }
 function winLines(){return [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];}
@@ -493,13 +477,14 @@ function tttPlay(i){ if(gameOver||board[i])return; board[i]=playerTurn; renderTT
 }
 function renderTTT(){ [...tttGrid.children].forEach((cell,i)=>{ cell.textContent=board[i]||''; cell.classList.remove('win'); }); }
 function endTTT(res){ gameOver=true; if(res.p==='D'){ tttInfo.textContent="Döntetlen!"; return; } res.line.forEach(idx=>tttGrid.children[idx].classList.add('win'));
-  if(res.p==='X'){ tttInfo.textContent="Gratulálok, ügyes vagy! 🎉 Te nyertél!"; burstConfetti(innerWidth/2, innerHeight/3, 160);} else { tttInfo.textContent="A gép nyert. Újra?"; }
+  if(res.p==='X'){ tttInfo.textContent="Gratulálok, ügyes vagy! 🎉 Te nyertél!"; burstConfetti(innerWidth/2, innerHeight/3, 160); }
+  else { tttInfo.textContent="A gép nyert. Újra?"; }
 }
 $('#tttReset').addEventListener('click', initTTT); initTTT();
 
-/* ===== Chat ===== */
-const chatBox=$('#chatBox'), chatInput=$('#chatInput');
-function pushMsg(txt,who='user'){ const b=document.createElement('div'); b.className='msg '+(who==='user'?'user':'bot'); b.textContent=txt; chatBox.appendChild(b); chatBox.scrollTop=chatBox.scrollHeight; }
+/* ===== Chat – okosított ===== */
+const chatBox=$('#chatBox'), chatInput=$('#chatInput'), chatSend=$('#chatSend');
+function pushMsg(text,who='user'){ const b=document.createElement('div'); b.className='msg '+(who==='user'?'user':'bot'); b.textContent=text; chatBox.appendChild(b); chatBox.scrollTop=chatBox.scrollHeight; }
 const botFallback=["Értem… vagy mégsem? 🤔 Mesélj többet!","Kávé után minden jobb. Kérsz? ☕","Mondanék egy viccet, de félek, hogy a böngésződ lefagy a nevetéstől.","Ha ez egy rejtvény, akkor JÓL csinálod. 😄","Hmm… érdekes. Kattints a Játékok menüpontra közben!"];
 const botVicc=["Miért vitt a számítógép esernyőt? – Vírusos idő lesz.","Mit mond a nulla a nyolcasnak? – Szép öved van!","A kávé a válasz. Mi is volt a kérdés? 🤔"];
 function botReply(t0){ const t=t0.toLowerCase();
@@ -509,13 +494,23 @@ function botReply(t0){ const t=t0.toLowerCase();
   if(/k[aá]v[eé]/.test(t)) return "Kávé? Mindig! ☕ Addig is: nyomd meg a „Még egy poén” gombot!";
   if(/seg[ií]ts|help|hogyan/.test(t)) return "Segítek: fent a menüben a Játékoknál van Kő–Papír–Olló és Számkitaláló, a Kvízben pedig 15 kérdés vár!";
   if(/j[aá]t[eé]k|game/.test(t)) return "Játszunk! Menj a Játékok vagy az Amőba menübe! 🎮";
-  if(/unalom|unatkoz/.test(t)) return "Unalom ellen felírom: 2x poéngenerátor, 1x kvíz, 1x amőba. Jelentkezzen vissza, ha hatott! 😁";
+  if(/unalom|unatkoz/.test(t)) return "Unalom ellen: 2x poéngenerátor, 1x kvíz, 1x amőba. Jelentkezz vissza, ha hatott! 😁";
   if(t.length>80) return "Ez hosszú volt! Egy TL;DR-t is kérhetek? 😅";
   if(/\?$/.test(t)) return "Jó kérdés! Ha én tudnám, már memében is elmondtam volna. 🤖";
   return rnd(botFallback);
 }
-document.getElementById('chatSend').addEventListener('click', ()=>{ const v=chatInput.value.trim(); if(!v) return; pushMsg(v,'user'); chatInput.value=''; setTimeout(()=>pushMsg(botReply(v),'bot'),400); });
-chatInput.addEventListener('keydown',e=>{ if(e.key==='Enter'){ document.getElementById('chatSend').click(); }});
+function sendChat(){ const val=chatInput.value.trim(); if(!val) return; pushMsg(val,'user'); chatInput.value=''; setTimeout(()=>pushMsg(botReply(val),'bot'),400); }
+chatSend.addEventListener('click', sendChat);
+chatInput.addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat(); });
+
+/* ===== Chat „meghívó” buborék ===== */
+const nudge=$('#chatNudge'), nudgeText=$('#chatNudgeText');
+const nudges=["Akarsz velem beszélgetni? 🙂","Mesélek egy viccet, ha rám kattintasz!","Kérdezz valamit, nem harapok!","Unatkozol? Gyere csetelni! 💬","Tudok jobb poént, mint a szomszédé. 😉"];
+let nudgeTimer=null;
+function scheduleNudge(){ clearTimeout(nudgeTimer); nudgeTimer=setTimeout(()=>{ nudgeText.textContent=rnd(nudges); nudge.classList.add('show'); }, 16000+Math.random()*8000); }
+nudge.addEventListener('click', ()=>{ nudge.classList.remove('show'); $$('#tabs .tab').forEach(t=>t.classList.remove('active')); document.querySelector('[data-view="chat"]').classList.add('active'); $$('.view').forEach(v=>v.classList.remove('active')); $('#chat').classList.add('active'); scheduleNudge(); });
+document.addEventListener('click', e=>{ if(!nudge.contains(e.target)) nudge.classList.remove('show'); });
+scheduleNudge(); setInterval(scheduleNudge, 90000);
 </script>
 </body>
 </html>
