@@ -3,455 +3,221 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kétjátékos Párbaj – Top-Down 2D</title>
+<title>Noel & Trics – Mini küldetés</title>
 <style>
   :root{--bg:#0b1224;--panel:#0f1629;--line:#1e293b;--text:#e5e7eb;--muted:#94a3b8}
-  *{box-sizing:border-box}
-  body{margin:0;background:radial-gradient(1200px 700px at 50% -200px,#0e1531,#0b1224);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;display:grid;place-items:center;min-height:100vh}
-  .wrap{width:min(1100px,96vw)}
-  header{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
-  .title{font-weight:800;letter-spacing:.3px}
-  .panel{background:linear-gradient(180deg,#121a31,#0e162b);border:1px solid var(--line);padding:12px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
-  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-  select,button{appearance:none;border:1px solid #223046;background:#0b1326;color:var(--text);padding:10px 12px;border-radius:12px;font-weight:700}
-  button{cursor:pointer;transition:transform .05s,filter .2s}
-  button:hover{filter:brightness(1.08)} button:active{transform:translateY(1px)}
-  .primary{background:linear-gradient(180deg,#1f9b58,#14834c);border-color:#1f9b58;box-shadow:0 8px 20px rgba(34,197,94,.25)}
-  .badge{padding:4px 8px;border:1px solid #334155;border-radius:999px;color:#cbd5e1;background:#0b1224;font-size:12px}
-  canvas{width:100%;height:auto;display:block;background:#0f2d2b;border-radius:16px;border:1px solid #1f4d4a}
-  .hud{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px}
-  .hint{font-size:13px;color:var(--muted)}
-  .stats{font-weight:800}
-  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0b1224;border:1px solid #1e293b;padding:10px 14px;border-radius:12px;font-weight:700;color:#cbd5e1;box-shadow:0 10px 30px rgba(0,0,0,.35);opacity:.96}
-  .hidden{display:none}
+  *{box-sizing:border-box} body{margin:0;background:radial-gradient(1000px 600px at 50% -200px,#0f1531,#0b1224);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
+  .wrap{max-width:1100px;margin:16px auto;padding:0 12px}
+  h1{margin:0 0 8px;font-size:20px}
+  .panel{background:linear-gradient(180deg,#121a31,#0e162b);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.35);padding:12px;margin-bottom:10px}
+  label{font-size:12px;color:var(--muted)}
+  input,select,button,textarea{border:1px solid #223046;background:#0b1326;color:var(--text);border-radius:12px;padding:10px 12px;font:inherit}
+  button{font-weight:700;cursor:pointer;transition:transform .05s,filter .2s} button:hover{filter:brightness(1.06)} button:active{transform:translateY(1px)}
+  .primary{background:linear-gradient(180deg,#1f9b58,#14834c);border-color:#1f9b58}
+  .danger{background:linear-gradient(180deg,#ef4444,#b91c1c);border-color:#b91c1c}
+  .stage{position:relative;aspect-ratio:16/9;border:1px solid #1e293b;border-radius:16px;overflow:hidden}
+  .bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .char{position:absolute;bottom:0;transform:translateX(-50%);transition:transform .35s ease, opacity .35s ease; opacity:.6}
+  .char img{max-height:90%;height:90%;filter:drop-shadow(0 12px 30px rgba(0,0,0,.6))}
+  .left{left:22%} .center{left:50%} .right{left:78%}
+  .active{opacity:1; animation:pulse 1.2s ease-in-out infinite alternate}
+  .float{animation:float 3.6s ease-in-out infinite}
+  @keyframes float{from{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-6px)}to{transform:translateX(-50%) translateY(0)}}
+  @keyframes pulse{from{filter:drop-shadow(0 12px 30px rgba(0,0,0,.6))}to{filter:drop-shadow(0 18px 36px rgba(0,0,0,.8))}}
+  .speech{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);width:min(900px,92%);background:#0b1326d9;border:1px solid #20324a;border-radius:14px;padding:12px}
+  .name{display:inline-block;background:#111d34;border:1px solid #20324a;padding:4px 10px;border-radius:10px;font-weight:800;margin-bottom:6px}
+  .text{line-height:1.45}
+  .controls{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:8px}
+  .hint{font-size:12px;color:#9ca3af}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <div class="title">⚔️ Kétjátékos Párbaj – Top-Down 2D</div>
-    <div class="badge">WASD/F/G • ←↑↓→ / . / / • P szünet</div>
-  </header>
-
-  <div class="panel" style="margin-bottom:10px">
-    <div class="row" style="justify-content:space-between">
-      <div class="row">
-        <div>
-          <label for="arena">Aréna</label><br>
-          <select id="arena">
-            <option value="forest" selected>Erdei aréna</option>
-            <option value="desert">Sivatag</option>
-            <option value="neon">Neon csarnok</option>
-          </select>
-        </div>
-        <div>
-          <label for="powerups">Power-upok</label><br>
-          <select id="powerups">
-            <option value="on" selected>Bekapcsolva</option>
-            <option value="off">Kikapcsolva</option>
-          </select>
-        </div>
-        <div>
-          <label for="rounds">Nyertes körök</label><br>
-          <select id="rounds">
-            <option>3</option><option selected>5</option><option>7</option>
-          </select>
-        </div>
+  <h1>📖 Noel & Trics – Mini küldetés</h1>
+  <div class="panel">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <label>Háttér</label><br><input id="bg" type="file" accept="image/*">
       </div>
-      <button id="newMatchBtn" class="primary">▶️ Új meccs</button>
+      <div>
+        <label>Automatikus lejátszás</label><br>
+        <select id="autoplay"><option value="on" selected>Be (3–6 mp)</option><option value="off">Ki</option></select>
+      </div>
+      <div>
+        <label>Noel kép</label><br><input id="imgNoel" type="file" accept="image/*">
+      </div>
+      <div>
+        <label>Trics kép</label><br><input id="imgTrics" type="file" accept="image/*">
+      </div>
     </div>
-    <div class="hint" style="margin-top:6px">J1: WASD mozgás, F lövés, G dash • J2: nyilak, / lövés, . dash</div>
+    <div style="margin-top:8px">
+      <label>Szkript (magyar, soronként <code>Név: szöveg</code>, utasítások: <code>[pause=ms]</code>, <code>[pos=Név:left/center/right]</code>)</label>
+      <textarea id="script" rows="12" style="width:100%">[pos=Noel:left]
+[pos=Trics:right]
+Narrátor: Egy fényes reggelen Noel a dombok között egy titokzatos, kék fénycsíkot lát az égen.
+Noel: Hű, ez mi lehetett? Olyan, mintha ide zuhant volna valami!
+[pause=700]
+Trics: Szia! Én vagyok Trics. A kapszulám energiamagja itt landolt. Segítesz megkeresni?
+Noel: Persze, imádok nyomozni! Merre induljunk?
+Trics: A detektor szerint a mezőn át, aztán a kis domb mögött balra.
+Narrátor: A fű között apró, szikrázó pöttyök mutatnak utat.
+Noel: Ezek mintha… energiacsíkok lennének!
+[pause=600]
+Trics: Pontosan! Kövessük őket – de óvatosan, néha váratlanul elhalványulnak.
+Narrátor: A dombtetőn furcsa, kőből rakott kör várja őket.
+Noel: Olyan, mintha kirakó lenne. Talán sorrendben kell megérinteni.
+Trics: Próbáljuk: kicsi–nagy–közép!
+Narrátor: A kövek felizzanak, és keskeny ösvényt rajzolnak a fűbe.
+Noel: Látom a végén a fényt!
+[pause=800]
+Trics: Ott az energiamag! De forró… együtt számolunk, és egyszerre érintjük meg.
+Noel: Három… kettő… egy! Megvan!
+Narrátor: A mag megszelídül, puha zümmögéssel a kapszulába suhan.
+Trics: Köszönöm, Noel! Nélküled nem sikerült volna.
+Noel: Gyere holnap is! Megmutatom a titkos fámat is a pataknál.
+Narrátor: A dombok fölött már új kaland ígérete csillog.</textarea>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      <button id="start" class="primary">▶️ Lejátszás</button>
+      <button id="stop" class="danger">⏹️ Stop</button>
+      <label style="margin-left:auto"><input id="tts" type="checkbox" checked> Felolvasás (magyar)</label>
+    </div>
+    <div class="hint" style="margin-top:6px">Töltsd be a három képet (háttér, Noel, Trics), majd indítsd el. Space: tovább, Backspace: vissza.</div>
   </div>
 
-  <canvas id="game" width="1100" height="650"></canvas>
+  <div class="stage panel" id="stage">
+    <div class="bg" id="bgView"></div>
+    <div id="noel"  class="char left float"><img hidden alt="Noel"></div>
+    <div id="trics" class="char right float"><img hidden alt="Trics"></div>
 
-  <div class="hud">
-    <div class="stats" id="scoreBox">J1 0 – 0 J2 | Kör: 1</div>
-    <div class="hint" id="hintBox">P: szünet, R: kör újra, N: új meccs</div>
+    <div class="speech" id="speech">
+      <div class="name" id="speaker">Narrátor</div>
+      <div class="text" id="line">Kattints a dobozra vagy nyomd meg a Space-t a továbblépéshez.</div>
+      <div class="controls">
+        <div class="hint" id="progress">0/0</div>
+        <div>
+          <button id="prev">⟵ Vissza</button>
+          <button id="next" class="primary">Tovább ⟶</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
-<div id="toast" class="toast hidden">Kör indul! 🟢</div>
-
 <script>
 (() => {
-  // ====== alap ======
-  const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
-  const W=canvas.width, H=canvas.height;
+  const $ = s=>document.querySelector(s);
+  const mkURL = f => f ? URL.createObjectURL(f) : null;
 
-  const scoreBox = document.getElementById('scoreBox');
-  const hintBox  = document.getElementById('hintBox');
-  const toast    = document.getElementById('toast');
-  const arenaSel = document.getElementById('arena');
-  const puSel    = document.getElementById('powerups');
-  const roundsSel= document.getElementById('rounds');
-  const newBtn   = document.getElementById('newMatchBtn');
+  // elemek
+  const bgIn = $('#bg'), nIn = $('#imgNoel'), tIn = $('#imgTrics');
+  const bgView = $('#bgView'), nEl = $('#noel'), tEl = $('#trics');
+  const nImg = $('#noel img'), tImg = $('#trics img');
+  const scriptBox = $('#script'), progress = $('#progress');
+  const nextBtn = $('#next'), prevBtn = $('#prev'), startBtn = $('#start'), stopBtn = $('#stop');
+  const autoplaySel = $('#autoplay'); const ttsChk = $('#tts');
+  const speaker = $('#speaker'), line = $('#line'); const speech = $('#speech');
 
-  function showToast(txt, ms=1200){
-    toast.textContent = txt;
-    toast.classList.remove('hidden');
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(()=>toast.classList.add('hidden'), ms);
+  // képek betöltése
+  bgIn.addEventListener('change', e=>{ const u = mkURL(e.target.files[0]); if(u) bgView.innerHTML = `<img src="${u}">`; });
+  nIn.addEventListener('change', e=>{ const u = mkURL(e.target.files[0]); if(u){ nImg.src=u; nImg.hidden=false; }});
+  tIn.addEventListener('change', e=>{ const u = mkURL(e.target.files[0]); if(u){ tImg.src=u; tImg.hidden=false; }});
+
+  // TTS
+  let tts = true, utter=null;
+  ttsChk.addEventListener('change', e=>{ tts = e.target.checked; if(!tts) speechSynthesis.cancel(); });
+  function speakHu(text){
+    if(!tts) return;
+    try{ if(utter) speechSynthesis.cancel();
+      utter = new SpeechSynthesisUtterance(text); utter.lang='hu-HU'; speechSynthesis.speak(utter);
+    }catch(e){}
   }
 
-  // WebAudio "bipp" hangok
-  const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-  function beep(freq=440, dur=0.06, type='square', gain=0.03){
-    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    o.type=type; o.frequency.value=freq; g.gain.value=gain;
-    o.connect(g); g.connect(audioCtx.destination);
-    o.start(); o.stop(audioCtx.currentTime+dur);
+  // script parser
+  function parseScript(txt){
+    const out=[], lines = txt.split('\n');
+    for (let raw of lines){
+      const s = raw.trim(); if(!s) continue;
+      if (s.startsWith('[') && s.endsWith(']')){
+        const inside = s.slice(1,-1);
+        if (inside.startsWith('pause=')) out.push({cmd:'pause', ms:+inside.split('=')[1]||800});
+        else if (inside.startsWith('pos=')){
+          const [who,where] = inside.split('=')[1].split(':');
+          out.push({cmd:'pos', who: (who||'').trim(), where: (where||'center').trim()});
+        }
+        continue;
+      }
+      const i = s.indexOf(':');
+      if (i>0) out.push({who:s.slice(0,i).trim(), text:s.slice(i+1).trim()});
+      else out.push({who:'Narrátor', text:s});
+    }
+    return out;
   }
 
-  // ====== játékparaméterek ======
-  let targetWins = 5;
-  let paused = false;
+  let steps=[], idx=-1, autoTimer=null;
 
-  const COLORS = {
-    forest: { a:"#0f2d2b", b:"#134e4a", line:"#1f4d4a" },
-    desert: { a:"#3b2f1a", b:"#5a4524", line:"#6b5530" },
-    neon:   { a:"#0f1024", b:"#14163a", line:"#28318f" }
-  };
+  function start(){ steps = parseScript(scriptBox.value); idx=-1; nEl.style.opacity=.6; tEl.style.opacity=.6; next(true); }
+  function stop(){ clearTimeout(autoTimer); idx=-1; progress.textContent=`0/${steps.length}`; speaker.textContent='Narrátor'; line.textContent='Lejátszás megállítva.'; speechSynthesis.cancel(); }
+  function setPos(who, where){
+    const el = who.toLowerCase()==='noel' ? nEl : tEl;
+    el.classList.remove('left','center','right'); el.classList.add(where);
+  }
 
-  const keys = {};
+  function show(step, instant){
+    // aktív beszélő kiemelés + belibbenés első megszólaláskor
+    [nEl,tEl].forEach(el=>el.classList.remove('active'));
+    if (step.who){
+      const el = step.who.toLowerCase()==='noel' ? nEl : (step.who.toLowerCase()==='trics' ? tEl : null);
+      if (el){ el.classList.add('active'); /* belépés, ha eddig rejtett kép volt */ }
+    }
+    if (step.cmd==='pause'){ speaker.textContent='…'; line.textContent='(szünet)'; return; }
+    if (step.cmd==='pos'){ setPos(step.who, step.where); return; }
+    speaker.textContent = step.who||'Narrátor';
+    type(line, step.text||'', instant?0:16);
+    speakHu(`${speaker.textContent} mondja: ${step.text||''}`);
+  }
+
+  function type(el, text, cps){
+    if (cps<=0){ el.textContent=text; return; }
+    el.textContent=''; let i=0;
+    (function tick(){ el.textContent=text.slice(0, i++); if(i<=text.length) setTimeout(tick, Math.max(8,1000/cps)); })();
+  }
+
+  function scheduleAuto(){
+    if (autoplaySel.value!=='on') return;
+    const s = steps[idx]; let ms = 3500;
+    if (s && s.text) ms = Math.min(7000, 900 + s.text.length*55);
+    if (s && s.cmd==='pause') ms = s.ms||800;
+    autoTimer = setTimeout(()=>next(), ms);
+  }
+
+  function next(instant=false){
+    clearTimeout(autoTimer);
+    if (!steps.length) return;
+    idx = Math.min(idx+1, steps.length-1);
+    show(steps[idx], instant);
+    progress.textContent = `${idx+1}/${steps.length}`;
+    scheduleAuto();
+  }
+  function prev(){
+    clearTimeout(autoTimer);
+    if (!steps.length) return;
+    idx = Math.max(idx-1, 0);
+    // keressünk vissza az előző beszédre
+    let j=idx; while (j>0 && steps[j].cmd) j--;
+    show(steps[j], true);
+    progress.textContent = `${j+1}/${steps.length}`;
+  }
+
+  startBtn.addEventListener('click', start);
+  stopBtn.addEventListener('click', stop);
+  nextBtn.addEventListener('click', ()=>next());
+  prevBtn.addEventListener('click', prev);
+  speech.addEventListener('click', ()=>next());
   window.addEventListener('keydown', e=>{
-    keys[e.key] = true;
-    if (e.key.toLowerCase()==='p') { paused=!paused; showToast(paused?'Szünet ⏸️':'Folytatás ▶️', 900); }
-    if (e.key.toLowerCase()==='r') { if(!paused) resetRound(); }
-    if (e.key.toLowerCase()==='n') { newMatch(); }
+    if (e.key===' '){ e.preventDefault(); next(); }
+    if (e.key==='Backspace'){ e.preventDefault(); prev(); }
   });
-  window.addEventListener('keyup', e=>{ keys[e.key]=false; });
-
-  newBtn.addEventListener('click', newMatch);
-  function newMatch(){
-    targetWins = +roundsSel.value || 5;
-    powerupsOn = (puSel.value === 'on');
-    arenaTheme = arenaSel.value;
-    j1.wins=j2.wins=0; round=1;
-    resetRound(true);
-    showToast('Új meccs! 🟢');
-  }
-
-  // ====== entitások ======
-  function Player(x,y,color){
-    this.x=x; this.y=y; this.r=16;
-    this.vx=0; this.vy=0;
-    this.speed=240; this.friction=0.86;
-    this.color=color; this.hp=100; this.alive=true;
-    this.cool=0; this.coolMax=0.28; // lövés cooldown
-    this.dash=0; this.dashMax=0.25; this.dashCd=0; this.dashCdMax=1.4;
-    this.wins=0; this.name='';
-    this.boost=0; // powerup idő
-  }
-  Player.prototype.shoot = function(dirX, dirY){
-    if (this.cool>0 || !this.alive) return;
-    const n = Math.hypot(dirX,dirY)||1;
-    const s = 440 + Math.random()*80;
-    beep(s,0.05,'triangle',0.05);
-    bullets.push({
-      x:this.x + (dirX/n)*this.r, y:this.y + (dirY/n)*this.r,
-      vx:(dirX/n)*(this.boost>0? 520:440),
-      vy:(dirY/n)*(this.boost>0? 520:440),
-      r:6, owner:this, life:2.0
-    });
-    this.cool = this.coolMax * (this.boost>0? 0.55:1);
-  };
-  Player.prototype.doDash = function(dirX, dirY){
-    if (this.dash>0 || this.dashCd>0 || !this.alive) return;
-    const n = Math.hypot(dirX,dirY)||1;
-    const mult = (this.boost>0? 600:520);
-    this.vx += (dirX/n)*mult;
-    this.vy += (dirY/n)*mult;
-    this.dash = this.dashMax;
-    this.dashCd = this.dashCdMax * (this.boost>0? 0.6:1);
-    beep(200,0.07,'sawtooth',0.05);
-  };
-
-  function drawPlayer(p){
-    ctx.save();
-    ctx.translate(p.x,p.y);
-    // glória/boost effekt
-    if (p.boost>0){
-      ctx.globalAlpha=0.25;
-      ctx.fillStyle="#fde68a";
-      ctx.beginPath(); ctx.arc(0,0,p.r+8,0,Math.PI*2); ctx.fill();
-      ctx.globalAlpha=1;
-    }
-    // test (kis „ember” felülről)
-    ctx.fillStyle=p.color;
-    roundRectFill(-p.r,-p.r, p.r*2, p.r*2, 8);
-    // fej
-    ctx.fillStyle="#fcd34d"; ctx.beginPath(); ctx.arc(0, -p.r*0.6, p.r*0.6, 0, Math.PI*2); ctx.fill();
-    // irány (orr)
-    ctx.strokeStyle="#0b1224"; ctx.beginPath(); ctx.moveTo(0,-p.r*0.6); ctx.lineTo(0,-p.r-6); ctx.stroke();
-    ctx.restore();
-
-    // életerő sáv
-    const barW=80, barH=8;
-    ctx.fillStyle="rgba(0,0,0,.25)";
-    ctx.fillRect(p.x-barW/2, p.y-p.r-26, barW, barH);
-    ctx.fillStyle="#22c55e";
-    ctx.fillRect(p.x-barW/2, p.y-p.r-26, barW*(Math.max(0,p.hp)/100), barH);
-    ctx.strokeStyle="rgba(255,255,255,.25)"; ctx.strokeRect(p.x-barW/2, p.y-p.r-26, barW, barH);
-  }
-
-  // akadályok
-  let obstacles=[];
-  function makeObstacles(theme){
-    const arr=[];
-    if (theme==='forest'){
-      arr.push(rect(W/2-60, H/2-20, 120, 40));
-      arr.push(rect(220, 260, 140, 26));
-      arr.push(rect(W-360, H-260, 180, 26));
-    } else if (theme==='desert'){
-      arr.push(rect(W/2-90, H/2-24, 180, 48));
-      arr.push(rect(180, H-260, 120, 24));
-      arr.push(rect(W-280, 200, 120, 24));
-    } else { // neon
-      arr.push(rect(W/2-200, H/2-14, 400, 28));
-      arr.push(rect(180, H/2-110, 28, 220));
-      arr.push(rect(W-208, H/2-110, 28, 220));
-    }
-    return arr;
-  }
-  function rect(x,y,w,h){ return {x,y,w,h}; }
-  function drawObstacles(){
-    ctx.save();
-    ctx.globalAlpha=0.7;
-    for (const o of obstacles){
-      ctx.fillStyle=arenaTheme==='neon' ? "#1f2aff" : "#134e4a";
-      roundRectFill(o.x,o.y,o.w,o.h,8);
-    }
-    ctx.restore();
-  }
-  function collideCircleRect(cx,cy,cr, r){
-    const px = Math.max(r.x, Math.min(cx, r.x+r.w));
-    const py = Math.max(r.y, Math.min(cy, r.y+r.h));
-    const dx = cx - px, dy = cy - py;
-    return (dx*dx+dy*dy) <= cr*cr;
-  }
-
-  // lövedékek
-  let bullets = [];
-  function drawBullets(){
-    ctx.save(); ctx.fillStyle="#e5e7eb";
-    for (const b of bullets){
-      ctx.globalAlpha = Math.max(0.3, b.life/2);
-      ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  // powerup
-  let powerupsOn = true;
-  let powerups = [];
-  function spawnPowerup(){
-    if (!powerupsOn) return;
-    const types = ['boost','heal'];
-    const t = types[(Math.random()*types.length)|0];
-    const px = 80 + Math.random()*(W-160);
-    const py = 80 + Math.random()*(H-160);
-    powerups.push({x:px,y:py,r:14,type:t,life:12});
-  }
-  function drawPowerups(){
-    for (const p of powerups){
-      if (p.type==='boost') ctx.fillStyle="#fde68a";
-      if (p.type==='heal')  ctx.fillStyle="#86efac";
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle="#0b1224"; ctx.stroke();
-    }
-  }
-
-  // ====== játékosok ======
-  const j1 = new Player(140, H/2, "#60a5fa"); j1.name='J1';
-  const j2 = new Player(W-140, H/2, "#f87171"); j2.name='J2';
-
-  // meccs állapot
-  let round = 1;
-  let arenaTheme = 'forest';
-
-  function resetRound(full=false){
-    // színek/arénaszínek
-    const C = COLORS[arenaTheme] || COLORS.forest;
-    canvas.style.background = `linear-gradient(180deg, ${C.a}, ${C.b})`;
-    canvas.style.borderColor = C.line;
-
-    j1.x=140; j1.y=H/2; j1.vx=j1.vy=0; j1.hp=100; j1.alive=true; j1.cool=0; j1.dash=0; j1.dashCd=0; j1.boost=0;
-    j2.x=W-140; j2.y=H/2; j2.vx=j2.vy=0; j2.hp=100; j2.alive=true; j2.cool=0; j2.dash=0; j2.dashCd=0; j2.boost=0;
-    bullets.length=0; powerups.length=0;
-    obstacles = makeObstacles(arenaTheme);
-    if (full) { /* keep wins */ } else { /* same round number */ }
-    updateHUD();
-    showToast(`Kör ${round} indul!`);
-  }
-
-  function endRound(winner){
-    winner.wins++;
-    round++;
-    beep(760,0.1,'triangle',0.06); setTimeout(()=>beep(920,0.12,'triangle',0.06),100);
-    updateHUD();
-    if (winner.wins >= targetWins){
-      showToast(`${winner.name} nyert! 🏆`, 2000);
-      // új meccshez nem resetelünk automatikusan, N gombbal indul
-    } else {
-      setTimeout(()=> resetRound(), 900);
-    }
-  }
-
-  function updateHUD(){
-    scoreBox.textContent = `J1 ${j1.wins} – ${j2.wins} J2 | Kör: ${round} / ${targetWins*2-1}`;
-  }
-
-  // ====== game loop ======
-  let last=0; function loop(ts){
-    const dt = Math.min(0.033, (ts-last)/1000 || 0.016); last=ts;
-    if (!paused) update(dt);
-    draw();
-    requestAnimationFrame(loop);
-  }
-  requestAnimationFrame(loop);
-
-  function update(dt){
-    // input vektorok
-    const i1x = (keys['d']?1:0) + (keys['a']?-1:0);
-    const i1y = (keys['s']?1:0) + (keys['w']?-1:0);
-    const i2x = (keys['ArrowRight']?1:0) + (keys['ArrowLeft']?-1:0);
-    const i2y = (keys['ArrowDown']?1:0) + (keys['ArrowUp']?-1:0);
-
-    // dash / shoot
-    if (keys['f']) tryShoot(j1, i1x, i1y, j2);
-    if (keys['/']) tryShoot(j2, i2x, i2y, j1);
-    if (keys['g']) j1.doDash(i1x||1, i1y);       // ha áll, előre dash
-    if (keys['.']) j2.doDash(i2x||-1, i2y);
-
-    // mozgás + súrlódás
-    movePlayer(j1, i1x, i1y, dt);
-    movePlayer(j2, i2x, i2y, dt);
-
-    // cooldownok
-    j1.cool=Math.max(0, j1.cool-dt); j2.cool=Math.max(0, j2.cool-dt);
-    j1.dash=Math.max(0, j1.dash-dt); j2.dash=Math.max(0, j2.dash-dt);
-    j1.dashCd=Math.max(0, j1.dashCd-dt); j2.dashCd=Math.max(0, j2.dashCd-dt);
-    j1.boost=Math.max(0, j1.boost-dt); j2.boost=Math.max(0, j2.boost-dt);
-
-    // lövedékek frissítése
-    for (let i=bullets.length-1;i>=0;i--){
-      const b=bullets[i]; b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt;
-      // fal/határ/akadály
-      if (b.x<10||b.x>W-10||b.y<10||b.y>H-10) { bullets.splice(i,1); continue; }
-      let hitObs=false;
-      for (const o of obstacles){
-        if (collideCircleRect(b.x,b.y,b.r,o)){ hitObs=true; break; }
-      }
-      if (hitObs){ bullets.splice(i,1); continue; }
-      // találat
-      if (b.owner!==j1 && dist2(b.x,b.y,j1.x,j1.y)<= (b.r+j1.r)*(b.r+j1.r) && j1.alive){
-        j1.hp -= (j2.boost>0? 28:22); bullets.splice(i,1); beep(220,0.07,'sine',0.05);
-        if (j1.hp<=0){ j1.alive=false; endRound(j2); }
-        continue;
-      }
-      if (b.owner!==j2 && dist2(b.x,b.y,j2.x,j2.y)<= (b.r+j2.r)*(b.r+j2.r) && j2.alive){
-        j2.hp -= (j1.boost>0? 28:22); bullets.splice(i,1); beep(220,0.07,'sine',0.05);
-        if (j2.hp<=0){ j2.alive=false; endRound(j1); }
-        continue;
-      }
-      if (b.life<=0) bullets.splice(i,1);
-    }
-
-    // powerupok spawn / élettartam
-    if (powerupsOn && Math.random()<0.01 && powerups.length<2) spawnPowerup();
-    for (let i=powerups.length-1;i>=0;i--){
-      const p=powerups[i]; p.life-=dt;
-      if (p.life<=0){ powerups.splice(i,1); continue; }
-      // felvétel
-      if (dist2(p.x,p.y,j1.x,j1.y) <= (p.r+j1.r)*(p.r+j1.r)){
-        applyPower(j1,p.type); powerups.splice(i,1); continue;
-      }
-      if (dist2(p.x,p.y,j2.x,j2.y) <= (p.r+j2.r)*(p.r+j2.r)){
-        applyPower(j2,p.type); powerups.splice(i,1); continue;
-      }
-    }
-  }
-
-  function tryShoot(player, ix, iy, enemy){
-    // ha nincs bemeneti irány, lőj ellenfél felé
-    const dx = ix|| (enemy.x - player.x);
-    const dy = iy|| (enemy.y - player.y);
-    player.shoot(dx, dy);
-  }
-
-  function movePlayer(p, ix, iy, dt){
-    // gyorsulás
-    const n = Math.hypot(ix,iy)||0;
-    if (n>0){
-      p.vx += (ix/n) * p.speed;
-      p.vy += (iy/n) * p.speed;
-    }
-    // határ
-    p.x += p.vx*dt; p.y += p.vy*dt;
-
-    // akadály ütközés (separálás)
-    for (const o of obstacles){
-      // X tengely
-      if (collideCircleRect(p.x, p.y, p.r, o)){
-        // próbáljuk visszatolni
-        if (p.x < o.x) p.x = o.x - p.r;
-        else if (p.x > o.x+o.w) p.x = o.x+o.w + p.r;
-        else if (p.y < o.y) p.y = o.y - p.r;
-        else if (p.y > o.y+o.h) p.y = o.y+o.h + p.r;
-        // energia-elnyelés
-        p.vx *= 0.2; p.vy *= 0.2;
-      }
-    }
-
-    // pálya szélek
-    if (p.x < 20){ p.x=20; p.vx=0 }
-    if (p.x > W-20){ p.x=W-20; p.vx=0 }
-    if (p.y < 20){ p.y=20; p.vy=0 }
-    if (p.y > H-20){ p.y=H-20; p.vy=0 }
-
-    // súrlódás
-    const fr = p.dash>0 ? 0.92 : p.friction;
-    p.vx *= fr; p.vy *= fr;
-  }
-
-  function applyPower(player,type){
-    if (type==='heal'){ player.hp = Math.min(100, player.hp+30); beep(520,0.08,'triangle',0.05); showToast(`${player.name} +HP`, 700); }
-    if (type==='boost'){ player.boost = 6; beep(700,0.08,'square',0.05); showToast(`${player.name} erősítés!`, 700); }
-  }
-
-  // ====== rajz ======
-  function draw(){
-    drawArena();
-    drawObstacles();
-    drawPowerups();
-    drawBullets();
-    if (j1.alive) drawPlayer(j1); if (j2.alive) drawPlayer(j2);
-    // infó
-    ctx.fillStyle="rgba(255,255,255,.2)";
-    ctx.fillRect(W/2-1, 0, 2, H);
-  }
-
-  function drawArena(){
-    // peremek
-    ctx.strokeStyle="rgba(255,255,255,.12)";
-    ctx.lineWidth=2; ctx.strokeRect(10,10,W-20,H-20);
-    // díszcsíkok
-    for (let i=0;i<8;i++){
-      ctx.globalAlpha = 0.06 + (i%2?0.02:0);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(10, 10 + i*(H-20)/8, W-20, 2);
-    }
-    ctx.globalAlpha=1;
-  }
-
-  function roundRectFill(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); ctx.fill(); }
-
-  function dist2(ax,ay,bx,by){ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
-
-  // induló meccs
-  newMatch();
 })();
 </script>
 </body>
