@@ -3,104 +3,100 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Büntetőrúgás – 5 lövés | HTML5 Canvas</title>
+<title>Büntetőrúgás – fejlettebb kapussal</title>
 <style>
-  :root { --bg:#0f172a; --panel:#111827; --accent:#22c55e; --muted:#9ca3af; --text:#e5e7eb; }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; background: radial-gradient(1000px 600px at 50% 0%, #0b1229, #0a1022 60%, #070d1c); color: var(--text); display: grid; place-items: center; min-height: 100vh; }
-  .wrap { width: min(1000px, 96vw); }
-  header { display:flex; gap:12px; align-items:center; justify-content:space-between; margin: 16px 0 10px; }
-  .title { font-size: clamp(18px, 2.4vw, 24px); font-weight: 700; letter-spacing: .2px; }
-  .panel { background: linear-gradient(180deg, #141a2e, #0f1629); border: 1px solid #1f2937; padding: 12px; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
-  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-  label { font-size: 13px; color: var(--muted); }
-  select, button { appearance: none; border:1px solid #243041; background:#0c1324; color:var(--text); padding:10px 12px; border-radius:12px; font-weight:600; }
-  select { min-width: 180px; }
-  button { cursor: pointer; transition: transform .05s ease, box-shadow .2s ease, background .2s; }
-  button.primary { background: linear-gradient(180deg, #1f9b58, #158f50); border-color:#1f9b58; box-shadow: 0 8px 20px rgba(34,197,94,.25); }
-  button:hover { filter: brightness(1.06); }
-  button:active { transform: translateY(1px); }
-  .hud { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; }
-  .stats { font-weight:700; letter-spacing:.3px; }
-  .hint { font-size: 13px; color: var(--muted); }
-  canvas { width: 100%; height: auto; display:block; background: #1b3b1b; border-radius: 16px; border:1px solid #234a23; }
-  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background:#0b1224; border:1px solid #1e293b; padding:10px 14px; border-radius:12px; font-weight:600; color:#cbd5e1; box-shadow: 0 10px 30px rgba(0,0,0,.35); opacity:.95; }
-  .badge { padding:4px 8px; border-radius:999px; font-size:12px; border:1px solid #334155; color:#cbd5e1; background:#0b1224; }
-  .hidden { display:none; }
-  .result { display:flex; align-items:center; gap:10px; font-weight:800; }
-  .result .you { color:#86efac; }
-  .result .opp { color:#fca5a5; }
+  :root { --bg:#0b1020; --panel:#0f1629; --text:#e5e7eb; --muted:#94a3b8; --line:#1f2937; }
+  * { box-sizing: border-box }
+  body { margin:0; background: radial-gradient(1200px 700px at 50% -200px, #0e1430, #0a0f23 60%, #070d1c); color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; display:grid; place-items:center; min-height:100vh }
+  .wrap { width:min(1100px,96vw) }
+  header{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+  .title{font-weight:800;letter-spacing:.3px}
+  .panel{background:linear-gradient(180deg,#121a31,#0e162b);border:1px solid var(--line);padding:12px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  label{font-size:13px;color:var(--muted)}
+  select,button{appearance:none;border:1px solid #223046;background:#0b1326;color:var(--text);padding:10px 12px;border-radius:12px;font-weight:700}
+  select{min-width:180px}
+  button{cursor:pointer;transition:transform .05s, filter .2s}
+  button:hover{filter:brightness(1.08)}
+  button:active{transform:translateY(1px)}
+  .primary{background:linear-gradient(180deg,#1f9b58,#14834c);border-color:#1f9b58;box-shadow:0 8px 20px rgba(34,197,94,.25)}
+  canvas{width:100%;height:auto;display:block;background:#164b2f;border-radius:16px;border:1px solid #23523a}
+  .hud{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px}
+  .hint{font-size:13px;color:var(--muted)}
+  .stats{font-weight:800}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0b1224;border:1px solid #1e293b;padding:10px 14px;border-radius:12px;font-weight:700;color:#cbd5e1;box-shadow:0 10px 30px rgba(0,0,0,.35);opacity:.96}
+  .hidden{display:none}
+  .badge{padding:4px 8px;border:1px solid #334155;border-radius:999px;color:#cbd5e1;background:#0b1224;font-size:12px}
+  .result{display:flex;gap:10px;align-items:center;font-weight:900}
+  .you{color:#86efac}.opp{color:#fca5a5}
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="title">⚽ Büntetőrúgás – 5 lövés</div>
-      <div class="badge">HTML5 Canvas • Egér: húzd & engedd</div>
-    </header>
+<div class="wrap">
+  <header>
+    <div class="title">⚽ Büntetőrúgás – fejlettebb kapussal</div>
+    <div class="badge">HTML5 Canvas • húzd & engedd</div>
+  </header>
 
-    <div class="panel" id="menu">
-      <div class="row" style="justify-content:space-between">
-        <div class="row">
-          <div>
-            <label for="teamA">Te válogatottad</label><br/>
-            <select id="teamA"></select>
-          </div>
-          <div>
-            <label for="teamB">Ellenfél</label><br/>
-            <select id="teamB"></select>
-          </div>
-          <div>
-            <label for="difficulty">Nehézség</label><br/>
-            <select id="difficulty">
-              <option value="easy">Kezdő (lassú kapus)</option>
-              <option value="normal" selected>Közép</option>
-              <option value="hard">Haladó (gyors kapus)</option>
-            </select>
-          </div>
+  <div class="panel" id="menu">
+    <div class="row" style="justify-content:space-between">
+      <div class="row">
+        <div><label for="teamA">Te válogatottad</label><br><select id="teamA"></select></div>
+        <div><label for="teamB">Ellenfél</label><br><select id="teamB"></select></div>
+        <div><label for="difficulty">Nehézség</label><br>
+          <select id="difficulty">
+            <option value="easy">Kezdő</option>
+            <option value="normal" selected>Közép</option>
+            <option value="hard">Haladó</option>
+          </select>
         </div>
-        <button id="startBtn" class="primary">▶️ Meccs indítása</button>
       </div>
-      <div class="hint" style="margin-top:8px">Tipp: fogd meg a labdát, húzd hátra/oldalra, majd engedd el! Az oldalirány kicsit görbíti a lövést.</div>
+      <button id="startBtn" class="primary">▶️ Meccs indítása</button>
     </div>
-
-    <canvas id="game" width="1000" height="620"></canvas>
-
-    <div class="hud">
-      <div class="stats" id="scoreBox">Hungary 0 – 0 Opponent | Lövés: 1 / 5</div>
-      <div class="result hidden" id="finalBox">
-        <span class="you">Te:</span><span id="youScore">0</span>
-        <span>–</span>
-        <span class="opp">Ellenfél:</span><span id="oppScore">0</span>
-        <button id="restartBtn" style="margin-left:10px">🔄 Új meccs</button>
-      </div>
-      <div class="hint" id="hintBox">Fogd meg a labdát, húzd hátra, engedd el. R: Reset lövés</div>
-    </div>
+    <div class="hint" style="margin-top:8px">Fogd meg a labdát, húzd hátra/oldalra, majd engedd el. Oldalirány = kis görbület. Mobilon: érintés és elengedés.</div>
   </div>
 
-  <div class="toast hidden" id="toast">GÓÓÓL! 🎉</div>
+  <canvas id="game" width="1100" height="650"></canvas>
+
+  <div class="hud">
+    <div class="stats" id="scoreBox">Hungary 0 – 0 Opponent | Lövés: 1 / 5</div>
+    <div class="result hidden" id="finalBox">
+      <span class="you">Te:</span><span id="youScore">0</span>
+      <span>–</span>
+      <span class="opp">Ellenfél:</span><span id="oppScore">0</span>
+      <button id="restartBtn">🔄 Új meccs</button>
+    </div>
+    <div class="hint" id="hintBox">Fogd meg a labdát, húzd hátra, engedd el. R: Reset lövés</div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden">GÓÓÓL! 🎉</div>
 
 <script>
 (() => {
-  // ======= Beállítások / csapatok =======
+  // --- Csapatok ---
   const COUNTRIES = [
-    { name: "Hungary",    kit:"#e11d48", alt:"#16a34a" },
-    { name: "England",    kit:"#f59e0b", alt:"#1d4ed8" },
-    { name: "Germany",    kit:"#111827", alt:"#e5e7eb" },
-    { name: "France",     kit:"#1d4ed8", alt:"#e11d48" },
-    { name: "Spain",      kit:"#ef4444", alt:"#f59e0b" },
-    { name: "Italy",      kit:"#2563eb", alt:"#22c55e" },
-    { name: "Portugal",   kit:"#991b1b", alt:"#22c55e" },
-    { name: "Netherlands",kit:"#ea580c", alt:"#111827" },
-    { name: "Brazil",     kit:"#22c55e", alt:"#eab308" },
-    { name: "Argentina",  kit:"#60a5fa", alt:"#e5e7eb" },
-    { name: "Croatia",    kit:"#ef4444", alt:"#e5e7eb" },
-    { name: "Belgium",    kit:"#111827", alt:"#f59e0b" }
+    { name:"Hungary", kit:"#e11d48", alt:"#16a34a" },
+    { name:"England", kit:"#f59e0b", alt:"#1d4ed8" },
+    { name:"Germany", kit:"#111827", alt:"#e5e7eb" },
+    { name:"France", kit:"#1d4ed8", alt:"#e11d48" },
+    { name:"Spain", kit:"#ef4444", alt:"#f59e0b" },
+    { name:"Italy", kit:"#2563eb", alt:"#22c55e" },
+    { name:"Portugal", kit:"#991b1b", alt:"#22c55e" },
+    { name:"Netherlands", kit:"#ea580c", alt:"#111827" },
+    { name:"Brazil", kit:"#22c55e", alt:"#eab308" },
+    { name:"Argentina", kit:"#60a5fa", alt:"#e5e7eb" },
+    { name:"Croatia", kit:"#ef4444", alt:"#e5e7eb" },
+    { name:"Belgium", kit:"#111827", alt:"#f59e0b" }
   ];
 
+  // --- DOM ---
   const teamASelect = document.getElementById('teamA');
   const teamBSelect = document.getElementById('teamB');
   const diffSelect  = document.getElementById('difficulty');
+  const startBtn    = document.getElementById('startBtn');
+  const restartBtn  = document.getElementById('restartBtn');
+  const menu        = document.getElementById('menu');
   const scoreBox    = document.getElementById('scoreBox');
   const hintBox     = document.getElementById('hintBox');
   const finalBox    = document.getElementById('finalBox');
@@ -108,404 +104,327 @@
   const oppScoreEl  = document.getElementById('oppScore');
   const toast       = document.getElementById('toast');
 
-  function fillTeams() {
-    teamASelect.innerHTML = '';
-    teamBSelect.innerHTML = '';
-    for (const c of COUNTRIES) {
-      const o1 = document.createElement('option'); o1.value=o1.textContent=c.name;
-      const o2 = document.createElement('option'); o2.value=o2.textContent=c.name;
-      teamASelect.appendChild(o1); teamBSelect.appendChild(o2);
+  function fillTeams(){
+    teamASelect.innerHTML=''; teamBSelect.innerHTML='';
+    for (const c of COUNTRIES){
+      const a=document.createElement('option'); a.value=a.textContent=c.name;
+      const b=document.createElement('option'); b.value=b.textContent=c.name;
+      teamASelect.appendChild(a); teamBSelect.appendChild(b);
     }
-    // defaultok
-    teamASelect.value = "Hungary";
-    teamBSelect.value = "Germany";
+    teamASelect.value="Hungary"; teamBSelect.value="Germany";
   }
   fillTeams();
 
-  // ======= Canvas / játékállapot =======
+  // --- Canvas ---
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
-
   const W = canvas.width, H = canvas.height;
-  const GOAL = { x1: 280, x2: 720, y: 120, depth: 36, postW: 6, postH: 70 };
-  const SPOT = { x: W/2, y: H - 130 };
 
-  let state = 'menu'; // 'aim' | 'flying' | 'dead' | 'gameover'
-  let shots = 0, maxShots = 5;
-  let goals = 0, oppGoals = 0;
+  // Pálya/kapu
+  const GOAL = { x1: 300, x2: 800, y: 130, postW: 8, postH: 80 };
+  const SPOT = { x: W/2, y: H-140 };
 
-  // labda
-  const ball = { x: SPOT.x, y: SPOT.y, r: 12, vx: 0, vy: 0, spin: 0, dragging: false };
-  let keeper = { w: 70, h: 22, y: GOAL.y + 10, t: 0, speed: 1.1, react: 0.45, dive:false, dx:0 };
-
+  // Állapotok
   let teamA = COUNTRIES[0], teamB = COUNTRIES[2];
+  let state = 'menu'; // aim | flying | dead | gameover
+  let shots=0, maxShots=5, goals=0, oppGoals=0;
 
-  function setDifficulty() {
-    const d = diffSelect.value;
-    if (d === 'easy')   { keeper.speed = 0.8; keeper.react = 0.25; }
-    if (d === 'normal') { keeper.speed = 1.1; keeper.react = 0.45; }
-    if (d === 'hard')   { keeper.speed = 1.5; keeper.react = 0.65; }
-  }
-  setDifficulty();
+  // Labda + csóva
+  const ball = { x: SPOT.x, y: SPOT.y, r: 12, vx:0, vy:0, spin:0, dragging:false, trail:[] };
 
-  // ======= UI =======
-  const startBtn = document.getElementById('startBtn');
-  const restartBtn = document.getElementById('restartBtn');
-  const menu = document.getElementById('menu');
-
-  startBtn.addEventListener('click', () => {
-    teamA = COUNTRIES.find(c=>c.name===teamASelect.value) || COUNTRIES[0];
-    teamB = COUNTRIES.find(c=>c.name===teamBSelect.value) || COUNTRIES[1];
-    setDifficulty();
-    resetMatch();
-    menu.classList.add('hidden');
-    state='aim';
-  });
-  restartBtn.addEventListener('click', () => {
-    resetMatch();
-    finalBox.classList.add('hidden');
-    scoreBox.classList.remove('hidden');
-    hintBox.textContent = "Fogd meg a labdát, húzd hátra, engedd el. R: Reset lövés";
-    state='aim';
-  });
-
-  function resetMatch() {
-    shots=0; goals=0; oppGoals=0;
-    resetBall(true);
-    updateHUD();
-  }
-
-  function resetBall(center=false) {
-    ball.x = center ? SPOT.x : SPOT.x;
-    ball.y = SPOT.y;
-    ball.vx = ball.vy = 0; ball.spin = 0; ball.dragging=false;
-  }
-
-  function updateHUD() {
-    scoreBox.textContent = `${teamA.name} ${goals} – ${oppGoals} ${teamB.name} | Lövés: ${Math.min(shots+1, maxShots)} / ${maxShots}`;
-    youScoreEl.textContent = goals; oppScoreEl.textContent = oppGoals;
-  }
-
-  function showToast(txt, ms=1200) {
-    toast.textContent = txt;
-    toast.classList.remove('hidden');
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(()=>toast.classList.add('hidden'), ms);
-  }
-
-  // ======= Rajzolás =======
-  function drawField() {
-    // fű
-    ctx.fillStyle = "#1b3b1b";
-    ctx.fillRect(0,0,W,H);
-    // csíkok
-    for (let i=0;i<10;i++){
-      ctx.fillStyle = i%2? "#1d421d" : "#194019";
-      ctx.fillRect(0, H - i*60 - 60, W, 60);
+  // Kapus figura (fej, test, karok) + AI
+  const keeper = {
+    y: GOAL.y + 12,
+    speed: 1.2, react: 0.45,
+    t: 0, // fázis az oldalazáshoz
+    xBias: 0,
+    pose: 'idle', // idle | diveL | diveR | parry
+    poseTime: 0,
+    width: 70, height: 24,
+    saveBox(){ // aktív ütközési keret (a kezek felé nagyobb)
+      const kx = keeperX();
+      return { x: kx-38, y: this.y-4, w: 76, h: 28 };
     }
-    // 16-os
-    ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 2;
-    roundedRect(GOAL.x1-120, GOAL.y, (GOAL.x2-GOAL.x1)+240, 250, 40);
-    ctx.stroke();
+  };
 
-    // kapu (felső vonal + kapufák)
-    ctx.lineWidth = 5; ctx.strokeStyle = "#ffffff";
-    ctx.beginPath(); ctx.moveTo(GOAL.x1, GOAL.y); ctx.lineTo(GOAL.x2, GOAL.y); ctx.stroke();
+  // Nehézség
+  function setDifficulty(){
+    const d = diffSelect.value;
+    if (d==='easy'){ keeper.speed=0.85; keeper.react=0.25 }
+    if (d==='normal'){ keeper.speed=1.2; keeper.react=0.45 }
+    if (d==='hard'){ keeper.speed=1.6; keeper.react=0.7 }
+  }
+
+  // UI
+  startBtn.addEventListener('click',()=>{
+    teamA = COUNTRIES.find(c=>c.name===teamASelect.value)||COUNTRIES[0];
+    teamB = COUNTRIES.find(c=>c.name===teamBSelect.value)||COUNTRIES[1];
+    setDifficulty(); resetMatch(); menu.classList.add('hidden'); state='aim';
+  });
+  restartBtn?.addEventListener('click',()=>{ resetMatch(); finalBox.classList.add('hidden'); scoreBox.classList.remove('hidden'); state='aim'; });
+
+  function resetMatch(){ shots=0; goals=0; oppGoals=0; resetBall(true); updateHUD(); netKick=0; }
+  function resetBall(){ ball.x=SPOT.x; ball.y=SPOT.y; ball.vx=ball.vy=0; ball.spin=0; ball.dragging=false; ball.trail.length=0; }
+  function updateHUD(){ scoreBox.textContent=`${teamA.name} ${goals} – ${oppGoals} ${teamB.name} | Lövés: ${Math.min(shots+1,maxShots)} / ${maxShots}`; youScoreEl.textContent=goals; oppScoreEl.textContent=oppGoals; }
+  function showToast(txt,ms=1200){ toast.textContent=txt; toast.classList.remove('hidden'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>toast.classList.add('hidden'),ms); }
+
+  // Egyszerű „hangok” WebAudio-val (kicsik, nem blokkolóak)
+  const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  function beep(freq=440, dur=0.08, type='square', gain=0.03){
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type=type; o.frequency.value=freq; g.gain.value=gain;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime+dur);
+  }
+
+  // --- Rajz: pálya, háló „rezgés” ---
+  let netKick = 0; // gól után pár képkockáig remeg a háló
+  function drawField(){
+    // fű csíkok
+    for(let i=0;i<12;i++){ ctx.fillStyle = i%2? "#1c5a34":"#185532"; ctx.fillRect(0, H-i*60-60, W, 60); }
+    // 16-os
+    ctx.strokeStyle="#e5e7eb"; ctx.lineWidth=2;
+    roundedRect(GOAL.x1-140, GOAL.y, (GOAL.x2-GOAL.x1)+280, 260, 40); ctx.stroke();
+    // kapu felső és oldalsók
     ctx.fillStyle="#ffffff";
     ctx.fillRect(GOAL.x1-GOAL.postW/2, GOAL.y, GOAL.postW, GOAL.postH);
     ctx.fillRect(GOAL.x2-GOAL.postW/2, GOAL.y, GOAL.postW, GOAL.postH);
-    // háló árnyék
-    ctx.globalAlpha = 0.08; ctx.fillStyle = "#ffffff";
-    for (let i=0;i<10;i++){
-      ctx.fillRect(GOAL.x1, GOAL.y + i*6, GOAL.x2-GOAL.x1, 2);
+    ctx.fillRect(GOAL.x1, GOAL.y-4, GOAL.x2-GOAL.x1, 6);
+    // háló (vékony vízszintes csíkok, gólnál enyhén hullámzik)
+    ctx.save(); ctx.globalAlpha=0.10; ctx.fillStyle="#ffffff";
+    const wiggle = Math.max(0, netKick); netKick = Math.max(0, netKick-0.08);
+    for (let i=0;i<9;i++){
+      const y = GOAL.y + i*7 + Math.sin((i+performance.now()/120)*(0.15+wiggle*0.02))* (wiggle*1.2);
+      ctx.fillRect(GOAL.x1, y, GOAL.x2-GOAL.x1, 2);
     }
-    ctx.globalAlpha = 1;
-
-    // tizenegyes pont
-    ctx.fillStyle = "#ffffff"; ctx.beginPath();
-    ctx.arc(SPOT.x, SPOT.y, 3, 0, Math.PI*2); ctx.fill();
-
-    // csapat "mezek" (HUD jelzés a pályán)
-    drawShirt(60, 24, teamA.kit);
-    drawShirt(W-60, 24, teamB.kit);
-    ctx.fillStyle = "#cbd5e1";
-    ctx.font = "700 14px system-ui"; ctx.textAlign = "left";
-    ctx.fillText(teamA.name, 80, 30);
-    ctx.textAlign = "right"; ctx.fillText(teamB.name, W-80, 30);
-  }
-
-  function roundedRect(x,y,w,h,r){
-    ctx.beginPath();
-    ctx.moveTo(x+r,y);
-    ctx.arcTo(x+w,y,x+w,y+h,r);
-    ctx.arcTo(x+w,y+h,x,y+h,r);
-    ctx.arcTo(x,y+h,x,y,r);
-    ctx.arcTo(x,y,x+w,y,r);
-    ctx.closePath();
-  }
-
-  function drawShirt(x,y,color){
-    ctx.save();
-    ctx.translate(x,y);
-    ctx.fillStyle = color;
-    ctx.strokeStyle = "#0b1224"; ctx.lineWidth=2;
-    ctx.beginPath();
-    ctx.moveTo(-16,6); ctx.lineTo(-22,-6); ctx.lineTo(-8,-12);
-    ctx.lineTo(0,-4); ctx.lineTo(8,-12); ctx.lineTo(22,-6);
-    ctx.lineTo(16,6); ctx.lineTo(16,18); ctx.lineTo(-16,18);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
+    // tizenegyes pont
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(SPOT.x, SPOT.y, 3, 0, Math.PI*2); ctx.fill();
+    // Mezek és nevek
+    drawShirt(70, 28, teamA.kit); drawShirt(W-70, 28, teamB.kit);
+    ctx.fillStyle="#cbd5e1"; ctx.font="700 14px system-ui"; ctx.textAlign="left";
+    ctx.fillText(teamA.name, 90, 34); ctx.textAlign="right"; ctx.fillText(teamB.name, W-90, 34);
   }
+  function roundedRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+  function drawShirt(x,y,c){ ctx.save(); ctx.translate(x,y); ctx.fillStyle=c; ctx.strokeStyle="#0b1224"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(-16,6); ctx.lineTo(-22,-6); ctx.lineTo(-8,-12); ctx.lineTo(0,-4); ctx.lineTo(8,-12); ctx.lineTo(22,-6);
+    ctx.lineTo(16,6); ctx.lineTo(16,18); ctx.lineTo(-16,18); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
 
-  function drawBall() {
-    ctx.fillStyle = "#ffffff"; ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle="#111827"; ctx.lineWidth=2; ctx.stroke();
-  }
-
-  function drawKeeper() {
-    const x = keeperX();
-    ctx.fillStyle = "#c7d2fe";
-    roundRectFill(x - keeper.w/2, keeper.y, keeper.w, keeper.h, 6);
-    // kis "kéz" jelek
-    ctx.fillStyle = "#bfdbfe";
-    ctx.fillRect(x - keeper.w/2 - 6, keeper.y + keeper.h/2 - 4, 6, 8);
-    ctx.fillRect(x + keeper.w/2,     keeper.y + keeper.h/2 - 4, 6, 8);
-  }
-
-  function roundRectFill(x,y,w,h,r){
-    ctx.beginPath();
-    ctx.moveTo(x+r,y);
-    ctx.arcTo(x+w,y,x+w,y+h,r);
-    ctx.arcTo(x+w,y+h,x,y+h,r);
-    ctx.arcTo(x,y+h,x,y,r);
-    ctx.arcTo(x,y,x+w,y,r);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  // ======= Kapus mozgás =======
-  function keeperX() {
-    // Alap: szinuszmozgás
-    const amp = (GOAL.x2 - GOAL.x1 - keeper.w) / 2;
-    const cx = (GOAL.x1 + GOAL.x2) / 2;
-    let x = cx + amp * Math.sin(keeper.t);
-    // Ha reagált a lövésre: kicsit igyekszik az előre jelzett cél felé
-    if (keeper.dive) {
-      x += keeper.dx * 0.6; // súlyozott rásegítés
-    }
+  // --- Kapus rajz: fej-test-karok, vetődés anim ---
+  function keeperX(){
+    const amp = (GOAL.x2-GOAL.x1-keeper.width)/2;
+    const cx = (GOAL.x1+GOAL.x2)/2;
+    let x = cx + amp * Math.sin(keeper.t) + keeper.xBias;
     return x;
   }
 
-  function keeperRectAt(x) {
-    return { x: x - keeper.w/2, y: keeper.y, w: keeper.w, h: keeper.h };
+  function drawKeeper(){
+    const x = keeperX(); const y = keeper.y;
+    const t = Math.min(1, keeper.poseTime/0.35);
+    ctx.save();
+    // Vetődésnél az egész test picit dől
+    let rot = 0;
+    if (keeper.pose==='diveL') rot = -0.65*t;
+    if (keeper.pose==='diveR') rot =  0.65*t;
+    if (keeper.pose==='parry') rot = (Math.sin(performance.now()/90)*0.08);
+    ctx.translate(x, y+12);
+    ctx.rotate(rot);
+
+    // test
+    ctx.fillStyle="#1e293b"; roundRectFill(-18, -12, 36, 36, 8);
+    // fej
+    ctx.fillStyle="#fcd34d"; ctx.beginPath(); ctx.arc(0, -18, 10, 0, Math.PI*2); ctx.fill();
+    // karok (vetődéskor kinyúlnak)
+    ctx.fillStyle="#93c5fd";
+    const armLen = 22 + 16*t;
+    roundRectFill(-18-armLen, -6, armLen, 10, 5); // bal kar
+    roundRectFill(18, -6, armLen, 10, 5); // jobb kar
+    // kesztyűk
+    ctx.fillStyle="#bfdbfe"; roundRectFill(-18-armLen-6, -8, 8, 14, 4);
+    ctx.fillStyle="#bfdbfe"; roundRectFill(18+armLen-2, -8, 8, 14, 4);
+
+    ctx.restore();
+
+    // debug hitboxhoz:
+    // const r=keeper.saveBox(); ctx.strokeStyle="#fff"; ctx.strokeRect(r.x,r.y,r.w,r.h);
+  }
+  function roundRectFill(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); ctx.fill(); }
+
+  // --- Labda + csóva ---
+  function drawBall(){
+    // csóva
+    ctx.save(); ctx.globalAlpha=0.25;
+    for (let i=0;i<ball.trail.length;i++){
+      const p = ball.trail[i]; const s = 1 - i/ball.trail.length;
+      ctx.beginPath(); ctx.fillStyle="#ffffff";
+      ctx.arc(p.x, p.y, ball.r*s*0.9, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+
+    ctx.fillStyle="#ffffff"; ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle="#0f172a"; ctx.lineWidth=2; ctx.stroke();
   }
 
-  function collideBallRect(b, r) {
-    // Kör-téglalap ütközés
-    const cx = Math.max(r.x, Math.min(b.x, r.x + r.w));
-    const cy = Math.max(r.y, Math.min(b.y, r.y + r.h));
-    const dx = b.x - cx, dy = b.y - cy;
+  // --- Ütközések ---
+  function collideBallRect(b, r){
+    const cx = Math.max(r.x, Math.min(b.x, r.x+r.w));
+    const cy = Math.max(r.y, Math.min(b.y, r.y+r.h));
+    const dx = b.x-cx, dy=b.y-cy;
     return (dx*dx + dy*dy) <= b.r*b.r;
   }
 
-  // ======= Játékciklus =======
-  let last = 0;
-  function loop(ts) {
-    const dt = (ts - last) / 1000 || 0.016; last = ts;
-    update(dt);
-    draw();
+  // --- Ellenfél „stat” lövés ---
+  function simulateOpponent(){
+    let p = 0.52; if (diffSelect.value==='easy') p=0.36; if (diffSelect.value==='hard') p=0.68;
+    if (Math.random()<p) oppGoals++;
+  }
+
+  // --- Játékciklus ---
+  let last=0;
+  function loop(ts){
+    const dt = (ts-last)/1000 || 0.016; last=ts;
+    update(dt); draw();
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
 
-  function update(dt) {
-    if (state === 'menu') return;
+  function update(dt){
+    if (state==='menu') return;
 
-    // Kapus fázisa
-    keeper.t += dt * keeper.speed;
+    // kapus oldalaz
+    keeper.t += dt*keeper.speed;
+    if (keeper.pose!=='idle') keeper.poseTime += dt; else keeper.poseTime = Math.max(0, keeper.poseTime - dt*0.5);
 
-    if (state === 'flying') {
-      // görbület
-      ball.vx += ball.spin * Math.abs(ball.vy) * 0.0009;
-      // lassulás
+    if (state==='flying'){
+      // görbület (finomabb)
+      ball.vx += ball.spin * Math.abs(ball.vy) * 0.0011;
+      // súrlódás
       ball.vx *= 0.999; ball.vy *= 0.9992;
       // poz frissítés
-      ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+      ball.x += ball.vx*dt; ball.y += ball.vy*dt;
 
-      // kapufa visszapattanás
-      const leftPost = { x: GOAL.x1 - 3, y: GOAL.y, w: 6, h: GOAL.postH };
-      const rightPost= { x: GOAL.x2 - 3, y: GOAL.y, w: 6, h: GOAL.postH };
-      if (collideBallRect(ball, leftPost) || collideBallRect(ball, rightPost)) {
-        ball.vx = -ball.vx * 0.6; ball.vy *= 0.75;
-        showToast("Kapufa! 😵", 800);
+      // csóva frissítés
+      ball.trail.unshift({x:ball.x, y:ball.y}); if (ball.trail.length>16) ball.trail.pop();
+
+      // kapufa
+      const leftPost={x:GOAL.x1-4,y:GOAL.y,w:8,h:GOAL.postH};
+      const rightPost={x:GOAL.x2-4,y:GOAL.y,w:8,h:GOAL.postH};
+      if (collideBallRect(ball,leftPost)||collideBallRect(ball,rightPost)){
+        ball.vx*=-0.6; ball.vy*=0.7; beep(220,0.06,'sawtooth',0.04);
+        showToast("Kapufa! 😵",700);
       }
 
-      // kapus ütközés
-      const kr = keeperRectAt(keeperX());
-      if (collideBallRect(ball, kr)) {
-        // egyszerű pattanás: vissza lefelé
-        ball.vy = Math.abs(ball.vy) * 0.6;
-        ball.vx *= 0.5;
-        state = 'dead';
-        showToast("Védés! 🧤", 800);
-        postShot(false);
+      // kapus mentés (nagyobb „kezű” hitbox)
+      const kr = keeper.saveBox();
+      if (collideBallRect(ball, kr)){
+        // Parádé: oldalra felütés kis véletlennel
+        const side = (ball.x < (kr.x+kr.w/2)) ? -1 : 1;
+        ball.vx = (120 + Math.random()*140) * side;
+        ball.vy = Math.abs(ball.vy)*0.3 + 120;
+        ball.spin *= -0.5;
+        keeper.pose = side<0 ? 'diveL' : 'diveR';
+        keeper.poseTime = 0;
+        beep(330,0.08,'square',0.05);
+        showToast("Védés! 🧤",800);
+        state='dead'; postShot(false);
       }
 
-      // gólvonal átlépés (közé tartomány)
-      if (ball.y <= GOAL.y && ball.x > GOAL.x1 && ball.x < GOAL.x2) {
-        state = 'dead';
-        showToast("GÓÓÓL! 🎉");
+      // gólvonal (kapufák között)
+      if (ball.y <= GOAL.y && ball.x > GOAL.x1 && ball.x < GOAL.x2){
+        goals++; state='dead';
+        netKick = 4; // háló „rezgés”
+        beep(660,0.07,'triangle',0.05); setTimeout(()=>beep(880,0.09,'triangle',0.05),60);
+        showToast("GÓÓÓL! 🎉",1000);
         postShot(true);
       }
 
-      // Kiment / nagyon lelassult
-      if (ball.y < -50 || ball.y > H+60 || (Math.abs(ball.vx)+Math.abs(ball.vy) < 8)) {
-        state = 'dead';
-        if (!(ball.y <= GOAL.y && ball.x > GOAL.x1 && ball.x < GOAL.x2)) {
-          showToast("Mellé... 😬", 800);
+      // kifut / megáll
+      if (ball.y < -60 || ball.y > H+80 || (Math.abs(ball.vx)+Math.abs(ball.vy) < 8)){
+        state='dead';
+        if (!(ball.y <= GOAL.y && ball.x > GOAL.x1 && ball.x < GOAL.x2)){
+          showToast("Mellé... 😬",800);
           postShot(false);
         }
       }
     }
   }
 
-  function postShot(scored) {
-    if (scored) goals++;
-    shots++;
-    updateHUD();
-
-    // Egyszerű ellenfél-szimuláció: minden körben kap esélyt (nehézség-függő)
+  function postShot(scored){
+    shots++; updateHUD();
     simulateOpponent();
-
-    setTimeout(() => {
-      if (shots >= maxShots) {
-        endMatch();
-      } else {
-        resetBall(true);
-        state = 'aim';
-      }
+    setTimeout(()=>{
+      if (shots>=maxShots) endMatch();
+      else { resetBall(); state='aim'; keeper.pose='idle'; keeper.poseTime=0; keeper.xBias=0; }
     }, 650);
   }
 
-  function simulateOpponent() {
-    // A nehézségtől függően kb. mennyi gólt rúg ellenünk
-    // (csak statisztikailag: nem lövi meg képernyőn)
-    const d = diffSelect.value;
-    let p = 0.52;
-    if (d === 'easy') p = 0.36;
-    if (d === 'normal') p = 0.52;
-    if (d === 'hard') p = 0.68;
-    if (Math.random() < p) oppGoals++;
-  }
-
-  function endMatch() {
-    state = 'gameover';
+  function endMatch(){
+    state='gameover';
     scoreBox.classList.add('hidden');
     finalBox.classList.remove('hidden');
-    youScoreEl.textContent = goals;
-    oppScoreEl.textContent = oppGoals;
-    if (goals > oppGoals) showToast("Győzelem! 🏆", 2000);
-    else if (goals < oppGoals) showToast("Vereség... 😢", 2000);
-    else showToast("Döntetlen! 🤝", 2000);
+    youScoreEl.textContent=goals; oppScoreEl.textContent=oppGoals;
+    if (goals>oppGoals){ showToast("Győzelem! 🏆",2000); beep(740,0.1,'triangle',0.06); setTimeout(()=>beep(880,0.12,'triangle',0.06),120) }
+    else if (goals<oppGoals){ showToast("Vereség... 😢",2000); beep(220,0.15,'sine',0.04) }
+    else { showToast("Döntetlen! 🤝",2000); }
   }
 
-  function draw() {
+  function draw(){
     drawField();
     drawKeeper();
 
-    // célzóvonal húzás közben
-    if (ball.dragging) {
-      ctx.strokeStyle = "#fde68a"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(ball.x, ball.y);
-      ctx.lineTo(mouse.x, mouse.y);
-      ctx.stroke();
-      // erő skála
-      const dx = ball.x - mouse.x, dy = ball.y - mouse.y;
-      const p = Math.min(1, Math.hypot(dx,dy) / 180);
-      ctx.fillStyle = "#fde68a"; ctx.globalAlpha=0.9;
-      ctx.fillRect(20, H-34, 200*p, 10);
-      ctx.strokeStyle="#e5e7eb"; ctx.strokeRect(20, H-34, 200, 10);
-      ctx.globalAlpha=1;
+    if (ball.dragging){
+      // célvonal + erő csík
+      ctx.strokeStyle="#fde68a"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(ball.x, ball.y); ctx.lineTo(mouse.x, mouse.y); ctx.stroke();
+      const dx=ball.x-mouse.x, dy=ball.y-mouse.y; const p=Math.min(1, Math.hypot(dx,dy)/200);
+      ctx.fillStyle="#fde68a"; ctx.globalAlpha=.9; ctx.fillRect(24, H-36, 220*p, 12); ctx.strokeStyle="#e5e7eb"; ctx.strokeRect(24, H-36, 220, 12); ctx.globalAlpha=1;
     }
 
     drawBall();
 
-    // információs felirat
-    ctx.fillStyle="#cbd5e1";
-    ctx.font="600 14px system-ui"; ctx.textAlign="center";
-    if (state==='aim' && !ball.dragging) {
-      ctx.fillText("Fogd meg a labdát, húzd hátra/oldalra, majd engedd el a lövéshez!", W/2, H-12);
-    } else if (state==='flying') {
-      ctx.fillText("Lövés folyamatban...", W/2, H-12);
-    } else if (state==='gameover') {
-      ctx.fillText("Vége – kattints Új meccs-re a fenti sávban!", W/2, H-12);
-    }
+    // alsó felirat
+    ctx.fillStyle="#cbd5e1"; ctx.font="600 14px system-ui"; ctx.textAlign="center";
+    if (state==='aim' && !ball.dragging) ctx.fillText("Fogd meg a labdát, húzd hátra/oldalra, majd engedd el a lövéshez!", W/2, H-12);
+    else if (state==='flying') ctx.fillText("Lövés folyamatban...", W/2, H-12);
+    else if (state==='gameover') ctx.fillText("Vége – fent Új meccs.", W/2, H-12);
   }
 
-  // ======= Input =======
-  const mouse = { x:0, y:0 };
-  canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const sx = W / rect.width;
-    const sy = H / rect.height;
-    mouse.x = (e.clientX - rect.left) * sx;
-    mouse.y = (e.clientY - rect.top) * sy;
-  });
+  // --- Input (egér + érintés) ---
+  const mouse={x:0,y:0};
+  function toLocal(e){
+    const r=canvas.getBoundingClientRect(); const sx=W/r.width, sy=H/r.height;
+    return { x:(e.clientX-r.left)*sx, y:(e.clientY-r.top)*sy };
+  }
+  canvas.addEventListener('mousemove',e=>{ const p=toLocal(e); mouse.x=p.x; mouse.y=p.y; });
+  canvas.addEventListener('mousedown',()=>{ if (state!=='aim') return; if (dist2(mouse.x,mouse.y,ball.x,ball.y) <= (ball.r+20)*(ball.r+20)) { ball.dragging=true; hintBox.textContent="Húzd vissza, engedd el!"; } });
+  window.addEventListener('mouseup', shootFromDrag);
 
-  canvas.addEventListener('mousedown', (e) => {
-    if (state!=='aim') return;
-    const dx = mouse.x - ball.x, dy = mouse.y - ball.y;
-    if (dx*dx + dy*dy <= (ball.r+18)*(ball.r+18)) {
-      ball.dragging = true;
-      hintBox.textContent = "Húzd vissza a célvonalon, engedd el a lövéshez!";
-    }
-  });
+  // Érintés
+  canvas.addEventListener('touchstart',e=>{ const t=e.touches[0]; const p=toLocal(t); mouse.x=p.x; mouse.y=p.y;
+    if (state==='aim' && dist2(mouse.x,mouse.y,ball.x,ball.y) <= (ball.r+24)*(ball.r+24)) ball.dragging=true; }, {passive:true});
+  canvas.addEventListener('touchmove',e=>{ const t=e.touches[0]; const p=toLocal(t); mouse.x=p.x; mouse.y=p.y; }, {passive:true});
+  canvas.addEventListener('touchend',()=> shootFromDrag());
 
-  window.addEventListener('mouseup', () => {
+  function shootFromDrag(){
     if (state!=='aim' || !ball.dragging) return;
-    // kilövés
-    const dx = ball.x - mouse.x;
-    const dy = ball.y - mouse.y;
-    const power = Math.hypot(dx, dy);
-    const scale = 6.2; // pix/s
-    ball.vx = dx * scale;
-    ball.vy = dy * scale;
-    // spin: oldalirány arányos
-    ball.spin = Math.max(-1, Math.min(1, dx / 220));
-    ball.dragging = false;
-    state = 'flying';
-    hintBox.textContent = "Lövés!";
-
-    // Kapus "reakció": késleltetve mozdul a becsült cél felé
+    const dx = ball.x - mouse.x, dy = ball.y - mouse.y;
+    const scale = 6.8; // pix/s
+    ball.vx = dx*scale; ball.vy = dy*scale;
+    ball.spin = Math.max(-1, Math.min(1, dx/220));
+    ball.dragging=false; state='flying'; hintBox.textContent="Lövés!";
+    // Kapus reakció (előre jelzett cél)
     const aimX = ball.x + (ball.vx / Math.max(Math.abs(ball.vy), 1)) * (ball.y - GOAL.y);
-    const clampedAim = Math.max(GOAL.x1+20, Math.min(GOAL.x2-20, aimX));
-    const delay = 110 + (1 - keeper.react) * 200; // ms
-    setTimeout(() => {
-      const targetMid = (GOAL.x1 + GOAL.x2)/2;
-      const toAim = clampedAim - targetMid;
-      keeper.dx = toAim / 6;
-      keeper.dive = true;
-      setTimeout(()=> keeper.dive=false, 600);
+    const target = clamp(aimX, GOAL.x1+24, GOAL.x2-24);
+    const delay = 100 + (1 - keeper.react) * 220;
+    setTimeout(()=> {
+      const mid=(GOAL.x1+GOAL.x2)/2; const toAim = target - mid;
+      keeper.xBias = toAim * 0.15;
+      keeper.pose = (toAim<0) ? 'diveL' : 'diveR';
+      keeper.poseTime = 0;
     }, delay);
-  });
+  }
 
-  window.addEventListener('keydown', (e) => {
-    if (e.key.toLowerCase() === 'r') {
-      resetBall(true);
-      state='aim';
-      hintBox.textContent = "Resetelve. Fogd meg a labdát, húzd hátra, engedd el!";
-    }
-  });
-
-  // ======= Segéd =======
-  // Eszközsoron vissza a menübe, ha akarod új csapatokkal
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && state!=='menu') {
-      menu.classList.remove('hidden');
-      state='menu';
-    }
-  });
+  function dist2(ax,ay,bx,by){ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
 
 })();
 </script>
