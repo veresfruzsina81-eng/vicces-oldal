@@ -2,72 +2,46 @@
 <html lang="hu">
 <head>
   <meta charset="UTF-8">
-  <title>Mini Talking Tom</title>
+  <title>Bejelentkezés</title>
   <style>
     body {
-      text-align: center;
       font-family: Arial, sans-serif;
-      background-color: #f0f0f0;
+      background-color: #dceefc;
+      text-align: center;
+      padding-top: 100px;
     }
-    h1 {
-      margin-top: 30px;
-    }
-    .character {
-      width: 200px;
-      margin: 20px auto;
-      display: block;
+    input {
+      padding: 10px;
+      margin: 10px;
+      width: 250px;
     }
     button {
-      font-size: 18px;
       padding: 10px 20px;
-      margin-top: 15px;
+      margin: 10px;
+      font-size: 16px;
       cursor: pointer;
-    }
-    #result {
-      margin-top: 20px;
-      font-size: 20px;
-      color: #333;
     }
   </style>
 </head>
 <body>
 
-  <h1>🎤 Beszélj a cicához!</h1>
+  <h1>Üdvözöllek a játékban!</h1>
+  <p>Kérlek, jelentkezz be vagy ugorj át:</p>
 
-  <!-- 🐱 Cica animáció -->
-  <img class="character" src="https://media.giphy.com/media/BzyTuYCmvSORqs1ABM/giphy.gif" alt="Beszélő karakter">
+  <input type="text" id="name" placeholder="Felhasználónév (nem kötelező)"><br>
+  <input type="password" id="password" placeholder="Jelszó (nem kötelező)"><br>
 
-  <!-- 🎙️ Mikrofon gomb -->
-  <button onclick="startListening()">Mondd ki!</button>
+  <button onclick="login()">Belépek</button>
+  <button onclick="skip()">Kihagyom</button>
 
-  <!-- 📣 Kimondott szöveg -->
-  <p id="result">Várom, hogy megszólalj...</p>
-
-  <!-- 🎧 JS: hangfelismerés és visszabeszélés -->
   <script>
-    const resultEl = document.getElementById('result');
-
-    function startListening() {
-      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      recognition.lang = 'hu-HU'; // magyar nyelv
-      recognition.start();
-
-      recognition.onresult = function(event) {
-        const text = event.results[0][0].transcript;
-        resultEl.textContent = `Azt mondtad: "${text}"`;
-        speakText(text);
-      };
-
-      recognition.onerror = function(event) {
-        resultEl.textContent = 'Hiba: ' + event.error;
-      };
+    function login() {
+      // Itt ellenőrizhetnéd az adatokat, ha lenne backend, de most csak továbblépünk
+      window.location.href = "index.html";
     }
 
-    function speakText(text) {
-      const synth = window.speechSynthesis;
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = 'hu-HU';
-      synth.speak(utter);
+    function skip() {
+      window.location.href = "index.html";
     }
   </script>
 
