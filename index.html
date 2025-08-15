@@ -1,19 +1,49 @@
 <!DOCTYPE html>
-<html>
+<html lang="hu">
 <head>
+  <meta charset="UTF-8">
   <title>Mini Talking Tom</title>
+  <style>
+    body {
+      text-align: center;
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+    }
+    .character {
+      width: 200px;
+      margin: 20px auto;
+    }
+    button {
+      font-size: 18px;
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 20px;
+      color: #333;
+    }
+  </style>
 </head>
 <body>
-  <h1>Beszélj hozzám!</h1>
-  <button onclick="startListening()">🎤 Kezd el beszélni</button>
-  <p id="result">...</p>
+
+  <h1>🎤 Beszélj a cicához!</h1>
+  
+  <!-- Animált karakter -->
+  <img class="character" src="https://media.giphy.com/media/BzyTuYCmvSORqs1ABM/giphy.gif" alt="Beszélő karakter">
+
+  <!-- Mikrofon gomb -->
+  <button onclick="startListening()">🎙️ Mondd ki!</button>
+
+  <!-- Eredmény -->
+  <p id="result">Várom, hogy megszólalj...</p>
 
   <script>
     const resultEl = document.getElementById('result');
 
     function startListening() {
       const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      recognition.lang = 'hu-HU'; // Magyarul
+      recognition.lang = 'hu-HU'; // magyar nyelv
       recognition.start();
 
       recognition.onresult = function(event) {
@@ -29,9 +59,9 @@
 
     function speakText(text) {
       const synth = window.speechSynthesis;
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'hu-HU'; // Magyar kiejtés
-      synth.speak(utterance);
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'hu-HU';
+      synth.speak(utter);
     }
   </script>
 </body>
