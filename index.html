@@ -1,183 +1,38 @@
-<!doctype html>
-<html lang="hu">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kezdőlap – Belépés utáni felület</title>
-  <meta name="color-scheme" content="light dark" />
-  <style>
-    :root{
-      --bg:#0b1016; --panel:#121a22; --panel-2:#1a232d; --text:#e8eef6; --muted:#a8b3c2; --brand:#0ea5e9; --brand-2:#22d3ee; --ok:#22c55e; --danger:#ef4444; --ring:#7dd3fc; --shadow:0 10px 30px rgba(2,6,23,.35); --radius:14px;
-    }
-    :root.light{ --bg:#fbfbfd; --panel:#ffffff; --panel-2:#f4f6f8; --text:#0b1220; --muted:#475569; --brand:#0369a1; --brand-2:#0891b2; --ring:#38bdf8; --shadow:0 10px 30px rgba(15,23,42,.12); }
-
-    *,*::before,*::after{box-sizing:border-box}
-    body{margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--text); background:var(--bg); min-height:100dvh; display:flex; flex-direction:column}
-    a{color:inherit; text-decoration:none}
-
-    .container{max-width:1200px; margin-inline:auto; padding:0 clamp(16px,4vw,32px)}
-
-    header{position:sticky; top:0; backdrop-filter:saturate(140%) blur(8px); z-index:10; border-bottom:1px solid color-mix(in oklab, var(--text) 10%, transparent)}
-    .nav{display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.7rem 0}
-    .brand{display:flex; gap:.7rem; align-items:center; font-weight:800}
-    .logo{width:36px; height:36px; border-radius:12px; background:linear-gradient(135deg,var(--brand),var(--brand-2)); display:grid; place-items:center; color:white; box-shadow:var(--shadow)}
-
-    .btn{display:inline-flex; align-items:center; gap:.5rem; padding:.7rem 1rem; border-radius:12px; border:1px solid color-mix(in oklab, var(--text) 16%, transparent); background:transparent; color:var(--text); cursor:pointer}
-    .btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand-2)); color:white; border:none}
-
-    main{flex:1;}
-    .welcome{margin:16px auto 0}
-    .banner{display:flex; align-items:center; justify-content:space-between; gap:1rem; background:linear-gradient(180deg, color-mix(in oklab, var(--panel) 82%, transparent), color-mix(in oklab, var(--panel) 94%, transparent)); border:1px solid color-mix(in oklab, var(--text) 12%, transparent); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow)}
-
-    .grid{display:grid; grid-template-columns: 1.2fr 1fr; gap: clamp(16px,3vw,24px); margin:clamp(16px,3vw,24px) 0}
-    .card{background:linear-gradient(180deg, color-mix(in oklab, var(--panel) 85%, transparent), color-mix(in oklab, var(--panel) 96%, transparent)); border:1px solid color-mix(in oklab, var(--text) 12%, transparent); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px}
-    .card h2{margin:0 0 .3rem}
-
-    .list{display:grid; gap:.6rem; padding:0; margin:0; list-style:none}
-    .list li{display:flex; align-items:center; justify-content:space-between; background:var(--panel-2); border:1px solid color-mix(in oklab, var(--text) 10%, transparent); padding:.8rem 1rem; border-radius:12px}
-
-    .muted{color:var(--muted)}
-
-    footer{padding:20px 0; color:var(--muted); border-top:1px solid color-mix(in oklab, var(--text) 10%, transparent)}
-
-    @media (max-width: 960px){ .grid{grid-template-columns:1fr} }
-  </style>
+  <title>Mini Talking Tom</title>
 </head>
 <body>
-  <!-- Védelmi script: ha nincs bejelentkezve, vissza a loginra -->
-  <script> if(!localStorage.getItem('authUser')){ window.location.href='login.html'; } </script>
-
-  <header>
-    <div class="container nav">
-      <div class="brand"><span class="logo">★</span> <span id="brandName">KódKovács</span></div>
-      <div style="display:flex; gap:.5rem; align-items:center">
-        <button id="themeBtn" class="btn" aria-label="Téma váltása">🌗 Téma</button>
-        <button id="logoutBtn" class="btn">Kijelentkezés</button>
-      </div>
-    </div>
-  </header>
-
-  <main class="container">
-    <!-- Üdvözlő banner -->
-    <section class="welcome">
-      <div class="banner">
-        <div>
-          <div class="muted">Sikeres bejelentkezés</div>
-          <h1 style="margin:.2rem 0 0">Üdv itt, <span id="userName">Felhasználó</span>! 👋</h1>
-          <p class="muted" style="margin:.3rem 0 0">Kezdj az alábbi gyors műveletek egyikével.</p>
-        </div>
-        <div>
-          <a href="#" class="btn primary" id="quickAction">Új elem hozzáadása</a>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tartalmi rács: bal = gyors áttekintés, jobb = profil -->
-    <section class="grid">
-      <article class="card">
-        <h2>Gyors áttekintés</h2>
-        <p class="muted">Példa widgetek demonstrációhoz.</p>
-        <ul class="list" id="items">
-          <li><span>Napi feladat</span> <button class="btn" data-remove>Eltávolítás</button></li>
-          <li><span>Olvasási lista</span> <button class="btn" data-remove>Eltávolítás</button></li>
-          <li><span>Jegyzet minta</span> <button class="btn" data-remove>Eltávolítás</button></li>
-        </ul>
-        <div style="display:flex; gap:.5rem; margin-top:.8rem">
-          <input id="newItem" placeholder="Új elem…" style="flex:1; padding:.8rem 1rem; border-radius:12px; border:1px solid color-mix(in oklab, var(--text) 14%, transparent); background:var(--panel-2); color:var(--text)">
-          <button class="btn primary" id="addItem">Hozzáadás</button>
-        </div>
-      </article>
-
-      <aside class="card">
-        <h2>Profil</h2>
-        <p class="muted" style="margin:0 0 .6rem">Itt szerkesztheted a megjelenő nevedet.</p>
-        <form id="profileForm">
-          <label for="displayName" style="display:block; margin:.2rem 0 .3rem">Megjelenő név</label>
-          <input id="displayName" placeholder="pl. Anna" style="width:100%; padding:.8rem 1rem; border-radius:12px; border:1px solid color-mix(in oklab, var(--text) 14%, transparent); background:var(--panel-2); color:var(--text)">
-          <button class="btn primary" style="margin-top:.8rem">Mentés</button>
-          <div id="saveMsg" class="muted" style="margin-top:.4rem"></div>
-        </form>
-      </aside>
-    </section>
-  </main>
-
-  <footer>
-    <div class="container" style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap">
-      <small>© <span id="year"></span> KódKovács</small>
-      <small><a href="#">Adatkezelési tájékoztató</a></small>
-    </div>
-  </footer>
+  <h1>Beszélj hozzám!</h1>
+  <button onclick="startListening()">🎤 Kezd el beszélni</button>
+  <p id="result">...</p>
 
   <script>
-    // ===== Téma beállítás =====
-    const root=document.documentElement; const storedTheme=localStorage.getItem('theme');
-    if(storedTheme==='light') root.classList.add('light');
-    document.getElementById('themeBtn').addEventListener('click',()=>{
-      root.classList.toggle('light');
-      localStorage.setItem('theme',root.classList.contains('light')?'light':'dark');
-    });
+    const resultEl = document.getElementById('result');
 
-    // ===== Felhasználó és üdvözlés =====
-    const user=localStorage.getItem('authUser');
-    const userNameEl=document.getElementById('userName');
-    userNameEl.textContent=user || 'Felhasználó';
+    function startListening() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'hu-HU'; // Magyarul
+      recognition.start();
 
-    // ===== Kijelentkezés =====
-    document.getElementById('logoutBtn').addEventListener('click',()=>{
-      localStorage.removeItem('authUser');
-      window.location.href='login.html';
-    });
+      recognition.onresult = function(event) {
+        const text = event.results[0][0].transcript;
+        resultEl.textContent = `Azt mondtad: "${text}"`;
+        speakText(text);
+      };
 
-    // ===== Gyors lista (demo) =====
-    const list=document.getElementById('items');
-    const addBtn=document.getElementById('addItem');
-    const input=document.getElementById('newItem');
-    const STORAGE_KEY='dashboard_items';
-
-    function loadItems(){
-      const data=JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      list.innerHTML='';
-      data.forEach((t,i)=> addItemToDOM(t,i));
+      recognition.onerror = function(event) {
+        resultEl.textContent = 'Hiba: ' + event.error;
+      };
     }
-    function saveItems(){
-      const items=[...list.querySelectorAll('li span')].map(el=>el.textContent);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+
+    function speakText(text) {
+      const synth = window.speechSynthesis;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'hu-HU'; // Magyar kiejtés
+      synth.speak(utterance);
     }
-    function addItemToDOM(text){
-      const li=document.createElement('li');
-      const span=document.createElement('span'); span.textContent=text;
-      const btn=document.createElement('button'); btn.className='btn'; btn.textContent='Eltávolítás'; btn.setAttribute('data-remove','');
-      btn.addEventListener('click',()=>{ li.remove(); saveItems(); });
-      li.append(span,btn); list.append(li);
-    }
-    addBtn.addEventListener('click',()=>{ const v=input.value.trim(); if(!v) return; addItemToDOM(v); input.value=''; saveItems();});
-    input.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); addBtn.click(); }});
-
-    // ===== Profil (megjelenő név) =====
-    const displayNameInput=document.getElementById('displayName');
-    const saveMsg=document.getElementById('saveMsg');
-    const NAME_KEY='display_name_'+(user||'guest');
-    displayNameInput.value=localStorage.getItem(NAME_KEY) || user || '';
-    document.getElementById('profileForm').addEventListener('submit',e=>{
-      e.preventDefault();
-      const val=displayNameInput.value.trim();
-      localStorage.setItem(NAME_KEY,val);
-      userNameEl.textContent=val || user || 'Felhasználó';
-      saveMsg.textContent='Mentve ✓';
-      setTimeout(()=> saveMsg.textContent='', 1200);
-    });
-
-    // ===== Láb évszám =====
-    document.getElementById('year').textContent=new Date().getFullYear();
-
-    // ===== Gyors akció gomb (demo) =====
-    document.getElementById('quickAction').addEventListener('click',e=>{
-      e.preventDefault();
-      input.focus();
-    });
-
-    // Induláskor listák betöltése
-    loadItems();
   </script>
 </body>
 </html>
