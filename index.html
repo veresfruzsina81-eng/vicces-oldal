@@ -1,349 +1,100 @@
-# noel_trics_kuldetes.py
-from ursina import *
-from ursina.prefabs.first_person_controller import FirstPersonController
-import math, random, os
-
-app = Ursina(title='Noel & Trics – Mini küldetés (Ursina)')
-
-# --- világ / fények ---
-window.color = color.rgb(18, 26, 44)
-Sky(color=color.rgb(90,110,160))
-AmbientLight(color=color.rgba(170, 170, 180, 255))
-sun = DirectionalLight(shadows=True)
-sun.look_at(Vec3(1,-2,-1))
-
-# --- alap terep: hullámos "domb" ---
-ground = Entity(model=Terrain('noise'),  # kis hullámos
-                scale=(60,6,60), texture='white_cube', texture_scale=(120,120),
-                color=color.rgb(45,120,90), collider='mesh')
-
-# zöld csíkos textúra-féle árnyalás
-def tint_terrain():
-    ground.set_shader_input('time', time.time())
-tint_terrain()
-
-# --- segéd: megpróbálunk betölteni PNG sprite-ot, ha nincs, visszaad None ---
-def try_tex(fname):
-    if os.path.exists(fname):
-        try:
-            return load_texture(fname)
-        except: pass
-    return None
-
-# --- játékos (Noel) és társ (Trics) ---
-noel_tex  = try_tex('noel.png')
-trics_tex = try_tex('trics.png')
-
-# billboard sprite (ha van PNG), különben kapszula
-def make_actor(tex, color_fallback, y=1.0):
-    if tex:
-        e = Entity(model='quad', texture=tex, double_sided=True, scale=2.1, y=y,
-                   billboard=True, collider='box')
-    else:
-        e = Entity(model='capsule', color=color_fallback, y=y, scale=(0.6,1.2,0.6),
-                   collider='capsule')
-    shadow = Entity(parent=e, model='circle', rotation_x=90, y=-0.9, scale=0.8,
-                    color=color.rgba(0,0,0,80))
-    return e
-
-noel  = make_actor(noel_tex, color.azure, y=1.25)
-trics = make_actor(trics_tex, color.rgb(60,160,255), y=1.15)
-noel.position  = Vec3(-10, ground.y + 1.25, -10)
-trics.position = noel.position + Vec3(1.8,0,1.2)
-
-# láb alatti talaj-érintkezés becslés (a terep hepehupás, igazítjuk y-t)
-def ground_y(x,z):
-    # egyszerű mintavétel a terrain magasságából
-    p = Vec3(x/ground.scale_x, 0, z/ground.scale_z)
-    # a Terrain('noise') modellnél nincs közvetlen get_height, így közelítünk egy „domb” képlettel
-    h = 0.9*math.sin(x*0.12)*math.cos(z*0.1) + 0.5*math.sin(z*0.2)
-    return ground.y + h*0.6 + 0.6
-
-# kamera: 3rd person követő
-camera.parent = noel
-camera.position = (0, 4, -8)
-camera.rotation = (15, 0, 0)
-
-# --- UI: párbeszéd doboz ---
-ui_panel = Entity(parent=camera.ui, model='quad', color=color.rgba(15,25,40,220),
-                  origin=(-.5,-.5), position=(-.48,-.47), scale=(.96,.26), z=-1, enabled=True)
-speaker_lbl = Text(parent=ui_panel, text='Narrátor', origin=(-.5,.5), position=(.02,.18),
-                   background=True, color=color.cyan, scale=1)
-line_lbl = Text(parent=ui_panel, text='[Enter / egér] Tovább', origin=(-.5,.5), position=(.02,.04),
-                wordwrap=52, scale=1)
-hint_lbl = Text(parent=ui_panel, text='E: interakció  •  WASD: mozgás', origin=(-.5,.5),
-                position=(.02,-.07), color=color.rgba(200,220,255,160), scale=.9)
-
-dialog_queue = [
-    ('Narrátor', 'Egy fényes reggelen Noel a dombok között egy titokzatos, kék fénycsíkot lát az égen.'),
-    ('Noel',      'Hű, ez mi lehetett? Olyan, mintha ide zuhant volna valami!'),
-    ('Trics',     'Szia! Én vagyok Trics. A kapszulám energiamagja itt landolt. Segítesz megkeresni?'),
-    ('Noel',      'Persze, imádok nyomozni! Merre induljunk?'),
-    ('Trics',     'A detektor szerint ezen a mezőn át. Kövesd a szikrázó morzsákat!'),
-]
-dialog_index = 0
-dialog_active = True
-
-def set_dialog(who, text):
-    speaker_lbl.text = who
-    line_lbl.text = text
-    # „aktív” fény
-    noel.alpha = 1
-    trics.alpha = 1
-    if who.lower().startswith('noel'):
-        trics.alpha = .6
-    elif who.lower().startswith('trics'):
-        noel.alpha = .6
-
-def next_dialog():
-    global dialog_index, dialog_active
-    if dialog_index < len(dialog_queue):
-        who, txt = dialog_queue[dialog_index]
-        set_dialog(who, txt)
-        dialog_index += 1
-    else:
-        dialog_active = False
-        ui_panel.enabled = False
-        # indul az első cél: morzsák
-        start_trail_phase()
-
-next_dialog()
-
-# --- mozgás / követés ---
-speed = 5.0
-turn_speed = 120
-
-def move_actor(e, direction, dt):
-    # forgatás a mozgásirány felé
-    if direction.length() > 0.001:
-        target_rot_y = math.degrees(math.atan2(direction.x, direction.z))
-        e.rotation_y = lerp(e.rotation_y, target_rot_y, min(1, dt*4))
-        # lépés
-        e.position += direction.normalized() * speed * dt
-    # illesszük a dombhoz
-    e.y = ground_y(e.x, e.z)
-
-# Trics "követ"
-def follow_target(follower, leader, dt):
-    desired = leader.position + Vec3(1.6,0,1.3)
-    offset = desired - follower.position
-    dist = offset.length()
-    if dist > 0.05:
-        follower.position += offset.normalized() * min(3.5*dt, dist)
-        follower.y = ground_y(follower.x, follower.z)
-
-# --- 1. fázis: energia-morzsák útvonala ---
-trail = []     # kis fénygömbök
-trail_goal = Vec3(6,0,8)
-trail_done = False
-
-def start_trail_phase():
-    global trail
-    # rajzolunk 10-12 morzsát a pályára „kígyózva”
-    start = noel.position
-    rng = random.Random(1)
-    trail = []
-    steps = 12
-    for i in range(steps):
-        t = i/steps
-        x = lerp(start.x, trail_goal.x, t) + math.sin(i*0.7)*1.5
-        z = lerp(start.z, trail_goal.z, t) + math.cos(i*0.6)*1.5
-        y = ground_y(x,z) + 0.5
-        e = Entity(model='sphere', color=color.yellow, position=(x,y,z), scale=0.2, collider='sphere')
-        e.pulse = 0
-        trail.append(e)
-    # a cél közelébe teszünk egy kőkört
-    build_stone_circle(trail_goal + Vec3(2,0,3))
-
-def update_trail(dt):
-    global trail_done
-    if trail_done: return
-    # pulzálás és felvétel közeli érintésre
-    for e in list(trail):
-        e.pulse += dt*4
-        e.scale = 0.18 + 0.04*math.sin(e.pulse)
-        if distance(noel.position, e.position) < 1.0:
-            destroy(e)
-            trail.remove(e)
-            # kis csillanás
-            burst = Entity(model='sphere', color=color.rgb(255,230,120), position=e.position, scale=0.1)
-            burst.animate_scale(0.9, duration=.25, curve=curve.out_quint)
-            destroy(burst, delay=.28)
-            Audio('click', pitch=2, volume=.4)
-    if not trail:
-        trail_done = True
-        # kis narráció
-        show_tip('A morzsák elfogytak. Nézd, ott egy kő-kör!')
-        enqueue_dialog([
-            ('Narrátor','A fű között egy kőből rakott kör várja őket.'),
-            ('Noel','Olyan, mintha kirakó lenne. Talán sorrendben kell megérinteni.'),
-            ('Trics','Próbáljuk: kicsi – nagy – közép! Ha készen állsz, menj az első kőhöz és nyomd meg az E-t.')
-        ])
-
-# --- 2. fázis: kő-kör kirakó ---
-stones = []
-puzzle_order = []     # a valódi sorrend indexei
-player_input = []     # a játékos által megérintett kő-indexek
-puzzle_done = False
-puzzle_center = Vec3(10,0,12)
-
-def build_stone_circle(center):
-    global stones, puzzle_order
-    stones = []
-    radii = [0.5, 0.95, 0.7]  # kicsi, nagy, közép
-    labels = ['kicsi', 'nagy', 'közép']
-    angles = [0, 120, 240]
-    for i,(r,lab,a) in enumerate(zip(radii,labels,angles)):
-        x = center.x + math.cos(math.radians(a))*2.2
-        z = center.z + math.sin(math.radians(a))*2.2
-        y = ground_y(x,z)
-        stone = Entity(model='cylinder', color=color.rgb(110,110,120), scale=(r, 0.6, r),
-                       position=(x,y, z), collider='box')
-        stone.label = lab
-        stone.index = i
-        stones.append(stone)
-        # kis lebegő felirat
-        Text(parent=stone, text=lab, y=0.9, x=0, z=-.5, origin=(0,0), scale=1, color=color.rgba(230,230,255,180), world=True)
-    # „kicsi–nagy–közép”
-    puzzle_order = [0,1,2]
-
-def near(a:Entity, b:Entity, d=1.4):  # közelség vizsgálat
-    return distance(a.position, b.position) < d
-
-def try_interact():
-    global puzzle_done, player_input
-    # ha még a puzzle folyik: kőre E
-    if not puzzle_done:
-        for s in stones:
-            if near(noel, s, d=1.6):
-                # anim + hang
-                s.animate_color(color.rgb(160,160,220), duration=.2)
-                Audio('blip', pitch=1.5, volume=.5)
-                player_input.append(s.index)
-                validate_puzzle()
-                return
-    # ha puzzle kész és közel az energiamag: felvétel
-    if energy_core and energy_core.enabled and near(noel, energy_core, d=1.6):
-        collect_core()
-
-def validate_puzzle():
-    global player_input, puzzle_done
-    n = len(player_input)
-    if player_input != puzzle_order[:n]:
-        # rossz, reset
-        for s in stones:
-            s.animate_color(color.rgb(110,110,120), duration=.2)
-        player_input = []
-        Audio('error', pitch=0.8, volume=.5)
-        show_tip('Nem jó sorrend. Próbáld: kicsi → nagy → közép!')
-        return
-    if n == len(puzzle_order):
-        puzzle_done = True
-        show_tip('Ügyes! Az ösvény felragyog...')
-        # fény-ösvény + mag létrehozása
-        make_core(puzzle_center + Vec3(0,0,4))
-        enqueue_dialog([
-            ('Narrátor','A kövek felizzanak, és fényösvényt rajzolnak a fűbe.'),
-            ('Noel','Látom a végén a fényt!'),
-            ('Trics','Ott az energiamag! Menjünk oda, és nyomd meg az E-t a felvételhez.')
-        ])
-
-def show_tip(text, t=2.3):
-    tip = Text(text=text, origin=(0,0), color=color.white, y=0.42, parent=camera.ui, scale=1.1)
-    tip.animate_color(color.rgba(255,255,255,0), duration=t)
-    destroy(tip, delay=t)
-
-# --- energiamag + fényösvény ---
-energy_core = None
-light_streaks = []
-def make_core(pos):
-    global energy_core, light_streaks
-    for s in light_streaks: destroy(s)
-    light_streaks = []
-    # csíkok
-    for i in range(10):
-        x = lerp(puzzle_center.x, pos.x, i/10)
-        z = lerp(puzzle_center.z, pos.z, i/10)
-        y = ground_y(x,z) + 0.02
-        e = Entity(model='cube', position=(x,y,z), scale=(0.4,0.02,0.2),
-                   color=color.rgba(180,220,255,150))
-        light_streaks.append(e)
-    # mag
-    energy_core = Entity(model='sphere', color=color.rgb(255,230,100),
-                         position=(pos.x, ground_y(pos.x,pos.z)+0.9, pos.z),
-                         scale=0.35, collider='sphere')
-    # kis fény
-    energy_core.light = PointLight(parent=energy_core, y=0.0, color=color.rgb(255,240,180), shadows=True)
-    energy_core.pulse = 0
-
-def collect_core():
-    global energy_core
-    if not energy_core: return
-    # effekt
-    boom = Entity(model='sphere', color=color.rgb(255,240,200), position=energy_core.position, scale=0.2)
-    boom.animate_scale(3.0, duration=.35, curve=curve.out_expo)
-    boom.animate_color(color.rgba(255,255,255,0), duration=.4)
-    Audio('power_up', pitch=1.2, volume=.6)
-    destroy(boom, delay=.45)
-    # eltűnik a mag
-    destroy(energy_core)
-    energy_core = None
-    # befejező párbeszéd
-    enqueue_dialog([
-        ('Trics','Megvan! Köszönöm, Noel! Nélküled nem sikerült volna.'),
-        ('Noel','Szívesen! Gyere holnap is, megmutatom a titkos fámat a pataknál.'),
-        ('Narrátor','A dombok fölött már új kaland ígérete csillog.')
-    ])
-
-# --- párbeszéd sorba állítás ---
-def enqueue_dialog(lines):
-    global dialog_queue, dialog_index, dialog_active
-    dialog_queue += lines
-    if not dialog_active:
-        dialog_active = True
-        ui_panel.enabled = True
-        next_dialog()
-
-# --- fő update ---
-def update():
-    dt = time.dt
-
-    # párbeszéd léptetése Enterrel / egérkattal
-    if dialog_active and (held_keys['enter'] or mouse.left):
-        # hogy ne "átugorjon", várjunk picit két frame között
-        if not hasattr(update, 'deb'): update.deb = 0
-        update.deb += dt
-        if update.deb > .18:
-            update.deb = 0
-            next_dialog()
-
-    # mozgás: WASD síkban
-    move_dir = Vec3(held_keys['d']-held_keys['a'], 0, held_keys['w']-held_keys['s'])
-    if move_dir.length() > 0:
-        move_actor(noel, Vec3(move_dir.x,0,move_dir.z), dt)
-        # kamera kis rugózása
-        camera.position = lerp(camera.position, Vec3(0,4,-8), 6*dt)
-    # Trics követ
-    follow_target(trics, noel, dt)
-
-    # energiamag pulzál
-    if energy_core:
-        energy_core.pulse += dt*4
-        energy_core.scale = 0.33 + 0.05*math.sin(energy_core.pulse)
-
-    # morzsa fázis frissítés
-    update_trail(dt)
-
-# --- input az interakcióhoz (E) ---
-def input(key):
-    if key == 'e':
-        try_interact()
-
-# kis „integetés” anim Tricsnél, mikor ő beszél
-def on_message_change():
-    if speaker_lbl.text.lower().startswith('trics'):
-        trics.animate_rotation_y(trics.rotation_y + 15, duration=.25)
-        trics.animate_rotation_y(trics.rotation_y - 15, delay=.25, duration=.25)
-speaker_lbl.on_value_changed = lambda: on_message_change()
-
-app.run()
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bejelentkezés</title>
+  <style>
+    body{
+      margin:0;
+      font-family: system-ui, sans-serif;
+      background:#0b1016;
+      color:#e8eef6;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      height:100vh;
+    }
+    .login{
+      background:#121a22;
+      padding:2rem;
+      border-radius:12px;
+      box-shadow:0 10px 30px rgba(2, 6, 23, .35);
+      max-width:400px;
+      width:100%;
+    }
+    h1{
+      margin-top:0;
+      text-align:center;
+    }
+    p{
+      text-align:center;
+      color:#a8b3c2;
+    }
+    label{
+      display:block;
+      margin-top:1rem;
+      margin-bottom:.4rem;
+    }
+    input{
+      width:100%;
+      padding:.8rem 1rem;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.1);
+      background:#1a232d;
+      color:#e8eef6;
+    }
+    button{
+      margin-top:1.4rem;
+      width:100%;
+      padding:.8rem 1rem;
+      background:linear-gradient(135deg,#0ea5e9,#22d3ee);
+      border:none;
+      border-radius:12px;
+      color:white;
+      font-weight:600;
+      cursor:pointer;
+    }
+    .error{
+      color:#ef4444;
+      text-align:center;
+      margin-top:.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="login">
+    <h1>Üdvözlünk! 👋</h1>
+    <p>Kérlek, jelentkezz be a folytatáshoz</p>
+    <form id="loginForm" novalidate>
+      <label for="username">Felhasználónév</label>
+      <input id="username" name="username" required>
+      <label for="password">Jelszó</label>
+      <input id="password" name="password" type="password" required>
+      <button type="submit">Bejelentkezés</button>
+      <div id="msg" class="error"></div>
+    </form>
+  </div>
+  <script>
+    const form=document.getElementById('loginForm');
+    const msg=document.getElementById('msg');
+    form.addEventListener('submit',e=>{
+      e.preventDefault();
+      const u=form.username.value.trim();
+      const p=form.password.value.trim();
+      if(!u||!p){
+        msg.textContent='Tölts ki minden mezőt!';
+        return;
+      }
+      if(u==='demo'&&p==='jelszo'){
+        msg.style.color='#22c55e';
+        msg.textContent='Sikeres bejelentkezés!';
+        setTimeout(()=>{window.location.href='index.html'},1000);
+      }else{
+        msg.style.color='#ef4444';
+        msg.textContent='Hibás adatok!';
+      }
+    });
+  </script>
+</body>
+</html>
