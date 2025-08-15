@@ -6,16 +6,21 @@
   <style>
     body {
       text-align: center;
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
       background-color: #f0f0f0;
+    }
+    h1 {
+      margin-top: 30px;
     }
     .character {
       width: 200px;
       margin: 20px auto;
+      display: block;
     }
     button {
       font-size: 18px;
       padding: 10px 20px;
+      margin-top: 15px;
       cursor: pointer;
     }
     #result {
@@ -28,16 +33,17 @@
 <body>
 
   <h1>🎤 Beszélj a cicához!</h1>
-  
-  <!-- Animált karakter -->
+
+  <!-- 🐱 Cica animáció -->
   <img class="character" src="https://media.giphy.com/media/BzyTuYCmvSORqs1ABM/giphy.gif" alt="Beszélő karakter">
 
-  <!-- Mikrofon gomb -->
-  <button onclick="startListening()">🎙️ Mondd ki!</button>
+  <!-- 🎙️ Mikrofon gomb -->
+  <button onclick="startListening()">Mondd ki!</button>
 
-  <!-- Eredmény -->
+  <!-- 📣 Kimondott szöveg -->
   <p id="result">Várom, hogy megszólalj...</p>
 
+  <!-- 🎧 JS: hangfelismerés és visszabeszélés -->
   <script>
     const resultEl = document.getElementById('result');
 
@@ -64,5 +70,6 @@
       synth.speak(utter);
     }
   </script>
+
 </body>
 </html>
