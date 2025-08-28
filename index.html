@@ -1,80 +1,74 @@
-<!-- ==== AUTH WIDGET (paste this before </body>) ==== -->
+<!-- ==== MODERN FULLSCREEN AUTH (paste before </body>) ==== -->
 <style>
-  :root{--auth-txt:#e9eefc;--auth-muted:#9db0d4;--auth-border:rgba(255,255,255,.16);--auth-bg:rgba(10,18,36,.86);--auth-btn1:#2e5fff;--auth-btn2:#1b47d8}
-  .auth-hide{display:none!important}
-  .auth-fab{
-    position:fixed; right:18px; bottom:18px; z-index:9999;
-    padding:12px 14px; border-radius:14px; border:0; cursor:pointer;
-    color:#fff; font-weight:700; box-shadow:0 10px 24px rgba(0,0,0,.35);
-    background:linear-gradient(180deg,var(--auth-btn1),var(--auth-btn2));
-  }
-  .auth-panel{
-    position:fixed; inset:0; z-index:9998; display:grid; place-items:center;
-    background:rgba(0,0,0,.45);
-  }
-  .auth-card{
-    width:min(94vw,520px); border:1px solid var(--auth-border); border-radius:20px;
-    background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
-    color:var(--auth-txt); backdrop-filter: blur(12px); box-shadow:0 20px 60px rgba(0,0,0,.45);
-    font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; padding:20px;
-  }
-  .auth-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
-  .auth-top h3{margin:0;font-size:20px}
-  .auth-x{background:transparent;color:var(--auth-txt);border:0;font-size:18px;cursor:pointer;opacity:.8}
-  .auth-tabs{margin:14px 0;display:flex;gap:8px}
-  .auth-tabs button{
-    flex:1;border-radius:999px;padding:10px;border:1px solid var(--auth-border);
-    background:rgba(255,255,255,.06); color:var(--auth-muted);font-weight:700;cursor:pointer
-  }
-  .auth-tabs .active{background:#0f2142;color:#fff}
-  .auth-form label{display:block;font-size:13px;color:var(--auth-muted);margin:10px 2px}
-  .auth-form input{
-    width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--auth-border);
-    background:var(--auth-bg); color:var(--auth-txt); outline:none
-  }
-  .auth-form input:focus{box-shadow:0 0 0 4px rgba(46,95,255,.18); border-color:#2e5fff}
-  .auth-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .auth-btn{width:100%;padding:12px 14px;border-radius:12px;border:0;cursor:pointer;
-    background:linear-gradient(180deg,var(--auth-btn1),var(--auth-btn2)); color:#fff; font-weight:800}
-  .auth-note{font-size:13px;margin-top:6px}
-  .auth-ok{color:#57d79e} .auth-err{color:#ff6b6b}
-  /* gated content */
+  :root{--au-txt:#e9eefc;--au-muted:#9db0d4;--au-border:rgba(255,255,255,.16);--au-glass:rgba(15,24,45,.72);--au-btn1:#2e5fff;--au-btn2:#1b47d8}
   [data-auth="required"]{display:none}
-  .auth-banner{
-    position:fixed; left:50%; transform:translateX(-50%); bottom:84px; z-index:9999;
-    background:rgba(15,33,66,.95); color:#fff; border:1px solid var(--auth-border); border-radius:12px;
-    padding:10px 14px; font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; display:none
+  .au-overlay{
+    position:fixed; inset:0; z-index:9999; display:grid; place-items:center;
+    background:
+      radial-gradient(1200px 900px at 10% 10%, rgba(46,95,255,.20), transparent 55%),
+      radial-gradient(1200px 900px at 90% 90%, rgba(87,215,158,.18), transparent 55%),
+      rgba(3,7,18,.88);
+    backdrop-filter:saturate(120%) blur(8px);
+    animation: auFade .25s ease-out;
   }
+  @keyframes auFade{from{opacity:.0; transform:scale(1.02)} to{opacity:1; transform:scale(1)}}
+  .au-card{
+    width:min(94vw, 560px);
+    border:1px solid var(--au-border);
+    border-radius:22px;
+    background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+    color:var(--au-txt);
+    box-shadow:0 30px 80px rgba(0,0,0,.45); backdrop-filter: blur(14px);
+    font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
+    padding:22px;
+    transform:translateY(8px); opacity:0; animation: auPop .28s .08s ease-out forwards;
+  }
+  @keyframes auPop{to{transform:translateY(0); opacity:1}}
+  .au-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+  .au-top h3{margin:0;font-size:22px;font-weight:800;letter-spacing:.2px}
+  .au-x{background:transparent;color:var(--au-txt);border:0;font-size:18px;cursor:pointer;opacity:.75}
+  .au-tabs{margin:14px 0;display:flex;gap:8px;background:rgba(255,255,255,.06);border:1px solid var(--au-border);padding:6px;border-radius:999px}
+  .au-tabs button{flex:1;border-radius:999px;padding:10px 14px;border:0;background:transparent;color:var(--au-muted);font-weight:700;cursor:pointer}
+  .au-tabs .active{background:#0f2142;color:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+  .au-form label{display:block;font-size:13px;color:var(--au-muted);margin:10px 2px}
+  .au-form input{
+    width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--au-border);
+    background:var(--au-glass); color:var(--au-txt); outline:none
+  }
+  .au-form input:focus{box-shadow:0 0 0 4px rgba(46,95,255,.18); border-color:#2e5fff}
+  .au-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .au-btn{width:100%;padding:13px 16px;border-radius:14px;border:0;cursor:pointer;
+    background:linear-gradient(180deg,var(--au-btn1),var(--au-btn2)); color:#fff; font-weight:800}
+  .au-note{font-size:13px;margin-top:6px}
+  .au-ok{color:#57d79e} .au-err{color:#ff6b6b}
+  .au-hide{display:none!important}
 </style>
 
-<div id="auth-fab" class="auth-fab">🔑 Belépés / Regisztráció</div>
-<div id="auth-banner" class="auth-banner"></div>
-
-<div id="auth-panel" class="auth-panel auth-hide" aria-hidden="true">
-  <div class="auth-card" role="dialog" aria-modal="true">
-    <div class="auth-top">
-      <h3>Fiók</h3>
-      <button class="auth-x" id="auth-close" aria-label="Bezárás">✕</button>
+<div id="au-overlay" class="au-overlay" role="dialog" aria-modal="true">
+  <div class="au-card">
+    <div class="au-top">
+      <h3>Bejelentkezés & Regisztráció</h3>
+      <button id="au-close" class="au-x" title="Bezárás">✕</button>
     </div>
 
-    <div class="auth-tabs">
-      <button id="auth-tab-login" class="active">Belépés</button>
-      <button id="auth-tab-reg">Regisztráció</button>
+    <div class="au-tabs">
+      <button id="au-tab-login" class="active">Belépés</button>
+      <button id="au-tab-reg">Regisztráció</button>
     </div>
 
-    <!-- Login -->
-    <form id="auth-form-login" class="auth-form" autocomplete="on">
+    <!-- LOGIN -->
+    <form id="au-form-login" class="au-form" autocomplete="on">
       <label>E-mail</label>
       <input type="email" name="email" placeholder="te@pelda.hu" required />
       <label>Jelszó</label>
       <input type="password" name="password" placeholder="••••••" required minlength="6" />
-      <div id="auth-msg-login" class="auth-note"></div>
-      <div style="margin-top:12px"><button class="auth-btn" type="submit">Belépés</button></div>
+      <div id="au-msg-login" class="au-note"></div>
+      <div style="margin-top:12px"><button class="au-btn" type="submit">Belépés</button></div>
     </form>
 
-    <!-- Register -->
-    <form id="auth-form-reg" class="auth-form auth-hide" autocomplete="on">
-      <div class="auth-row">
+    <!-- REGISTER -->
+    <form id="au-form-reg" class="au-form au-hide" autocomplete="on">
+      <div class="au-row">
         <div>
           <label>Név</label>
           <input type="text" name="name" placeholder="Teljes neved" required />
@@ -86,155 +80,119 @@
       </div>
       <label>Jelszó (min. 6)</label>
       <input type="password" name="password" placeholder="legalább 6 karakter" required minlength="6" />
-      <div id="auth-msg-reg" class="auth-note"></div>
-      <div style="margin-top:12px"><button class="auth-btn" type="submit">Fiók létrehozása</button></div>
+      <div id="au-msg-reg" class="au-note"></div>
+      <div style="margin-top:12px"><button class="au-btn" type="submit">Fiók létrehozása</button></div>
     </form>
 
-    <div class="auth-note" style="margin-top:10px;color:var(--auth-muted)">
-      * Gyors, kliensoldali megoldás (LocalStorage). Éleshez szerveres auth ajánlott.
+    <div class="au-note" style="margin-top:10px;color:var(--au-muted)">
+      * Gyors, kliensoldali megoldás (LocalStorage + sózott hash). Éleshez szerveres auth ajánlott.
     </div>
   </div>
 </div>
 
 <script>
 (()=>{"use strict";
-  const $=s=>document.querySelector(s);
-  const panel=$("#auth-panel"), fab=$("#auth-fab");
-  const tabLogin=$("#auth-tab-login"), tabReg=$("#auth-tab-reg");
-  const fLogin=$("#auth-form-login"), fReg=$("#auth-form-reg");
-  const msgLogin=$("#auth-msg-login"), msgReg=$("#auth-msg-reg");
-  const banner=$("#auth-banner");
-  const LS_USERS="auth_users_v1";  // { email: {name,email,salt,hash,createdAt} }
-  const LS_ME="auth_me_v1";        // { name,email,loginAt }
-  const LS_ATT="auth_attempts_v1"; // brute-force korlátozás
+  // ====== ELEMENTS
+  const $=(s)=>document.querySelector(s);
+  const ov=$("#au-overlay"), tabL=$("#au-tab-login"), tabR=$("#au-tab-reg");
+  const fL=$("#au-form-login"), fR=$("#au-form-reg");
+  const mL=$("#au-msg-login"), mR=$("#au-msg-reg");
+  const close=$("#au-close");
 
-  function show(el){ el.classList.remove("auth-hide"); el.setAttribute("aria-hidden","false"); }
-  function hide(el){ el.classList.add("auth-hide"); el.setAttribute("aria-hidden","true"); }
-  function toast(txt){
-    banner.textContent = txt; banner.style.display="block";
-    setTimeout(()=>{banner.style.display="none"}, 2200);
-  }
+  // ====== STORAGE KEYS
+  const K_USERS="au_users_v1";   // { email: {name,email,salt,hash,createdAt} }
+  const K_ME="au_me_v1";         // { name,email,loginAt }
+  const K_ATT="au_attempts_v1";  // brute-force limiter
+
+  // ====== HELPERS
+  const load=(k,def)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? def }catch{ return def } };
+  const save=(k,v)=> localStorage.setItem(k, JSON.stringify(v));
+  const show=(el)=> el.classList.remove("au-hide");
+  const hide=(el)=> el.classList.add("au-hide");
+
   function setTab(which){
     if(which==="login"){
-      tabLogin.classList.add("active"); tabReg.classList.remove("active");
-      show(fLogin); hide(fReg); msgLogin.textContent=""; msgReg.textContent="";
+      tabL.classList.add("active"); tabR.classList.remove("active"); show(fL); hide(fR); mL.textContent=""; mR.textContent="";
     }else{
-      tabReg.classList.add("active"); tabLogin.classList.remove("active");
-      show(fReg); hide(fLogin); msgLogin.textContent=""; msgReg.textContent="";
+      tabR.classList.add("active"); tabL.classList.remove("active"); show(fR); hide(fL); mL.textContent=""; mR.textContent="";
     }
   }
-  tabLogin.onclick=()=>setTab("login");
-  tabReg.onclick=()=>setTab("reg");
-  $("#auth-close").onclick=()=>hide(panel);
-  fab.onclick=()=>{ show(panel); };
+  tabL.onclick=()=>setTab("login"); tabR.onclick=()=>setTab("reg");
 
-  // ---- Helpers: storage ----
-  const load = (k,def)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? def }catch{ return def }};
-  const save = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
-
-  // ---- Password hashing (SHA-256 + per-user salt) ----
+  // PW hash + salt
   async function sha256(str){
-    const enc = new TextEncoder().encode(str);
-    const buf = await crypto.subtle.digest("SHA-256", enc);
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
   }
-  function randSalt(len=16){
-    const a = new Uint8Array(len); crypto.getRandomValues(a);
-    return Array.from(a).map(b=>b.toString(16).padStart(2,"0")).join("");
+  function salt(len=16){ const a=new Uint8Array(len); crypto.getRandomValues(a); return Array.from(a).map(b=>b.toString(16).padStart(2,"0")).join(""); }
+
+  // brute-force limiter
+  function allow(email){
+    const d=load(K_ATT,{}); const now=Date.now(); const r=d[email]||{fails:0,until:0};
+    if(r.until && now<r.until) return {ok:false,wait:Math.ceil((r.until-now)/1000)}; return {ok:true};
+  }
+  function record(email, ok){
+    const d=load(K_ATT,{}); const r=d[email]||{fails:0,until:0};
+    if(ok){ d[email]={fails:0,until:0}; } else { r.fails=(r.fails||0)+1; if(r.fails>=5){ r.until=Date.now()+2*60*1000; r.fails=0; } d[email]=r; }
+    save(K_ATT,d);
   }
 
-  // ---- Brute-force védelem (egyszerű) ----
-  function attemptAllowed(email){
-    const data = load(LS_ATT,{});
-    const now = Date.now();
-    const rec = data[email] || {fails:0, until:0};
-    if(rec.until && now < rec.until) return {ok:false, wait: Math.ceil((rec.until-now)/1000)};
-    return {ok:true};
-  }
-  function recordAttempt(email, ok){
-    const data = load(LS_ATT,{});
-    const rec = data[email] || {fails:0, until:0};
-    if(ok){ data[email] = {fails:0, until:0}; }
-    else{
-      rec.fails = (rec.fails||0)+1;
-      if(rec.fails>=5){ rec.until = Date.now() + 2*60*1000; rec.fails=0; } // 5 hiba -> 2 perc tiltás
-      data[email] = rec;
-    }
-    save(LS_ATT,data);
+  // gated content
+  function applyGate(){
+    const me = load(K_ME,null);
+    document.querySelectorAll('[data-auth="required"]').forEach(el=>{
+      el.style.display = me ? "" : "none";
+    });
   }
 
-  // ---- UI state (logged in) ----
-  function updateUI(){
-    const me = load(LS_ME,null);
-    if(me){
-      fab.textContent = `👤 ${me.name} – Kijelentkezés`;
-      fab.onclick = ()=>{
-        localStorage.removeItem(LS_ME);
-        toast("Kijelentkeztél.");
-        updateUI();
-        document.dispatchEvent(new CustomEvent("auth:change",{detail:{user:null}}));
-      };
-      // gated content
-      document.querySelectorAll('[data-auth="required"]').forEach(el=> el.style.display = "");
-    }else{
-      fab.textContent = "🔑 Belépés / Regisztráció";
-      fab.onclick = ()=> show(panel);
-      document.querySelectorAll('[data-auth="required"]').forEach(el=> el.style.display = "none");
-    }
+  // Close logic
+  function closeOverlay(){
+    ov.style.display="none";
+    ov.setAttribute("aria-hidden","true");
   }
+  close.onclick = closeOverlay;
+  // ESC, backdrop click
+  ov.addEventListener("click", (e)=>{ if(e.target===ov) closeOverlay(); });
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeOverlay(); });
 
-  // ---- Register ----
-  fReg.addEventListener("submit", async (e)=>{
+  // ====== REGISTER
+  fR.addEventListener("submit", async (e)=>{
     e.preventDefault();
-    msgReg.textContent="Fiók létrehozása…"; msgReg.className="auth-note";
-    const name = fReg.name.value.trim();
-    const email = fReg.email.value.trim().toLowerCase();
-    const pw = fReg.password.value;
-    if(!name || !email || !pw || pw.length<6){
-      msgReg.textContent="Tölts ki minden mezőt (jelszó min. 6)."; msgReg.className="auth-note auth-err"; return;
-    }
-    const users = load(LS_USERS,{});
-    if(users[email]){ msgReg.textContent="Ezzel az e-maillel már van fiók."; msgReg.className="auth-note auth-err"; return; }
-    const salt = randSalt();
-    const hash = await sha256(pw + salt);
-    users[email] = {name,email,salt,hash,createdAt:new Date().toISOString()};
-    save(LS_USERS, users);
-    save(LS_ME, {name,email,loginAt:new Date().toISOString()});
-    msgReg.textContent="Sikeres regisztráció! Belépve vagy."; msgReg.className="auth-note auth-ok";
-    updateUI(); hide(panel); toast("Beléptél. Üdv!");
-    document.dispatchEvent(new CustomEvent("auth:change",{detail:{user:{name,email}}}));
+    mR.textContent="Fiók létrehozása…"; mR.className="au-note";
+    const name=fR.name.value.trim(), email=fR.email.value.trim().toLowerCase(), pw=fR.password.value;
+    if(!name||!email||!pw||pw.length<6){ mR.textContent="Tölts ki minden mezőt (min. 6 jelszó)."; mR.className="au-note au-err"; return; }
+    const users=load(K_USERS,{});
+    if(users[email]){ mR.textContent="Ezzel az e-maillel már van fiók."; mR.className="au-note au-err"; return; }
+    const s=salt(); const h=await sha256(pw+s);
+    users[email]={name,email,salt:s,hash:h,createdAt:new Date().toISOString()};
+    save(K_USERS,users); save(K_ME,{name,email,loginAt:new Date().toISOString()});
+    mR.textContent="Siker! Belépve vagy."; mR.className="au-note au-ok";
+    applyGate(); closeOverlay();
   });
 
-  // ---- Login ----
-  fLogin.addEventListener("submit", async (e)=>{
+  // ====== LOGIN
+  fL.addEventListener("submit", async (e)=>{
     e.preventDefault();
-    msgLogin.textContent="Beléptetés…"; msgLogin.className="auth-note";
-    const email = fLogin.email.value.trim().toLowerCase();
-    const pw = fLogin.password.value;
-    const gate = attemptAllowed(email);
-    if(!gate.ok){ msgLogin.textContent=`Túl sok próbálkozás. Várj ${gate.wait} mp-et.`; msgLogin.className="auth-note auth-err"; return; }
-
-    const users = load(LS_USERS,{});
-    const u = users[email];
-    if(!u){ recordAttempt(email,false); msgLogin.textContent="Ismeretlen e-mail."; msgLogin.className="auth-note auth-err"; return; }
-    const hash = await sha256(pw + u.salt);
-    if(hash !== u.hash){ recordAttempt(email,false); msgLogin.textContent="Hibás jelszó."; msgLogin.className="auth-note auth-err"; return; }
-    recordAttempt(email,true);
-    save(LS_ME, {name:u.name, email:u.email, loginAt:new Date().toISOString()});
-    msgLogin.textContent="Siker!"; msgLogin.className="auth-note auth-ok";
-    updateUI(); hide(panel); toast(`Szia, ${u.name}!`);
-    document.dispatchEvent(new CustomEvent("auth:change",{detail:{user:{name:u.name,email:u.email}}}));
+    mL.textContent="Beléptetés…"; mL.className="au-note";
+    const email=fL.email.value.trim().toLowerCase(), pw=fL.password.value;
+    const g=allow(email); if(!g.ok){ mL.textContent=`Túl sok próbálkozás. Várj ${g.wait} mp-et.`; mL.className="au-note au-err"; return; }
+    const users=load(K_USERS,{}); const u=users[email];
+    if(!u){ record(email,false); mL.textContent="Ismeretlen e-mail."; mL.className="au-note au-err"; return; }
+    const h=await sha256(pw+u.salt); if(h!==u.hash){ record(email,false); mL.textContent="Hibás jelszó."; mL.className="au-note au-err"; return; }
+    record(email,true);
+    save(K_ME,{name:u.name,email:u.email,loginAt:new Date().toISOString()});
+    mL.textContent="Siker!"; mL.className="au-note au-ok";
+    applyGate(); closeOverlay();
   });
 
-  // Close on ESC / backdrop
-  panel.addEventListener("click",(e)=>{ if(e.target===panel) hide(panel); });
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape") hide(panel); });
+  // ====== ON LOAD: show overlay immediately
+  ov.style.display="grid";
+  ov.setAttribute("aria-hidden","false");
+  setTab("login");
+  applyGate();
 
-  // Init
-  updateUI();
-
-  // EXAMPLE: ha van olyan elem, amit csak bejelentkezve mutatnál:
-  // <div data-auth="required">Titkos rész</div>
+  // Ha már be van jelentkezve, ne jelenjen meg:
+  if(load(K_ME,null)){ applyGate(); closeOverlay(); }
 })();
 </script>
-<!-- ==== /AUTH WIDGET ==== -->
+<!-- ==== /MODERN FULLSCREEN AUTH ==== -->
