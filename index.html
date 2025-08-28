@@ -592,3 +592,183 @@ document.getElementById("ref-best").textContent=localStorage.getItem(K_REF)||"�
   });
 })();
 </script>
+<script>
+/* ===== Mario runner – kontrollált spawn javítás (drop-in) ===== */
+(function(){
+  const K_PLAYER="mario_player_img_v1", K_ENEMY="mario_enemy_img_v1", K_BEST="mario_best_v1";
+  const cvs=document.getElementById("mario"); if(!cvs) return;
+  const ctx=cvs.getContext("2d");
+  const dpr=Math.max(1,Math.floor(window.devicePixelRatio||1));
+
+  // képek a localStorage-ből (ha nincs, marad a már betöltött a régi kódból)
+  const imgPlayer = new Image();
+  imgPlayer.src = localStorage.getItem(K_PLAYER) || (window.__marioPlayerDefSrc || "");
+  const imgEnemy  = new Image();
+  imgEnemy.src  = localStorage.getItem(K_ENEMY)  || (window.__marioEnemyDefSrc  || "");
+  const imgPipe  = new Image();
+  // ha a korábbi svg alap nem elérhető globálisan, rajzolunk egyszerű téglalapot
+  const PIPE_FALLBACK = true;
+
+  function fit(){
+    const cssW=Math.max(320, Math.min(1000, cvs.parentElement.clientWidth||1000));
+    const cssH=360;
+    cvs.style.width=cssW+"px"; cvs.style.height=cssH+"px";
+    cvs.width=Math.floor(cssW*dpr); cvs.height=Math.floor(cssH*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  function groundY(){ return 260; }
+
+  // játék állapot
+  let running=false, last=0, acc=0, drawStep=16;
+  let player, obstacles=[], enemies=[], score=0, best=+localStorage.getItem(K_BEST)||0;
+
+  // spawn ütemezés
+  let spawnTimer=0, nextSpawn=1100;         // ms
+  let enemyDelayAfterObstacle=350;          // ms – ennyi idővel később jöhet ellenfél
+  let sinceLastObstacle=9999;               // ms
+  let minGapPx=260;                         // px – min távolság akadályok között (játék-koordináta)
+  const maxObstacles=6, maxEnemies=5;
+
+  function resetPlayer(){
+    player={ x:60, y:groundY()-44, vy:0, w:44, h:44,
+      jump(){ if(this.y>=groundY()-this.h-0.5) this.vy=-13; }
+    };
+  }
+
+  function spawnObstacle(){
+    // tartsuk a távolságot az utolsó akadálytól
+    const last = obstacles[obstacles.length-1];
+    if(last && (last.x + last.w + minGapPx) > (cvs.width/dpr)) return; // túl közel lenne
+    const h=40+Math.floor(Math.random()*60);
+    const w=36;
+    obstacles.push({x:cvs.width/dpr, y:groundY()-h, w, h, vx: -speedX()});
+    sinceLastObstacle = 0;
+    // ellenség ütemezve (külön késleltetés, így nem „tapad rá” a csőre)
+    setTimeout(()=>{ spawnEnemy(); }, enemyDelayAfterObstacle);
+  }
+
+  function spawnEnemy(){
+    if(Math.random()<0.45 && enemies.length<maxEnemies){
+      enemies.push({x:cvs.width/dpr+20, y:groundY()-28, w:40, h:28, vx: -(speedX()+0.3)});
+    }
+  }
+
+  // sebesség és nehézség görbe
+  function speedX(){ return 2.2 + Math.min(2.0, score*0.006); } // finom gyorsulás (2.2 → ~4.2)
+  function updateDifficulty(dtMs){
+    // spawn intervallum 900–1400ms között, lassan rövidül
+    const base = 1200 - Math.min(400, Math.floor(score*1.2));
+    nextSpawn = base + Math.floor(Math.random()*200) - 100; // ±100ms szórás
+    // min távolság is kicsit csökken, de nem eshet 200 alá
+    minGapPx = Math.max(200, 260 - Math.floor(score*0.5));
+    // enemy késleltetés
+    enemyDelayAfterObstacle = Math.max(250, 400 - Math.floor(score*0.3));
+  }
+
+  function rect(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }
+
+  function drawPipe(o){
+    if(PIPE_FALLBACK){
+      ctx.fillStyle="#2ecc71"; ctx.fillRect(o.x,o.y,o.w,o.h);
+      ctx.fillStyle="#27ae60"; ctx.fillRect(o.x,o.y, o.w, 10);
+    }else{
+      ctx.drawImage(imgPipe,o.x,o.y,o.w,o.h);
+    }
+  }
+
+  function stepGame(dt){
+    // háttér/föld
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    ctx.fillStyle="#152542"; ctx.fillRect(0, groundY()+44, cvs.width, 10);
+    ctx.fillStyle="#1b2a48"; ctx.fillRect(0, groundY()+20, cvs.width, 24);
+
+    // player fizika
+    player.vy+=0.75; player.y+=player.vy;
+    if(player.y>groundY()-player.h){ player.y=groundY()-player.h; player.vy=0; }
+
+    // akadályok
+    for(const o of obstacles){ o.x += -speedX(); drawPipe(o); }
+    // ellenségek
+    for(const e of enemies){ e.x += -(speedX()+0.3); 
+      // ellenfél rajza (ha nincs kép, lila kocka)
+      if(imgEnemy.complete && imgEnemy.naturalWidth) ctx.drawImage(imgEnemy,e.x,e.y,e.w,e.h);
+      else { ctx.fillStyle="#8e44ad"; ctx.fillRect(e.x,e.y,e.w,e.h); }
+    }
+
+    // player kirajz
+    ctx.save(); ctx.beginPath(); ctx.roundRect(player.x,player.y,player.w,player.h,10); ctx.clip();
+    if(imgPlayer.complete && imgPlayer.naturalWidth) ctx.drawImage(imgPlayer,player.x,player.y,player.w,player.h);
+    else { ctx.fillStyle="#ffb86a"; ctx.fillRect(player.x,player.y,player.w,player.h); }
+    ctx.restore();
+
+    // pont
+    score += dt*0.01; document.getElementById("mario-score").textContent=Math.floor(score);
+    document.getElementById("mario-best").textContent=best;
+
+    // törlés + ütközés
+    obstacles = obstacles.filter(o=>o.x+o.w>-50);
+    enemies   = enemies.filter(e=>e.x+e.w>-50);
+    for(const o of obstacles){ if(rect(player,o)) return gameOver(); }
+    for(const e of enemies){ if(rect(player,e)) return gameOver(); }
+  }
+
+  function gameOver(){
+    running=false;
+    best=Math.max(best,Math.floor(score));
+    localStorage.setItem(K_BEST,best);
+    ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillRect(0,0,cvs.width,cvs.height);
+    ctx.fillStyle="#fff"; ctx.font="bold 24px Inter, sans-serif"; ctx.textAlign="center";
+    ctx.fillText("💥 Game Over – Start/Reset!", cvs.width/2/dpr, 140);
+  }
+
+  function loop(ts){
+    if(!running) return;
+    if(!last) last=ts;
+    const dt = ts-last; last=ts;
+    acc += dt;
+    spawnTimer += dt;
+    sinceLastObstacle += dt;
+
+    // időzített spawn – egyszerre csak 1
+    if(spawnTimer >= nextSpawn){
+      spawnTimer = 0;
+      updateDifficulty(dt);
+      if(obstacles.length < maxObstacles) spawnObstacle();
+    }
+
+    while(acc >= drawStep){
+      stepGame(drawStep);
+      acc -= drawStep;
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function fitIfVisible(){
+    const scr=document.getElementById('screen-mario');
+    if(scr && scr.classList.contains('active')) fit();
+  }
+
+  // publikus indító felülírása
+  window.marioStart = function(){
+    fitIfVisible();
+    score=0; obstacles=[]; enemies=[]; spawnTimer=0; nextSpawn=1100; sinceLastObstacle=9999; minGapPx=260;
+    last=0; acc=0; running=true;
+    resetPlayer(); requestAnimationFrame(loop);
+  };
+
+  // input
+  cvs.addEventListener('pointerdown', ()=> running && player && player.jump());
+  addEventListener('keydown', e=>{
+    const k=e.key.toLowerCase();
+    if(k===' '||k==='arrowup'||k==='w'){ e.preventDefault(); if(running && player) player.jump(); }
+  }, {passive:false});
+
+  // méretezés képernyőváltáskor
+  window.addEventListener('screen:open', (e)=>{ if(e.detail?.id==='screen-mario'){ setTimeout(fit,0); }});
+  addEventListener('resize', fitIfVisible);
+})();
+</script>
+</script>
+
+</body>
+</html>
