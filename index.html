@@ -503,3 +503,92 @@ document.getElementById("ref-best").textContent=localStorage.getItem(K_REF)||"�
 
 </body>
 </html>
+<style>
+  /* Memória kártya: biztos szín/méret az emojihoz */
+  .mcard{ color:#fff !important; font-size:28px !important; }
+</style>
+
+<script>
+/* --- 1) Képernyőváltás: "screen:open" esemény küldése --- */
+(function(){
+  const _openScreen = window.openScreen;
+  window.openScreen = function(id){
+    // eredeti működés
+    _openScreen(id);
+    // jelezzük, hogy megnyílt a képernyő (következő event loopban)
+    setTimeout(()=>window.dispatchEvent(new CustomEvent('screen:open',{detail:{id}})),0);
+  };
+})();
+</script>
+
+<script>
+/* --- 2) Mario: biztos vászon-méretezés, mielőtt indul --- */
+(function(){
+  // ha ezek a függvények még nincsenek, lépünk ki csendben
+  const cvs = document.getElementById('mario');
+  if(!cvs) return;
+
+  // illeszkedő méretezés akkor is, ha eddig rejtett volt a szekció
+  function marioFit(){
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    const cssW = Math.max(320, Math.min(1000, cvs.parentElement.clientWidth || 1000));
+    const cssH = 360;
+    cvs.style.width = cssW + 'px';
+    cvs.style.height = cssH + 'px';
+    cvs.width = Math.floor(cssW * dpr);
+    cvs.height = Math.floor(cssH * dpr);
+    const ctx = cvs.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.marioFit = marioFit;
+
+  // wrap-oljuk a marioStart-ot, hogy mindig legyen fit() indulás előtt
+  if(typeof window.marioStart === 'function'){
+    const _marioStart = window.marioStart;
+    window.marioStart = function(){
+      marioFit();
+      _marioStart();
+    };
+  }
+
+  // amikor megnyílik a Mario képernyő, méretezzünk és (ha akarod) automatikusan indulhat
+  window.addEventListener('screen:open', (e)=>{
+    if(e.detail && e.detail.id === 'screen-mario'){
+      marioFit();
+      // opcionális auto-start: vedd ki a kommentet, ha szeretnéd
+      // window.marioStart();
+    }
+  });
+
+  // ablakméret változásra is igazítás
+  window.addEventListener('resize', ()=>{
+    const scr = document.getElementById('screen-mario');
+    if(scr && scr.classList.contains('active')) marioFit();
+  });
+})();
+</script>
+
+<script>
+/* --- 3) Memória: automatikus indítás képernyőnyitáskor --- */
+(function(){
+  window.addEventListener('screen:open', (e)=>{
+    if(e.detail && e.detail.id === 'screen-memory'){
+      if(typeof window.startMemory === 'function') window.startMemory();
+    }
+  });
+})();
+</script>
+
+<script>
+/* --- 4) Extra: ha a Snake képernyőre lépsz, indíthatjuk/állítjuk a sebességet --- */
+(function(){
+  window.addEventListener('screen:open', (e)=>{
+    if(e.detail && e.detail.id === 'screen-snake'){
+      if(typeof window.setSnakeSpeed === 'function'){
+        const s = document.getElementById('sn-speed');
+        if(s){ window.setSnakeSpeed(s.value); }
+      }
+    }
+  });
+})();
+</script>
