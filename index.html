@@ -538,6 +538,195 @@ document.getElementById("ref-best").textContent=localStorage.getItem(K_REF)||"�
   fit();
 })();
 </script>
+<script>
+/* ===== Runner javítás: könnyebb játék, kontrollált spawn, nehézség választó ===== */
+(function(){
+  const cvs = document.getElementById('runCanvas');
+  if(!cvs) return;
+  const ctx = cvs.getContext('2d');
+  const dpr = Math.max(1, Math.floor(window.devicePixelRatio||1));
+
+  // --- UI: nehézség gombok beszúrása (ha még nincsenek) ---
+  (function injectDifficultyButtons(){
+    const bar = document.querySelector('#screen-runner .backbar .row');
+    if(!bar || bar.querySelector('[data-diff]')) return;
+    const mk=(txt,val)=>{ const b=document.createElement('button'); b.className='btn secondary'; b.textContent=txt; b.dataset.diff=val; return b; };
+    const bEasy=mk('Könnyű','easy'), bNorm=mk('Közepes','normal'), bHard=mk('Nehéz','hard');
+    bar.prepend(bHard); bar.prepend(bNorm); bar.prepend(bEasy);
+    bar.addEventListener('click', (e)=>{ const d=e.target?.dataset?.diff; if(d){ setDifficulty(d); highlight(d); } });
+    function highlight(which){
+      [bEasy,bNorm,bHard].forEach(btn=>btn.classList.toggle('secondary', btn.dataset.diff!==which));
+    }
+    highlight('easy');
+  })();
+
+  // --- beállítások (nehézség) ---
+  const DIFFS = {
+    easy:   { baseSpeed:2.2, spawnEvery:[1400,1700], minGap:320, maxSimul:2, gravity:0.60, jumpV:-14.5 },
+    normal: { baseSpeed:2.8, spawnEvery:[1000,1400], minGap:260, maxSimul:3, gravity:0.70, jumpV:-13.5 },
+    hard:   { baseSpeed:3.4, spawnEvery:[800,1100],  minGap:220, maxSimul:4, gravity:0.78, jumpV:-13.0 }
+  };
+  let DIFF = DIFFS.easy;
+
+  function setDifficulty(name){
+    DIFF = DIFFS[name] || DIFFS.easy;
+    // ha épp a runner képernyőn vagyunk, reseteljünk az új paraméterekkel
+    const scr = document.getElementById('screen-runner');
+    if(scr && scr.classList.contains('active')) window.runnerStart();
+  }
+
+  // --- state ---
+  const K_P="runner_player_img_v1", K_E="runner_enemy_img_v1", K_B="runner_best_v1";
+  const imgPlayer=new Image(), imgEnemy=new Image();
+  const defPlayer="data:image/svg+xml;base64,"+btoa(`<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff6a6a'/><stop offset='1' stop-color='#ffb86a'/></linearGradient></defs><rect width='48' height='48' rx='10' fill='url(#g)'/><circle cx='24' cy='16' r='7' fill='#fff'/><rect x='13' y='25' width='22' height='14' rx='7' fill='#fff'/></svg>`);
+  const defEnemy ="data:image/svg+xml;base64,"+btoa(`<svg xmlns='http://www.w3.org/2000/svg' width='40' height='28'><rect width='40' height='28' rx='6' fill='#8e44ad'/><circle cx='14' cy='12' r='3' fill='#fff'/><circle cx='26' cy='12' r='3' fill='#fff'/><rect x='10' y='20' width='20' height='4' rx='2' fill='#fff'/></svg>`);
+  imgPlayer.src=localStorage.getItem(K_P)||defPlayer;
+  imgEnemy.src =localStorage.getItem(K_E)||defEnemy;
+
+  const GROUND=260;
+  let running=false,last=0,acc=0,step=16;
+  let player,enemies=[],score=0,best=+localStorage.getItem(K_B)||0,level=1,levelTime=0;
+  let spawnTimer=0,nextSpawn=1500,lastEnemyX=-9999;
+
+  // „megbocsátó” ugrás
+  const COYOTE_MS=140;        // föld elhagyása után még ennyi ideig ugorhat
+  const JUMP_BUFFER_MS=140;   // ha picit korábban nyomta, pufferből végrehajtjuk
+  let sinceGroundMs=9999, jumpBufferMs=9999;
+
+  function fit(){ const cssW=Math.max(320,Math.min(1000,cvs.parentElement.clientWidth||1000));
+    const cssH=360; cvs.style.width=cssW+'px'; cvs.style.height=cssH+'px';
+    cvs.width=Math.floor(cssW*dpr); cvs.height=Math.floor(cssH*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  function fitIfVisible(){ const scr=document.getElementById('screen-runner'); if(scr.classList.contains('active')) fit(); }
+  window.addEventListener('screen:open',e=>{ if(e.detail?.id==='screen-runner') setTimeout(fit,0); });
+  addEventListener('resize', fitIfVisible);
+
+  function resetPlayer(){
+    player={ x:60, y:GROUND-44, vy:0, w:44, h:44,
+      onGround(){ return this.y>=GROUND-this.h-0.5; },
+      jump(){
+        // coyote vagy puffer alapján is engedjük
+        if(this.onGround() || sinceGroundMs<=COYOTE_MS){
+          this.vy = DIFF.jumpV; jumpBufferMs=9999; // elhasználjuk
+        }else{
+          // ha levegőben van, puffereljük
+          jumpBufferMs = 0;
+        }
+      }
+    };
+  }
+
+  function speedX(){ return DIFF.baseSpeed + (level-1)*0.20; } // enyhe gyorsulás szintenként
+
+  function canSpawn(){
+    // egyszerre 1 spawn esemény, és legyen min. távolság az utolsóhoz képest
+    const minGap = DIFF.minGap;
+    const pxSinceLast = Math.abs((cvs.width/dpr) - lastEnemyX);
+    return enemies.length < DIFF.maxSimul && pxSinceLast >= minGap;
+  }
+
+  function spawnEnemy(){
+    if(!canSpawn()) return;
+    const h=28, w=40;
+    const e = { x:cvs.width/dpr+20, y:GROUND-h, w, h, vx:-speedX() };
+    enemies.push(e);
+    lastEnemyX = e.x;
+  }
+
+  function rect(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }
+
+  function stepGame(dt){
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    // föld
+    ctx.fillStyle="#152542"; ctx.fillRect(0, GROUND+44, cvs.width, 10);
+    ctx.fillStyle="#1b2a48"; ctx.fillRect(0, GROUND+20, cvs.width, 24);
+
+    // pufferelt ugrás végrehajtása, ha leérkezett
+    if(player.onGround() && jumpBufferMs<=JUMP_BUFFER_MS){ player.vy=DIFF.jumpV; jumpBufferMs=9999; }
+
+    // gravitáció
+    player.vy += DIFF.gravity; player.y += player.vy;
+    if(player.onGround()){ player.y=GROUND-player.h; player.vy=0; sinceGroundMs=0; } else { sinceGroundMs+=dt; }
+
+    // ellenségek mozgatása és kirajz
+    for(const e of enemies){
+      e.x += -speedX();
+      if(imgEnemy.complete&&imgEnemy.naturalWidth) ctx.drawImage(imgEnemy,e.x,e.y,e.w,e.h);
+      else{ ctx.fillStyle="#8e44ad"; ctx.fillRect(e.x,e.y,e.w,e.h); }
+    }
+    enemies = enemies.filter(e=>e.x+e.w>-50);
+
+    // player rajz
+    ctx.save(); ctx.beginPath(); ctx.roundRect(player.x,player.y,player.w,player.h,10); ctx.clip();
+    if(imgPlayer.complete&&imgPlayer.naturalWidth) ctx.drawImage(imgPlayer,player.x,player.y,player.w,player.h);
+    else{ ctx.fillStyle="#ffb86a"; ctx.fillRect(player.x,player.y,player.w,player.h); }
+    ctx.restore();
+
+    // pont + szint UI
+    score += dt*0.01; levelTime += dt;
+    document.getElementById('run-score').textContent = Math.floor(score);
+    document.getElementById('run-best').textContent  = best;
+    document.getElementById('run-level').textContent = level;
+
+    // ütközés
+    for(const e of enemies){ if(rect(player,e)) return gameOver(); }
+  }
+
+  function gameOver(){
+    running=false;
+    best=Math.max(best,Math.floor(score)); localStorage.setItem(K_B,best);
+    ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillRect(0,0,cvs.width,cvs.height);
+    ctx.fillStyle="#fff"; ctx.font="bold 24px Inter, sans-serif"; ctx.textAlign="center";
+    ctx.fillText("💥 Game Over – Start/Reset!", cvs.width/2/dpr, 140);
+  }
+
+  function loop(ts){
+    if(!running) return;
+    if(!last) last=ts;
+    const dt=ts-last; last=ts; acc+=dt; spawnTimer+=dt;
+
+    // szint 20 mp-ként, de nehézségi intervallumokat is tartjuk
+    if(levelTime>=20000){ level++; levelTime=0; }
+
+    const [minEvery,maxEvery] = DIFF.spawnEvery;
+    if(spawnTimer >= nextSpawn){
+      spawnTimer = 0;
+      // következő spawn idő (random az intervallumban)
+      nextSpawn = Math.random()*(maxEvery-minEvery)+minEvery;
+      spawnEnemy();
+    }
+
+    while(acc>=step){ stepGame(step); acc-=step; }
+    requestAnimationFrame(loop);
+  }
+
+  function fitNow(){ const scr=document.getElementById('screen-runner'); if(scr && scr.classList.contains('active')) fit(); }
+
+  // nyilvános indító FELÜLÍRÁSA
+  window.runnerStart = function(){
+    fitNow();
+    score=0; level=1; levelTime=0; best=+localStorage.getItem(K_B)||0;
+    enemies=[]; spawnTimer=0; nextSpawn=DIFF.spawnEvery[0]; lastEnemyX=-9999;
+    sinceGroundMs=9999; jumpBufferMs=9999;
+    last=0; acc=0; running=true;
+    resetPlayer(); requestAnimationFrame(loop);
+  };
+
+  // képfeltöltés események újrahuzalozása (ha az eredetiek nem lennének)
+  const pf=document.getElementById('run-player-file'), ef=document.getElementById('run-enemy-file');
+  if(pf && !pf.__wired){ pf.__wired=true; pf.addEventListener('change',ev=>{ const f=ev.target.files?.[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ try{ localStorage.setItem(K_P,rd.result); imgPlayer.src=rd.result; resetPlayer(); }catch(e){} }; rd.readAsDataURL(f); }); }
+  if(ef && !ef.__wired){ ef.__wired=true; ef.addEventListener('change',ev=>{ const f=ev.target.files?.[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ try{ localStorage.setItem(K_E,rd.result); imgEnemy.src=rd.result; }catch(e){} }; rd.readAsDataURL(f); }); }
+
+  window.runnerClearImages = function(){ localStorage.removeItem(K_P); localStorage.removeItem(K_E); imgPlayer.src=defPlayer; imgEnemy.src=defEnemy; resetPlayer(); };
+
+  // input – coyote/jump buffer támogatással
+  cvs.addEventListener('pointerdown', ()=> running && player && player.jump());
+  addEventListener('keydown', e=>{
+    const k=e.key.toLowerCase();
+    if(k===' '||k==='arrowup'||k==='w'){ e.preventDefault(); if(running && player) player.jump(); }
+  }, {passive:false});
+})();
+</script>
 
 </body>
 </html>
