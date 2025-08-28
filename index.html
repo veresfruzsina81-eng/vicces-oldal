@@ -3,369 +3,266 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Játékok • Memória • Kígyó • KPO • Reflex • Ugrálós</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<title>Játékok gyűjtemény</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --txt:#e9eefc; --muted:#9db0d4; --border:rgba(255,255,255,.16);
-    --glass:rgba(15,24,45,.72); --btn1:#2e5fff; --btn2:#1b47d8; --good:#57d79e; --bad:#ff6b6b;
-    --pane:rgba(255,255,255,.06)
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; color:var(--txt); background:#070b14; overflow-x:hidden}
+:root{--txt:#e9eefc;--muted:#9db0d4;--border:rgba(255,255,255,.16);
+--glass:rgba(15,24,45,.72);--btn1:#2e5fff;--btn2:#1b47d8;--good:#57d79e;--bad:#ff6b6b}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--txt);background:#070b14;overflow:hidden;height:100vh}
+.bg{position:fixed;inset:-10% -10%;z-index:-1;filter:blur(40px);
+ background:radial-gradient(40% 35% at 15% 20%,#2e5fff66,transparent 65%),
+           radial-gradient(45% 35% at 85% 80%,#57d79e66,transparent 70%),
+           radial-gradient(70% 60% at 50% 50%,#8a2eff33,transparent 70%),#090f1c;
+ animation:bgMove 16s ease-in-out infinite alternate}
+@keyframes bgMove{0%{transform:scale(1)}100%{transform:scale(1.1) translate(2%,2%)}}
+.hide{display:none!important}
+.center{display:flex;align-items:center;justify-content:center;height:100%}
 
-  /* Animated background */
-  .bg{position:fixed; inset:-10% -10% -10% -10%; z-index:-2; filter:blur(40px);
-    background:
-      radial-gradient(40% 35% at 15% 20%, #2e5fff66, transparent 65%),
-      radial-gradient(45% 35% at 85% 80%, #57d79e66, transparent 70%),
-      radial-gradient(70% 60% at 50% 50%, #8a2eff33, transparent 70%), #090f1c;
-    animation:bgMove 16s ease-in-out infinite alternate}
-  @keyframes bgMove{0%{transform:scale(1) translate(0,0)}50%{transform:scale(1.06) translate(-1.2%,-1.2%)}100%{transform:scale(1.12) translate(1.5%,1.2%)}}
-
-  /* Screens */
-  .screen{position:relative; min-height:100vh; padding:80px 18px 40px; opacity:0; pointer-events:none; transform:translateY(8px); transition:.28s ease; }
-  .screen.active{opacity:1; pointer-events:auto; transform:translateY(0)}
-  .container{max-width:1200px;margin:0 auto}
-  .title{margin:0 0 14px 0;font-size:28px;font-weight:800}
-
-  /* Top bars */
-  .welcome{position:fixed; left:12px; top:12px; z-index:20; display:flex; gap:10px; align-items:center;
-    background:rgba(15,33,66,.85); padding:8px 12px; border:1px solid var(--border); border-radius:12px}
-  .btn{padding:10px 14px; border-radius:12px; border:0; cursor:pointer; color:#fff; font-weight:800;
-    background:linear-gradient(180deg,var(--btn1),var(--btn2)); box-shadow:0 10px 24px rgba(0,0,0,.35)}
-  .btn.secondary{background:#0f2142; border:1px solid var(--border); color:var(--txt)}
-  .muted{color:var(--muted)}
-  .grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
-  .card{border:1px solid var(--border); border-radius:18px; background:var(--pane); backdrop-filter: blur(10px); padding:16px}
-  .card h3{margin:0 0 8px}
-  .row{display:flex; gap:8px; flex-wrap:wrap}
-
-  /* Auth overlay */
-  .overlay{position:fixed; inset:0; display:grid; place-items:center; z-index:9999; background:linear-gradient(180deg,#0006,#0008); backdrop-filter:saturate(120%) blur(8px)}
-  .card-auth{width:min(94vw,560px); border:1px solid var(--border); border-radius:22px; background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.04)); color:var(--txt); box-shadow:0 30px 80px rgba(0,0,0,.45); backdrop-filter: blur(14px); padding:22px}
-  .top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
-  .top h3{margin:0;font-size:22px;font-weight:800}
-  .tabs{margin:14px 0;display:flex;gap:8px;background:rgba(255,255,255,.06);border:1px solid var(--border);padding:6px;border-radius:999px}
-  .tabs button{flex:1;border-radius:999px;padding:10px 14px;border:0;background:transparent;color:var(--muted);font-weight:700;cursor:pointer}
-  .tabs .active{background:#0f2142;color:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
-  .form label{display:block;font-size:13px;color:var(--muted);margin:10px 2px}
-  .form input{width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--border); background:var(--glass); color:var(--txt); outline:none}
-  .form input:focus{box-shadow:0 0 0 4px rgba(46,95,255,.18); border-color:#2e5fff}
-  .note{font-size:13px;margin-top:6px}.ok{color:var(--good)}.err{color:var(--bad)}
-  .hide{display:none!important}
-
-  /* Game screens common */
-  .backbar{position:sticky; top:70px; z-index:10; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px}
-  .gamewrap{border:1px solid var(--border); border-radius:18px; background:var(--pane); backdrop-filter:blur(10px); padding:16px}
-
-  /* Memory */
-  #memory-grid{display:grid; gap:8px; margin-top:10px}
-  /* adapt columns to viewport so 120 lap is kezelhető */
-  @media(min-width:1200px){ #memory-grid{grid-template-columns:repeat(15,1fr)} }
-  @media(min-width:900px) and (max-width:1199px){ #memory-grid{grid-template-columns:repeat(12,1fr)} }
-  @media(min-width:700px) and (max-width:899px){ #memory-grid{grid-template-columns:repeat(10,1fr)} }
-  @media(max-width:699px){ #memory-grid{grid-template-columns:repeat(8,1fr)} }
-  .mcard{background:#1b2a48; border-radius:8px; aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; font-size:26px; cursor:pointer; user-select:none}
-  .mcard.revealed{background:#2d4e8a}
-  .mcard.matched{background:#2ecc71; color:#fff; cursor:default}
-
-  /* Snake */
-  #snake{background:#0c162b; border:1px solid var(--border); border-radius:10px; width:800px; max-width:100%; height:480px}
-  .hud{display:flex; gap:12px; justify-content:center; margin:8px 0; flex-wrap:wrap}
-  .slider{appearance:none; height:6px; border-radius:6px; background:#0f2142; outline:none; width:220px}
-  .slider::-webkit-slider-thumb{appearance:none; width:18px; height:18px; border-radius:50%; background:linear-gradient(180deg,var(--btn1),var(--btn2)); cursor:pointer}
-
-  /* RPS */
-  .mode-tabs{display:flex; gap:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); padding:6px; border-radius:999px; justify-content:center}
-  .mode-tabs button{border:0; padding:8px 12px; border-radius:999px; background:transparent; color:var(--muted); font-weight:700; cursor:pointer}
-  .mode-tabs .active{background:#0f2142; color:#fff}
-  .rps-choices{display:flex; gap:8px; justify-content:center; margin:8px 0; flex-wrap:wrap}
-  .rps-btn{font-size:20px; padding:10px 14px; border-radius:12px; border:1px solid var(--border); background:#0f2142; color:#fff; cursor:pointer}
-  .rps-status{min-height:24px; text-align:center; margin-top:8px}
-
-  /* Reflex */
-  #refbox{display:grid; place-items:center; height:240px; border:1px dashed var(--border); border-radius:12px; background:#0f2142}
-
-  /* Mario-like */
-  #mario{background:#0c162b; border:1px solid var(--border); border-radius:10px; width:100%; height:360px; image-rendering:pixelated}
+/* auth */
+.overlay{position:fixed;inset:0;display:grid;place-items:center;z-index:9999;
+ background:#0008;backdrop-filter:blur(8px)}
+.card{width:min(95vw,400px);padding:20px;border-radius:20px;background:var(--glass);
+ border:1px solid var(--border)}
+.tabs{display:flex;gap:8px;margin:12px 0}
+.tabs button{flex:1;padding:10px;border-radius:12px;border:0;background:#0f2142;color:var(--muted);cursor:pointer}
+.tabs .active{background:var(--btn1);color:#fff}
+.form label{font-size:13px;color:var(--muted);display:block;margin:6px 2px}
+.form input{width:100%;padding:10px;border-radius:12px;border:1px solid var(--border);background:#0f2142;color:var(--txt)}
+.btn{padding:10px 14px;border-radius:12px;border:0;cursor:pointer;
+ background:linear-gradient(180deg,var(--btn1),var(--btn2));color:#fff;font-weight:700}
+.btn.secondary{background:#0f2142;color:var(--txt);border:1px solid var(--border)}
+.note{font-size:13px}
+.ok{color:var(--good)}.err{color:var(--bad)}
 </style>
 </head>
 <body>
 <div class="bg"></div>
 
-<!-- welcome + logout -->
-<div id="welcome" class="welcome hide">
-  <span id="who"></span>
-  <button id="logout" class="btn secondary">Kijelentkezés</button>
-</div>
-
-<!-- AUTH -->
+<!-- LOGIN -->
 <div id="auth" class="overlay">
-  <div class="card-auth">
-    <div class="top">
-      <h3>Bejelentkezés & Regisztráció</h3>
-      <button id="authHide" class="btn secondary">Elrejt</button>
-    </div>
-    <div class="tabs">
-      <button id="tabL" class="active">Belépés</button>
-      <button id="tabR">Regisztráció</button>
-    </div>
-    <form id="formL" class="form">
-      <label>E-mail</label>
-      <input type="email" name="email" placeholder="te@pelda.hu" required>
-      <label>Jelszó</label>
-      <input type="password" name="password" placeholder="••••••" required minlength="6">
-      <div id="msgL" class="note"></div>
-      <div style="margin-top:12px"><button class="btn" type="submit">Belépés</button></div>
-    </form>
-    <form id="formR" class="form hide">
-      <label>Név</label>
-      <input type="text" name="name" placeholder="Teljes neved" required>
-      <div class="row">
-        <input type="email" name="email" placeholder="te@pelda.hu" required>
-        <input type="password" name="password" placeholder="legalább 6 karakter" required minlength="6">
-      </div>
-      <div id="msgR" class="note"></div>
-      <div style="margin-top:12px"><button class="btn" type="submit">Fiók létrehozása</button></div>
-    </form>
-  </div>
+ <div class="card">
+   <h3>Belépés / Regisztráció</h3>
+   <div class="tabs">
+     <button id="tabL" class="active">Belépés</button>
+     <button id="tabR">Regisztráció</button>
+   </div>
+   <form id="formL" class="form">
+     <label>Email</label><input name="email" type="email" required>
+     <label>Jelszó</label><input name="password" type="password" required minlength="6">
+     <div id="msgL" class="note"></div>
+     <button class="btn" type="submit">Belépés</button>
+   </form>
+   <form id="formR" class="form hide">
+     <label>Név</label><input name="name" required>
+     <label>Email</label><input name="email" type="email" required>
+     <label>Jelszó</label><input name="password" type="password" required minlength="6">
+     <div id="msgR" class="note"></div>
+     <button class="btn" type="submit">Regisztráció</button>
+   </form>
+ </div>
+</div>
+<!-- WELCOME + LOGOUT -->
+<div id="welcome" class="hide" style="position:fixed;top:10px;left:10px;background:#0f2142;padding:6px 12px;border-radius:12px;display:flex;gap:10px;align-items:center;z-index:1000">
+ <span id="who"></span>
+ <button id="logout" class="btn secondary">Kijelentkezés</button>
 </div>
 
-<!-- MENU SCREEN -->
-<section id="screen-menu" class="screen active">
-  <div class="container">
-    <h2 class="title">🎮 Játékok menü</h2>
-    <p class="muted">Válassz egy játékot! A játék külön képernyőn nyílik meg, animált átmenettel. ⬇</p>
-    <div class="grid">
-      <div class="card">
-        <h3>🧠 Memória (60 pár)</h3>
-        <p class="muted">Nehéz mód – 120 lap. Párokat kell megtalálni.</p>
-        <div class="row"><button class="btn" onclick="openScreen('screen-memory')">Megnyitás</button></div>
-      </div>
-      <div class="card">
-        <h3>🐍 Kígyó</h3>
-        <p class="muted">Állítható sebesség, pixeles stílus.</p>
-        <div class="row"><button class="btn" onclick="openScreen('screen-snake'); snakeStart()">Megnyitás</button></div>
-      </div>
-      <div class="card">
-        <h3>✊🖐✌ Kő–Papír–Olló</h3>
-        <p class="muted">Hagyományos és Modern (-1 a vesztesnek) mód.</p>
-        <div class="row"><button class="btn" onclick="openScreen('screen-rps')">Megnyitás</button></div>
-      </div>
-      <div class="card">
-        <h3>⚡ Reflex</h3>
-        <p class="muted">5 kör, átlagidő. Helyi toplista.</p>
-        <div class="row"><button class="btn" onclick="openScreen('screen-reflex')">Megnyitás</button></div>
-      </div>
-      <div class="card">
-        <h3>🍄 Saját Ugrálós</h3>
-        <p class="muted">Főhős és ellenség kép feltöltéssel (LocalStorage)!</p>
-        <div class="row"><button class="btn" onclick="openScreen('screen-mario'); marioStart()">Megnyitás</button></div>
-      </div>
-    </div>
+<!-- JÁTÉKOK MENÜ -->
+<section id="screen-menu" class="screen active" style="padding:80px 20px">
+  <h2 style="margin:0 0 14px;font-size:28px">🎮 Játékok menü</h2>
+  <p class="muted">Válassz egy játékot! A játék külön képernyőn nyílik meg.</p>
+  <div style="display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+    <div class="card"><h3>🧠 Memória</h3><p class="muted">120 lap, nehéz mód.</p><button class="btn" onclick="openScreen('screen-memory')">Megnyitás</button></div>
+    <div class="card"><h3>🐍 Kígyó</h3><p class="muted">Sebesség állítható.</p><button class="btn" onclick="openScreen('screen-snake');snakeStart()">Megnyitás</button></div>
+    <div class="card"><h3>✊🖐✌ Kő–Papír–Olló</h3><p class="muted">Hagyományos és modern -1 mód.</p><button class="btn" onclick="openScreen('screen-rps')">Megnyitás</button></div>
+    <div class="card"><h3>⚡ Reflex</h3><p class="muted">Reakcióidő teszt 5 körben.</p><button class="btn" onclick="openScreen('screen-reflex')">Megnyitás</button></div>
+    <div class="card"><h3>🍄 Saját Ugrálós</h3><p class="muted">Tölts fel képet a főhőshöz és az ellenséghez!</p><button class="btn" onclick="openScreen('screen-mario');marioStart()">Megnyitás</button></div>
   </div>
 </section>
 
-<!-- MEMORY SCREEN -->
-<section id="screen-memory" class="screen">
-  <div class="container">
-    <div class="backbar">
-      <button class="btn secondary" onclick="openScreen('screen-menu')">⬅ Vissza a menübe</button>
-      <div class="row">
-        <button class="btn" onclick="startMemory()">Újrakezdés</button>
-      </div>
-    </div>
-    <div class="gamewrap">
-      <h3>🧠 Memória – 60 pár</h3>
-      <p class="muted">Tipp: figyeld a pozíciókat; a rács igazodik a képernyődhöz.</p>
-      <div id="memory-grid"></div>
-      <p id="memory-status" class="muted"></p>
-    </div>
-  </div>
+<!-- MEMÓRIA KÉPERNYŐ -->
+<section id="screen-memory" class="screen hide" style="padding:80px 20px">
+ <button class="btn secondary" onclick="openScreen('screen-menu')">⬅ Vissza</button>
+ <h3>🧠 Memória (120 lap)</h3>
+ <button class="btn" onclick="startMemory()">Újrakezdés</button>
+ <div id="memory-grid" style="display:grid;gap:6px;margin-top:12px"></div>
+ <p id="memory-status" class="muted"></p>
 </section>
 
-<!-- SNAKE SCREEN -->
-<section id="screen-snake" class="screen">
-  <div class="container">
-    <div class="backbar">
-      <button class="btn secondary" onclick="openScreen('screen-menu')">⬅ Vissza a menübe</button>
-      <div class="row">
-        <button class="btn" onclick="snakeStart()">Start / Reset</button>
-        <button class="btn secondary" onclick="setSnakePreset(4)">Lassú</button>
-        <button class="btn secondary" onclick="setSnakePreset(8)">Közepes</button>
-        <button class="btn secondary" onclick="setSnakePreset(12)">Gyors</button>
-        <input id="sn-speed" class="slider" type="range" min="3" max="15" value="8" step="1" oninput="setSnakeSpeed(this.value)">
-      </div>
-    </div>
-    <div class="gamewrap" style="display:grid;place-items:center">
-      <canvas id="snake" width="800" height="480"></canvas>
-    </div>
-    <div class="hud">
-      <div>Pont: <b id="sn-score">0</b></div>
-      <div>Rekord: <b id="sn-best">0</b></div>
-      <div>Sebesség: <b id="sn-speed-label">8</b> fps</div>
-    </div>
-    <p class="muted" style="text-align:center">Irányítás: nyilak / WASD</p>
-  </div>
+<!-- KÍGYÓ KÉPERNYŐ -->
+<section id="screen-snake" class="screen hide" style="padding:80px 20px">
+ <button class="btn secondary" onclick="openScreen('screen-menu')">⬅ Vissza</button>
+ <h3>🐍 Kígyó</h3>
+ <div style="margin:10px 0">
+   <button class="btn" onclick="snakeStart()">Start / Reset</button>
+   <button class="btn secondary" onclick="setSnakePreset(4)">Lassú</button>
+   <button class="btn secondary" onclick="setSnakePreset(8)">Közepes</button>
+   <button class="btn secondary" onclick="setSnakePreset(12)">Gyors</button>
+   <input id="sn-speed" type="range" min="3" max="15" value="8" step="1" oninput="setSnakeSpeed(this.value)">
+ </div>
+ <canvas id="snake" width="800" height="480" style="background:#0c162b;border:1px solid var(--border);border-radius:10px;max-width:100%"></canvas>
+ <div class="hud">
+   <div>Pont: <b id="sn-score">0</b></div>
+   <div>Rekord: <b id="sn-best">0</b></div>
+   <div>Sebesség: <b id="sn-speed-label">8</b> fps</div>
+ </div>
 </section>
 
-<!-- RPS SCREEN -->
-<section id="screen-rps" class="screen">
-  <div class="container">
-    <div class="backbar">
-      <button class="btn secondary" onclick="openScreen('screen-menu')">⬅ Vissza a menübe</button>
-      <div class="row"><button class="btn secondary" onclick="rpsReset()">Reset</button></div>
-    </div>
-    <div class="gamewrap">
-      <h3>✊🖐✌ Kő–Papír–Olló</h3>
-      <div class="mode-tabs">
-        <button id="rps-mode-classic" class="active">Hagyományos</button>
-        <button id="rps-mode-modern">Modern (-1 vesztes)</button>
-      </div>
-      <div class="rps-choices">
-        <button class="rps-btn" onclick="rpsChoose('rock')">✊ Kő</button>
-        <button class="rps-btn" onclick="rpsChoose('paper')">🖐 Papír</button>
-        <button class="rps-btn" onclick="rpsChoose('scissors')">✌ Olló</button>
-      </div>
-      <div class="hud">
-        <div>Te: <b id="rps-you">0</b></div>
-        <div>Gép: <b id="rps-bot">0</b></div>
-        <div>Mód: <b id="rps-mode-label">Hagyományos</b></div>
-      </div>
-      <div id="rps-last" class="rps-status muted"></div>
-    </div>
-  </div>
+<!-- KŐ-PAPÍR-OLLÓ KÉPERNYŐ -->
+<section id="screen-rps" class="screen hide" style="padding:80px 20px">
+ <button class="btn secondary" onclick="openScreen('screen-menu')">⬅ Vissza</button>
+ <h3>✊🖐✌ Kő–Papír–Olló</h3>
+ <div class="mode-tabs" style="margin:10px 0">
+   <button id="rps-mode-classic" class="active">Hagyományos</button>
+   <button id="rps-mode-modern">Modern (-1 vesztes)</button>
+ </div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap">
+   <button class="rps-btn" onclick="rpsChoose('rock')">✊ Kő</button>
+   <button class="rps-btn" onclick="rpsChoose('paper')">🖐 Papír</button>
+   <button class="rps-btn" onclick="rpsChoose('scissors')">✌ Olló</button>
+ </div>
+ <div class="hud">
+   <div>Te: <b id="rps-you">0</b></div>
+   <div>Gép: <b id="rps-bot">0</b></div>
+   <div>Mód: <b id="rps-mode-label">Hagyományos</b></div>
+ </div>
+ <div id="rps-last" class="muted"></div>
 </section>
 
-<!-- REFLEX SCREEN -->
-<section id="screen-reflex" class="screen">
-  <div class="container">
-    <div class="backbar">
-      <button class="btn secondary" onclick="openScreen('screen-menu')">⬅ Vissza a menübe</button>
-      <div class="row"><button class="btn" onclick="refStart()">Indítás</button></div>
-    </div>
-    <div class="gamewrap">
-      <h3>⚡ Reflex játék</h3>
-      <p class="muted">Amikor a doboz zöldre vált, **azonnal kattints**! 5 kör – átlagidő.</p>
-      <div id="refbox">Kattints az „Indítás”-ra!</div>
-      <div class="hud">
-        <div>Kör: <b id="ref-round">0</b>/5</div>
-        <div>Utolsó: <b id="ref-last">–</b> ms</div>
-        <div>Átlag: <b id="ref-avg">–</b> ms</div>
-        <div>Top: <b id="ref-best">–</b> ms</div>
-      </div>
-    </div>
-  </div>
+<!-- REFLEX KÉPERNYŐ -->
+<section id="screen-reflex" class="screen hide" style="padding:80px 20px">
+ <button class="btn secondary" onclick="openScreen('screen-menu')">⬅ Vissza</button>
+ <h3>⚡ Reflex játék</h3>
+ <button class="btn" onclick="refStart()">Indítás</button>
+ <div id="refbox" style="margin-top:10px;height:200px;display:grid;place-items:center;border:1px dashed var(--border);border-radius:12px;background:#0f2142;color:#fff">Kattints az Indításra!</div>
+ <div class="hud">
+   <div>Kör: <b id="ref-round">0</b>/5</div>
+   <div>Utolsó: <b id="ref-last">–</b> ms</div>
+   <div>Átlag: <b id="ref-avg">–</b> ms</div>
+   <div>Top: <b id="ref-best">–</b> ms</div>
+ </div>
 </section>
 
-<!-- MARIO-LIKE SCREEN -->
-<section id="screen-mario" class="screen">
-  <div class="container">
-    <div class="backbar">
-      <button class="btn secondary" onclick="openScreen('screen-menu')">⬅ Vissza a menübe</button>
-      <div class="row">
-        <label class="btn secondary" style="cursor:pointer">Játékos kép
-          <input id="player-file" type="file" accept="image/*" style="display:none">
-        </label>
-        <label class="btn secondary" style="cursor:pointer">Ellenség kép
-          <input id="enemy-file" type="file" accept="image/*" style="display:none">
-        </label>
-        <button class="btn" onclick="marioStart()">Start / Reset</button>
-        <button class="btn secondary" onclick="marioClearImages()">Alap képek</button>
-      </div>
-    </div>
-    <div class="gamewrap" style="display:grid;place-items:center">
-      <canvas id="mario" width="1000" height="360"></canvas>
-    </div>
-    <div class="hud">
-      <div>Pont: <b id="mario-score">0</b></div>
-      <div>Rekord: <b id="mario-best">0</b></div>
-      <div class="muted">Ugrás: ⬆ / Space • A képek helyben maradnak (LocalStorage).</div>
-    </div>
-  </div>
+<!-- MARIO KÉPERNYŐ -->
+<section id="screen-mario" class="screen hide" style="padding:80px 20px">
+ <button class="btn secondary" onclick="openScreen('screen-menu')">⬅ Vissza</button>
+ <h3>🍄 Saját Ugrálós</h3>
+ <div style="margin:10px 0;display:flex;gap:10px;flex-wrap:wrap">
+   <label class="btn secondary">Játékos kép<input id="player-file" type="file" accept="image/*" style="display:none"></label>
+   <label class="btn secondary">Ellenség kép<input id="enemy-file" type="file" accept="image/*" style="display:none"></label>
+   <button class="btn" onclick="marioStart()">Start / Reset</button>
+   <button class="btn secondary" onclick="marioClearImages()">Alap képek</button>
+ </div>
+ <canvas id="mario" width="1000" height="360" style="background:#0c162b;border:1px solid var(--border);border-radius:10px;max-width:100%"></canvas>
+ <div class="hud">
+   <div>Pont: <b id="mario-score">0</b></div>
+   <div>Rekord: <b id="mario-best">0</b></div>
+ </div>
 </section>
-
 <script>
-/* ===== Navigation between screens (animated) ===== */
+/* ---------- Közös: képernyőváltás (animált) ---------- */
 function openScreen(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  const el=document.getElementById(id);
-  requestAnimationFrame(()=>{ el.classList.add('active'); window.scrollTo({top:0,behavior:'smooth'}); });
+  // minden screen elrejtése
+  document.querySelectorAll('.screen').forEach(s=>{
+    s.classList.add('hide');
+    s.classList.remove('active');
+  });
+  // cél képernyő megnyitása
+  const el = document.getElementById(id);
+  el.classList.remove('hide');
+  // kis késleltetéssel aktiváljuk, hogy legyen átmenet
+  requestAnimationFrame(()=> el.classList.add('active'));
+  // felgörgetés
+  window.scrollTo({top:0, behavior:'smooth'});
 }
 </script>
 
 <script>
-/* ===== Simple client-side auth (LocalStorage + salted SHA-256) ===== */
+/* ---------- Belépés/Regisztráció (LocalStorage + sózott SHA-256) ---------- */
 (()=>{"use strict";
   const $=s=>document.querySelector(s);
   const auth=$("#auth"), tabL=$("#tabL"), tabR=$("#tabR"), formL=$("#formL"), formR=$("#formR"), msgL=$("#msgL"), msgR=$("#msgR");
-  const welcome=$("#welcome"), who=$("#who"), logout=$("#logout"), hideBtn=$("#authHide");
+  const welcome=$("#welcome"), who=$("#who"), logout=$("#logout");
   const K_USERS="au_users_v1", K_ME="au_me_v1";
   const load=(k,def)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? def }catch{ return def } };
   const save=(k,v)=> localStorage.setItem(k, JSON.stringify(v));
+
   function afterLogin(){
-    document.getElementById("screen-menu").classList.add("active");
     auth.style.display="none";
     welcome.classList.remove("hide");
-    const me=load(K_ME,null); who.textContent = me ? `${me.name} (${me.email})` : "";
+    const me=load(K_ME,null);
+    if(me) who.textContent = `${me.name||'Felhasználó'} (${me.email})`;
+    openScreen('screen-menu');
   }
-  async function sha256(str){ const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)); return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("") }
-  function salt(len=16){ const a=new Uint8Array(len); crypto.getRandomValues(a); return Array.from(a).map(b=>b.toString(16).padStart(2,"0")).join("") }
+
+  async function sha256(str){
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+  }
+  function salt(len=16){ const a=new Uint8Array(len); crypto.getRandomValues(a); return Array.from(a).map(b=>b.toString(16).padStart(2,"0")).join(""); }
+
   function setTab(which){
     if(which==="L"){ tabL.classList.add("active"); tabR.classList.remove("active"); formL.classList.remove("hide"); formR.classList.add("hide"); msgL.textContent=""; msgR.textContent=""; }
     else { tabR.classList.add("active"); tabL.classList.remove("active"); formR.classList.remove("hide"); formL.classList.add("hide"); msgL.textContent=""; msgR.textContent=""; }
   }
-  tabL.onclick=()=>setTab("L"); tabR.onclick=()=>setTab("R");
-  hideBtn.onclick=()=>{ auth.style.display="none"; };
+  tabL.onclick=()=>setTab("L");
+  tabR.onclick=()=>setTab("R");
 
   formR.addEventListener("submit", async (e)=>{
     e.preventDefault();
     const name=formR.name.value.trim(), email=formR.email.value.trim().toLowerCase(), pw=formR.password.value;
-    if(!name||!email||pw.length<6){ msgR.textContent="Tölts ki minden mezőt (min. 6 jelszó)."; msgR.className="note err"; return; }
+    if(!name||!email||pw.length<6){ msgR.textContent="Tölts ki minden mezőt (min. 6 karakter jelszó)."; msgR.className="note err"; return; }
     const users=load(K_USERS,{});
     if(users[email]){ msgR.textContent="Ezzel az e-maillel már van fiók."; msgR.className="note err"; return; }
     const s=salt(), h=await sha256(pw+s);
     users[email]={name,email,salt:s,hash:h,createdAt:new Date().toISOString()};
-    save(K_USERS,users); save(K_ME,{name,email,loginAt:new Date().toISOString()});
+    save(K_USERS, users);
+    save(K_ME, {name,email,loginAt:new Date().toISOString()});
     afterLogin();
   });
 
   formL.addEventListener("submit", async (e)=>{
     e.preventDefault();
     const email=formL.email.value.trim().toLowerCase(), pw=formL.password.value;
-    const users=load(K_USERS,{}); const u=users[email];
+    const users=load(K_USERS,{});
+    const u=users[email];
     if(!u){ msgL.textContent="Nincs ilyen felhasználó."; msgL.className="note err"; return; }
-    const h=await sha256(pw+u.salt); if(h!==u.hash){ msgL.textContent="Hibás jelszó."; msgL.className="note err"; return; }
-    save(K_ME,{name:u.name,email:u.email,loginAt:new Date().toISOString()});
+    const h=await sha256(pw+u.salt);
+    if(h!==u.hash){ msgL.textContent="Hibás jelszó."; msgL.className="note err"; return; }
+    save(K_ME, {name:u.name, email:u.email, loginAt:new Date().toISOString()});
     afterLogin();
   });
 
   logout.onclick=()=>{ localStorage.removeItem(K_ME); location.reload(); };
 
-  // auto-login
+  // Auto-login
   if(localStorage.getItem(K_ME)){ afterLogin(); }
 })();
 </script>
 
 <script>
-/* ===== Memory (60 pairs) ===== */
+/* ---------- Memória (60 pár = 120 lap) ---------- */
 let memFirst=null, memLock=false, memPairs=0;
 function startMemory(){
   const grid=document.getElementById("memory-grid");
   grid.innerHTML=""; document.getElementById("memory-status").textContent="";
   memFirst=null; memLock=false; memPairs=0;
 
-  const base=["🔥","❄️","🌙","🌍","⭐","🍀","⚡","💎","🎵","🎲","🧩","🎯","🚀","🌈","🍎","🍌","🍓","🥝","🥥","🌹","🌻","🍄","🌵","🐍","🐢","🦊","🦁","🐸","🐙","🐬","🦉","🦄","🐉","👑","⚔️","🛡️","🏹","🕹️","🎨","📚","🧭","🔮","💡","🧨","🎁","🎆","🏆","📀","📷","🎬","🎤","🎹","🥁","🎻","🛸","🏰","🧱","🚦","🗿"];
+  // rács – sok oszlop, hogy kevesebbet kelljen görgetni
+  const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+  const cols = vw>=1200?15:vw>=900?12:vw>=700?10:8;
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+  const base=["🔥","❄️","🌙","🌍","⭐","🍀","⚡","💎","🎵","🎲","🧩","🎯","🚀","🌈","🍎","🍌","🍓","🥝","🥥","🌹","🌻","🍄","🌵","🐍","🐢","🦊","🦁","🐸","🦑","🐬","🦉","🦄","🐉","👑","⚔️","🛡️","🏹","🕹️","🎨","📚","🧭","🔮","💡","🧨","🎁","🎆","🏆","📀","📷","🎬","🎤","🎹","🥁","🎻","🛸","🏰","🧱","🚦","🗿"];
   const symbols=[]; for(let i=0;i<60;i++) symbols.push(base[i%base.length]);
   let cards=[...symbols,...symbols]; cards.sort(()=>Math.random()-0.5);
 
   cards.forEach(sym=>{
     const div=document.createElement("div");
     div.className="mcard"; div.dataset.sym=sym;
-    div.onclick=()=>memFlip(div); grid.appendChild(div);
+    div.onclick=()=>memFlip(div);
+    grid.appendChild(div);
   });
 }
 function memFlip(card){
@@ -383,18 +280,18 @@ function memFlip(card){
         card.classList.remove("revealed"); card.textContent="";
         memFirst.classList.remove("revealed"); memFirst.textContent="";
         memFirst=null; memLock=false;
-      },700);
+      },650);
     }
   }
 }
-// auto init when opening screen
+// amikor megnyitod a képernyőt, automatikus init
 document.getElementById('screen-memory').addEventListener('transitionend', e=>{
   if(e.target.id==='screen-memory' && e.target.classList.contains('active')) startMemory();
 });
 </script>
 
 <script>
-/* ===== Snake with adjustable speed ===== */
+/* ---------- Kígyó (állítható sebesség) ---------- */
 let snCtx, snGrid=20, snX, snY, snVX, snVY, snTrail, snTail, snAppleX, snAppleY, snScore=0, snLoop, snSpeed=8, lastT=0, accT=0;
 function setSnakeSpeed(val){ snSpeed=+val; document.getElementById('sn-speed-label').textContent=snSpeed; }
 function setSnakePreset(v){ document.getElementById('sn-speed').value=v; setSnakeSpeed(v); }
@@ -420,32 +317,31 @@ function snakeLoop(ts){
   const c=document.getElementById("snake");
   const stepMs = 1000/snSpeed;
   accT += (ts - lastT); lastT = ts;
+
   while(accT >= stepMs){
-    // move
     snX+=snVX; snY+=snVY;
     const maxX=Math.floor(c.width/snGrid), maxY=Math.floor(c.height/snGrid);
     if(snX<0) snX=maxX-1; if(snX>=maxX) snX=0; if(snY<0) snY=maxY-1; if(snY>=maxY) snY=0;
 
-    // collision with self
     for(let i=0;i<snTrail.length;i++){
       if(snTrail[i].x===snX && snTrail[i].y===snY){ snTail=5; snScore=0; break; }
     }
     snTrail.push({x:snX,y:snY});
     while(snTrail.length>snTail) snTrail.shift();
 
-    // apple
     if(snAppleX===snX && snAppleY===snY){ snTail++; snScore++; updateHud(); spawnApple(); }
 
     accT -= stepMs;
   }
+
   // draw
   snCtx.fillStyle="#0c162b"; snCtx.fillRect(0,0,c.width,c.height);
   snCtx.fillStyle="#57d79e"; snCtx.fillRect(snAppleX*snGrid, snAppleY*snGrid, snGrid-2, snGrid-2);
-  snCtx.fillStyle="#6ea8ff";
-  for(const p of snTrail){ snCtx.fillRect(p.x*snGrid, p.y*snGrid, snGrid-2, snGrid-2); }
+  snCtx.fillStyle="#6ea8ff"; for(const p of snTrail){ snCtx.fillRect(p.x*snGrid, p.y*snGrid, snGrid-2, snGrid-2); }
 
   snLoop=requestAnimationFrame(snakeLoop);
 }
+// irányítás
 addEventListener("keydown", e=>{
   const k=e.key.toLowerCase();
   if(k==="arrowleft"||k==="a"){ if(snVX!==1){ snVX=-1; snVY=0; } }
@@ -456,14 +352,14 @@ addEventListener("keydown", e=>{
 </script>
 
 <script>
-/* ===== RPS (classic + modern -1) ===== */
+/* ---------- Kő–Papír–Olló (klasszikus + modern -1) ---------- */
 let rpsYou=0, rpsBot=0, rpsMode="classic";
 const rpsWins={rock:"scissors", paper:"rock", scissors:"paper"};
 function rpsSetMode(m){
   rpsMode=m;
   document.getElementById("rps-mode-label").textContent=(m==="classic"?"Hagyományos":"Modern (-1 vesztes)");
-  document.getElementById("rps-mode-classic").classList.toggle("active",m==="classic");
-  document.getElementById("rps-mode-modern").classList.toggle("active",m==="modern");
+  document.getElementById("rps-mode-classic").classList.toggle("active", m==="classic");
+  document.getElementById("rps-mode-modern").classList.toggle("active", m==="modern");
 }
 document.getElementById("rps-mode-classic").onclick=()=>rpsSetMode("classic");
 document.getElementById("rps-mode-modern").onclick=()=>rpsSetMode("modern");
@@ -473,15 +369,15 @@ function icon(x){ return x==="rock"?"✊":(x==="paper"?"🖐":"✌"); }
 function rpsChoose(you){
   const choices=["rock","paper","scissors"]; const bot=choices[Math.floor(Math.random()*3)];
   let msg=`Te: ${icon(you)} | Gép: ${icon(bot)} → `;
-  if(you===bot){ msg+="Döntetlen." }
-  else if(rpsWins[you]===bot){ msg+="Nyertél! "; rpsYou += 1; if(rpsMode==="modern") rpsBot += 0; }
-  else{ msg+="Vesztettél. "; if(rpsMode==="modern"){ rpsYou -= 1; rpsBot += 1; } else { rpsBot += 1; } }
+  if(you===bot){ msg+="Döntetlen."; }
+  else if(rpsWins[you]===bot){ msg+="Nyertél! "; rpsYou += 1; }
+  else{ msg+="Vesztettél. "; if(rpsMode==="modern"){ rpsYou -= 1; } rpsBot += 1; }
   rpsUpdate(); document.getElementById("rps-last").textContent=msg;
 }
 </script>
 
 <script>
-/* ===== Reflex game ===== */
+/* ---------- Reflex játék ---------- */
 const K_REF="ref_best_v1"; let refRound=0, refWaiting=false, refStartTime=0, refTimes=[];
 function refStart(){
   refRound=0; refTimes=[]; document.getElementById("ref-last").textContent="–"; document.getElementById("ref-avg").textContent="–";
@@ -491,38 +387,39 @@ function nextRound(){
   refRound++; if(refRound>5){ finishRef(); return; }
   document.getElementById("ref-round").textContent=refRound;
   const box=document.getElementById("refbox");
-  box.style.background="#0f2142"; box.textContent="Várj..."; refWaiting=true;
+  box.style.background="#0f2142"; box.textContent="Várj...";
+  refWaiting=true;
   const delay=600+Math.random()*1800;
   setTimeout(()=>{ box.style.background="#1f8f54"; box.textContent="KATT!"; refWaiting=false; refStartTime=performance.now(); }, delay);
 }
 document.getElementById("refbox").addEventListener("click", ()=>{
   const box=document.getElementById("refbox");
   if(refRound===0) return;
-  if(refWaiting){ box.style.background="#b63a3a"; box.textContent="Korai! - újra"; setTimeout(nextRound,700); return; }
+  if(refWaiting){ box.style.background="#b63a3a"; box.textContent="Korai! - újra"; setTimeout(nextRound,650); return; }
   const t=Math.round(performance.now()-refStartTime);
   refTimes.push(t);
   document.getElementById("ref-last").textContent=t;
   const avg=Math.round(refTimes.reduce((a,b)=>a+b,0)/refTimes.length);
   document.getElementById("ref-avg").textContent=avg;
-  setTimeout(nextRound,600);
+  setTimeout(nextRound,550);
 });
 function finishRef(){
   const avg=Math.round(refTimes.reduce((a,b)=>a+b,0)/refTimes.length);
   const best=+localStorage.getItem(K_REF)||9999;
   if(avg<best) localStorage.setItem(K_REF, avg);
-  document.getElementById("ref-best").textContent=localStorage.getItem(K_REF")||avg;
+  document.getElementById("ref-best").textContent=localStorage.getItem(K_REF) || avg;
   const box=document.getElementById("refbox"); box.style.background="#0f2142"; box.textContent="Kész! Újra az Indítással."
 }
-// init best
+// init toplista érték
 document.getElementById("ref-best").textContent=localStorage.getItem(K_REF)||"–";
 </script>
 
 <script>
-/* ===== Mario-like (runner) with player/enemy image upload (LocalStorage) ===== */
+/* ---------- Saját Ugrálós (Mario-s) – játékos/ellenség kép feltöltéssel ---------- */
 (()=>{"use strict";
   const K_PLAYER="mario_player_img_v1", K_ENEMY="mario_enemy_img_v1", K_BEST="mario_best_v1";
   const cvs=document.getElementById("mario"), ctx=cvs.getContext("2d");
-  let running=false, last=0, acc=0, step=18; // ms/lépés rajz (~55 fps), játékmenet külön időzítve
+  let running=false, last=0, acc=0, step=18; // rajz frissítés ms
   let player, groundY=260, gravity=0.75, jumpV=-13;
   let obstacles=[], enemies=[], score=0, best=+localStorage.getItem(K_BEST)||0;
   const dpr=Math.max(1,Math.floor(window.devicePixelRatio||1));
@@ -530,7 +427,7 @@ document.getElementById("ref-best").textContent=localStorage.getItem(K_REF)||"�
     cvs.style.width=cssW+"px"; cvs.style.height=cssH+"px"; cvs.width=Math.floor(cssW*dpr); cvs.height=Math.floor(cssH*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); }
   fit(); addEventListener("resize", fit);
 
-  // default images (SVG base64)
+  // alap képek (svg base64)
   const imgPlayerDef=new Image(); imgPlayerDef.src="data:image/svg+xml;base64,"+btoa(`<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff6a6a'/><stop offset='1' stop-color='#ffb86a'/></linearGradient></defs><rect width='48' height='48' rx='10' fill='url(#g)'/><circle cx='24' cy='16' r='7' fill='#fff'/><rect x='13' y='25' width='22' height='14' rx='7' fill='#fff'/></svg>`);
   const imgPipe=new Image(); imgPipe.src="data:image/svg+xml;base64,"+btoa(`<svg xmlns='http://www.w3.org/2000/svg' width='36' height='48'><rect width='36' height='48' fill='#2ecc71'/><rect y='0' width='36' height='10' fill='#27ae60'/></svg>`);
   const imgEnemyDef=new Image(); imgEnemyDef.src="data:image/svg+xml;base64,"+btoa(`<svg xmlns='http://www.w3.org/2000/svg' width='40' height='28'><rect width='40' height='28' rx='6' fill='#8e44ad'/><circle cx='14' cy='12' r='3' fill='#fff'/><circle cx='26' cy='12' r='3' fill='#fff'/><rect x='10' y='20' width='20' height='4' rx='2' fill='#fff'/></svg>`);
@@ -543,57 +440,60 @@ document.getElementById("ref-best").textContent=localStorage.getItem(K_REF)||"�
   function spawn(){ const w=36, h=40+Math.floor(Math.random()*60), vx=-(2.5+score*0.01); obstacles.push({x:cvs.width/dpr,y:groundY-h,w,h,vx}); if(Math.random()<0.6){ enemies.push({x:cvs.width/dpr+120,y:groundY-28,w:40,h:28,vx:-(3+score*0.015)}); } }
   function rect(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y }
   function stepGame(dt){
-    // bg ground
     ctx.clearRect(0,0,cvs.width,cvs.height);
+    // föld sáv
     ctx.fillStyle="#152542"; ctx.fillRect(0, groundY+44, cvs.width, 10);
     ctx.fillStyle="#1b2a48"; ctx.fillRect(0, groundY+20, cvs.width, 24);
 
-    // player physics
+    // player fizika
     player.vy+=gravity; player.y+=player.vy; if(player.y>groundY-player.h){ player.y=groundY-player.h; player.vy=0; }
 
-    // move/draw obstacles & enemies
+    // akadályok/ellenség
     obstacles.forEach(o=>{ o.x+=o.vx; ctx.drawImage(imgPipe,o.x,o.y,o.w,o.h); });
     enemies.forEach(en=>{ en.x+=en.vx; ctx.drawImage(imgEnemy,en.x,en.y,en.w,en.h); });
 
-    // draw player with rounded mask
+    // player rajz (lekerekített maszk)
     ctx.save(); ctx.beginPath(); ctx.roundRect(player.x,player.y,player.w,player.h,10); ctx.clip(); ctx.drawImage(imgPlayer,player.x,player.y,player.w,player.h); ctx.restore();
 
-    // scoring
+    // pont
     score += dt*0.01; document.getElementById("mario-score").textContent=Math.floor(score); document.getElementById("mario-best").textContent=best;
 
-    // cleanup & collisions
+    // takarítás és ütközések
     obstacles=obstacles.filter(o=>o.x+o.w>-50); enemies=enemies.filter(e=>e.x+e.w>-50);
     for(const o of obstacles){ if(rect(player,o)) return gameOver(); }
     for(const e of enemies){ if(rect(player,e)) return gameOver(); }
   }
-  function gameOver(){ running=false; best=Math.max(best,Math.floor(score)); localStorage.setItem(K_BEST,best);
+  function gameOver(){
+    running=false;
+    best=Math.max(best,Math.floor(score)); localStorage.setItem(K_BEST,best);
     ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillRect(0,0,cvs.width,cvs.height);
     ctx.fillStyle="#fff"; ctx.font="bold 24px Inter, sans-serif"; ctx.textAlign="center";
-    ctx.fillText("💥 Game Over – Start/Reset!", cvs.width/2/dpr, 140); }
-
+    ctx.fillText("💥 Game Over – Start/Reset!", cvs.width/2/dpr, 140);
+  }
   function loop(t){ if(!running) return; const dt=t-last||16; last=t; acc+=dt;
     while(acc>=step){ stepGame(step); if(Math.random()<0.025) spawn(); acc-=step; }
     requestAnimationFrame(loop);
   }
-
   function reset(){ score=0; obstacles=[]; enemies=[]; resetPlayer(); acc=0; last=performance.now(); }
 
-  // public
+  // publikus
   window.marioStart=function(){ reset(); running=true; loop(); }
   window.marioClearImages=function(){ localStorage.removeItem(K_PLAYER); localStorage.removeItem(K_ENEMY); imgPlayer.src=imgPlayerDef.src; imgEnemy.src=imgEnemyDef.src; resetPlayer(); }
 
   // input
-  addEventListener("keydown",e=>{ const k=e.key.toLowerCase(); if(k===" "||k==="arrowup"||k==="w"){ e.preventDefault(); player?.jump(); }},{passive:false});
+  addEventListener("keydown", e=>{ const k=e.key.toLowerCase(); if(k===" "||k==="arrowup"||k==="w"){ e.preventDefault(); player?.jump(); } }, {passive:false});
   cvs.addEventListener("pointerdown", ()=> player?.jump());
 
-  // uploads
+  // feltöltések
   document.getElementById("player-file").addEventListener("change",ev=>{
     const f=ev.target.files?.[0]; if(!f) return; const rd=new FileReader();
-    rd.onload=()=>{ try{ localStorage.setItem(K_PLAYER, rd.result); imgPlayer.src=rd.result; resetPlayer(); }catch(e){} }; rd.readAsDataURL(f);
+    rd.onload=()=>{ try{ localStorage.setItem(K_PLAYER, rd.result); imgPlayer.src=rd.result; resetPlayer(); }catch(e){} };
+    rd.readAsDataURL(f);
   });
   document.getElementById("enemy-file").addEventListener("change",ev=>{
     const f=ev.target.files?.[0]; if(!f) return; const rd=new FileReader();
-    rd.onload=()=>{ try{ localStorage.setItem(K_ENEMY, rd.result); imgEnemy.src=rd.result; }catch(e){} }; rd.readAsDataURL(f);
+    rd.onload=()=>{ try{ localStorage.setItem(K_ENEMY, rd.result); imgEnemy.src=rd.result; }catch(e){} };
+    rd.readAsDataURL(f);
   });
 
   // init
