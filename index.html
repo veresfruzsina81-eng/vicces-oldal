@@ -1,4 +1,4 @@
-<!-- ==== MODERN FULLSCREEN AUTH (paste before </body>) ==== -->
+<!-- ==== FULLSCREEN AUTH + JÁTÉKOK ==== -->
 <style>
   :root{--au-txt:#e9eefc;--au-muted:#9db0d4;--au-border:rgba(255,255,255,.16);--au-glass:rgba(15,24,45,.72);--au-btn1:#2e5fff;--au-btn2:#1b47d8}
   [data-auth="required"]{display:none}
@@ -9,27 +9,22 @@
       radial-gradient(1200px 900px at 90% 90%, rgba(87,215,158,.18), transparent 55%),
       rgba(3,7,18,.88);
     backdrop-filter:saturate(120%) blur(8px);
-    animation: auFade .25s ease-out;
   }
-  @keyframes auFade{from{opacity:.0; transform:scale(1.02)} to{opacity:1; transform:scale(1)}}
   .au-card{
     width:min(94vw, 560px);
-    border:1px solid var(--au-border);
-    border-radius:22px;
+    border:1px solid var(--au-border); border-radius:22px;
     background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
     color:var(--au-txt);
     box-shadow:0 30px 80px rgba(0,0,0,.45); backdrop-filter: blur(14px);
     font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
     padding:22px;
-    transform:translateY(8px); opacity:0; animation: auPop .28s .08s ease-out forwards;
   }
-  @keyframes auPop{to{transform:translateY(0); opacity:1}}
   .au-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
-  .au-top h3{margin:0;font-size:22px;font-weight:800;letter-spacing:.2px}
+  .au-top h3{margin:0;font-size:22px;font-weight:800}
   .au-x{background:transparent;color:var(--au-txt);border:0;font-size:18px;cursor:pointer;opacity:.75}
   .au-tabs{margin:14px 0;display:flex;gap:8px;background:rgba(255,255,255,.06);border:1px solid var(--au-border);padding:6px;border-radius:999px}
   .au-tabs button{flex:1;border-radius:999px;padding:10px 14px;border:0;background:transparent;color:var(--au-muted);font-weight:700;cursor:pointer}
-  .au-tabs .active{background:#0f2142;color:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+  .au-tabs .active{background:#0f2142;color:#fff}
   .au-form label{display:block;font-size:13px;color:var(--au-muted);margin:10px 2px}
   .au-form input{
     width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--au-border);
@@ -42,15 +37,29 @@
   .au-note{font-size:13px;margin-top:6px}
   .au-ok{color:#57d79e} .au-err{color:#ff6b6b}
   .au-hide{display:none!important}
+
+  /* Games */
+  #games{display:none; padding:20px; font-family:Inter,system-ui,sans-serif; color:#eee; text-align:center}
+  #game-menu{margin-bottom:20px}
+  #memory-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(60px,1fr));
+    gap:8px; max-width:1000px; margin:0 auto;
+  }
+  .card{
+    background:#1b2a48; border-radius:8px; height:60px; display:flex; align-items:center; justify-content:center;
+    font-size:28px; cursor:pointer; transition:all .2s ease; user-select:none;
+  }
+  .card.revealed{background:#2d4e8a}
+  .card.matched{background:#2ecc71; color:#fff; cursor:default}
 </style>
 
+<!-- AUTH OVERLAY -->
 <div id="au-overlay" class="au-overlay" role="dialog" aria-modal="true">
   <div class="au-card">
     <div class="au-top">
       <h3>Bejelentkezés & Regisztráció</h3>
-      <button id="au-close" class="au-x" title="Bezárás">✕</button>
+      <button id="au-close" class="au-x">✕</button>
     </div>
-
     <div class="au-tabs">
       <button id="au-tab-login" class="active">Belépés</button>
       <button id="au-tab-reg">Regisztráció</button>
@@ -83,116 +92,109 @@
       <div id="au-msg-reg" class="au-note"></div>
       <div style="margin-top:12px"><button class="au-btn" type="submit">Fiók létrehozása</button></div>
     </form>
-
-    <div class="au-note" style="margin-top:10px;color:var(--au-muted)">
-      * Gyors, kliensoldali megoldás (LocalStorage + sózott hash). Éleshez szerveres auth ajánlott.
-    </div>
   </div>
+</div>
+
+<!-- GAMES AREA -->
+<div id="games">
+  <h2>🎮 Játékok menü</h2>
+  <div id="game-menu">
+    <button onclick="startMemory()">🧠 Memóriajáték (60 pár)</button>
+  </div>
+  <div id="memory-grid"></div>
+  <p id="memory-status"></p>
 </div>
 
 <script>
 (()=>{"use strict";
-  // ====== ELEMENTS
   const $=(s)=>document.querySelector(s);
   const ov=$("#au-overlay"), tabL=$("#au-tab-login"), tabR=$("#au-tab-reg");
   const fL=$("#au-form-login"), fR=$("#au-form-reg");
   const mL=$("#au-msg-login"), mR=$("#au-msg-reg");
-  const close=$("#au-close");
 
-  // ====== STORAGE KEYS
-  const K_USERS="au_users_v1";   // { email: {name,email,salt,hash,createdAt} }
-  const K_ME="au_me_v1";         // { name,email,loginAt }
-  const K_ATT="au_attempts_v1";  // brute-force limiter
+  const K_USERS="au_users_v1"; const K_ME="au_me_v1";
 
-  // ====== HELPERS
   const load=(k,def)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? def }catch{ return def } };
   const save=(k,v)=> localStorage.setItem(k, JSON.stringify(v));
   const show=(el)=> el.classList.remove("au-hide");
   const hide=(el)=> el.classList.add("au-hide");
 
   function setTab(which){
-    if(which==="login"){
-      tabL.classList.add("active"); tabR.classList.remove("active"); show(fL); hide(fR); mL.textContent=""; mR.textContent="";
-    }else{
-      tabR.classList.add("active"); tabL.classList.remove("active"); show(fR); hide(fL); mL.textContent=""; mR.textContent="";
-    }
+    if(which==="login"){ tabL.classList.add("active"); tabR.classList.remove("active"); show(fL); hide(fR); mL.textContent=""; mR.textContent=""; }
+    else{ tabR.classList.add("active"); tabL.classList.remove("active"); show(fR); hide(fL); mL.textContent=""; mR.textContent=""; }
   }
   tabL.onclick=()=>setTab("login"); tabR.onclick=()=>setTab("reg");
 
-  // PW hash + salt
   async function sha256(str){
     const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
   }
   function salt(len=16){ const a=new Uint8Array(len); crypto.getRandomValues(a); return Array.from(a).map(b=>b.toString(16).padStart(2,"0")).join(""); }
 
-  // brute-force limiter
-  function allow(email){
-    const d=load(K_ATT,{}); const now=Date.now(); const r=d[email]||{fails:0,until:0};
-    if(r.until && now<r.until) return {ok:false,wait:Math.ceil((r.until-now)/1000)}; return {ok:true};
-  }
-  function record(email, ok){
-    const d=load(K_ATT,{}); const r=d[email]||{fails:0,until:0};
-    if(ok){ d[email]={fails:0,until:0}; } else { r.fails=(r.fails||0)+1; if(r.fails>=5){ r.until=Date.now()+2*60*1000; r.fails=0; } d[email]=r; }
-    save(K_ATT,d);
-  }
+  function showGames(){ ov.style.display="none"; document.getElementById("games").style.display="block"; }
 
-  // gated content
-  function applyGate(){
-    const me = load(K_ME,null);
-    document.querySelectorAll('[data-auth="required"]').forEach(el=>{
-      el.style.display = me ? "" : "none";
-    });
-  }
-
-  // Close logic
-  function closeOverlay(){
-    ov.style.display="none";
-    ov.setAttribute("aria-hidden","true");
-  }
-  close.onclick = closeOverlay;
-  // ESC, backdrop click
-  ov.addEventListener("click", (e)=>{ if(e.target===ov) closeOverlay(); });
-  document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeOverlay(); });
-
-  // ====== REGISTER
+  // REGISTER
   fR.addEventListener("submit", async (e)=>{
     e.preventDefault();
-    mR.textContent="Fiók létrehozása…"; mR.className="au-note";
     const name=fR.name.value.trim(), email=fR.email.value.trim().toLowerCase(), pw=fR.password.value;
-    if(!name||!email||!pw||pw.length<6){ mR.textContent="Tölts ki minden mezőt (min. 6 jelszó)."; mR.className="au-note au-err"; return; }
-    const users=load(K_USERS,{});
-    if(users[email]){ mR.textContent="Ezzel az e-maillel már van fiók."; mR.className="au-note au-err"; return; }
+    if(!name||!email||pw.length<6){ mR.textContent="Hiányzó adat."; mR.className="au-note au-err"; return; }
+    const users=load(K_USERS,{}); if(users[email]){ mR.textContent="Már van fiók."; mR.className="au-note au-err"; return; }
     const s=salt(); const h=await sha256(pw+s);
-    users[email]={name,email,salt:s,hash:h,createdAt:new Date().toISOString()};
-    save(K_USERS,users); save(K_ME,{name,email,loginAt:new Date().toISOString()});
-    mR.textContent="Siker! Belépve vagy."; mR.className="au-note au-ok";
-    applyGate(); closeOverlay();
+    users[email]={name,email,salt:s,hash:h}; save(K_USERS,users); save(K_ME,{name,email});
+    showGames();
   });
 
-  // ====== LOGIN
+  // LOGIN
   fL.addEventListener("submit", async (e)=>{
     e.preventDefault();
-    mL.textContent="Beléptetés…"; mL.className="au-note";
     const email=fL.email.value.trim().toLowerCase(), pw=fL.password.value;
-    const g=allow(email); if(!g.ok){ mL.textContent=`Túl sok próbálkozás. Várj ${g.wait} mp-et.`; mL.className="au-note au-err"; return; }
     const users=load(K_USERS,{}); const u=users[email];
-    if(!u){ record(email,false); mL.textContent="Ismeretlen e-mail."; mL.className="au-note au-err"; return; }
-    const h=await sha256(pw+u.salt); if(h!==u.hash){ record(email,false); mL.textContent="Hibás jelszó."; mL.className="au-note au-err"; return; }
-    record(email,true);
-    save(K_ME,{name:u.name,email:u.email,loginAt:new Date().toISOString()});
-    mL.textContent="Siker!"; mL.className="au-note au-ok";
-    applyGate(); closeOverlay();
+    if(!u){ mL.textContent="Nincs ilyen felhasználó."; mL.className="au-note au-err"; return; }
+    const h=await sha256(pw+u.salt);
+    if(h!==u.hash){ mL.textContent="Hibás jelszó."; mL.className="au-note au-err"; return; }
+    save(K_ME,{name:u.name,email:u.email});
+    showGames();
   });
 
-  // ====== ON LOAD: show overlay immediately
-  ov.style.display="grid";
-  ov.setAttribute("aria-hidden","false");
-  setTab("login");
-  applyGate();
-
-  // Ha már be van jelentkezve, ne jelenjen meg:
-  if(load(K_ME,null)){ applyGate(); closeOverlay(); }
+  // Ha már belépve volt
+  if(load(K_ME,null)) showGames();
 })();
+
+// ====== MEMÓRIAJÁTÉK =====
+let memoryFirst=null, memoryLock=false, memoryPairs=0;
+function startMemory(){
+  const grid=document.getElementById("memory-grid");
+  grid.innerHTML=""; document.getElementById("memory-status").textContent="";
+  memoryFirst=null; memoryLock=false; memoryPairs=0;
+
+  const base=["🔥","❄️","🌙","🌍","⭐","🍀","⚡","💎","🎵","🎲","🧩","🎯","🚀","🌈","🍎","🍌","🍓","🥝","🥥","🌹","🌻","🍄","🌵","🐍","🐢","🦊","🦁","🐸","🐙","🐬","🦉","🦄","🐉","👑","⚔️","🛡️","🏹","🕹️","🎨","📚","🧭","🔮","💡","🧨","🎁","🎆","🏆","📀","📷","🎬","🎤","🎹","🥁","🎻","🛸","🏰","🧱","🚦","🗿"];
+  const symbols=[]; for(let i=0;i<60;i++){ symbols.push(base[i%base.length]); }
+  let cards=[...symbols,...symbols]; cards.sort(()=>Math.random()-0.5);
+
+  cards.forEach(sym=>{
+    const div=document.createElement("div");
+    div.className="card"; div.dataset.sym=sym;
+    div.onclick=()=>flipCard(div); document.getElementById("memory-grid").appendChild(div);
+  });
+}
+function flipCard(card){
+  if(memoryLock||card.classList.contains("revealed")||card.classList.contains("matched")) return;
+  card.classList.add("revealed"); card.textContent=card.dataset.sym;
+  if(!memoryFirst){ memoryFirst=card; }
+  else{
+    if(memoryFirst.dataset.sym===card.dataset.sym){
+      memoryFirst.classList.add("matched"); card.classList.add("matched"); memoryPairs++;
+      if(memoryPairs===60) document.getElementById("memory-status").textContent="🎉 Nyertél! Minden pár megvan!";
+      memoryFirst=null;
+    }else{
+      memoryLock=true;
+      setTimeout(()=>{
+        card.classList.remove("revealed"); card.textContent="";
+        memoryFirst.classList.remove("revealed"); memoryFirst.textContent="";
+        memoryFirst=null; memoryLock=false;
+      },700);
+    }
+  }
+}
 </script>
-<!-- ==== /MODERN FULLSCREEN AUTH ==== -->
+<!-- ==== /AUTH + JÁTÉKOK ==== -->
