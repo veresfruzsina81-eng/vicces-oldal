@@ -48,8 +48,7 @@
       overflow-y:auto;
       background-image: radial-gradient(transparent, rgba(0,0,0,.35)), url('/bg_tamas.jpg');
       background-size: cover; background-position: 50% 30%;
-      /* desktopon marad fixed, mobilon lent felülírjuk */
-      background-attachment: fixed;
+      background-attachment: fixed; /* mobilon lent felülírjuk */
       transition: background-color .3s ease;
     }
 
@@ -82,7 +81,6 @@
       border:1px solid rgba(255,255,255,.08);
       border-radius:22px; padding:16px;
       box-shadow: var(--glow);
-      /* >>> fix magasság + flex, hogy a log kapja a scrollt */
       height: min(78vh, 760px);
       display:flex; flex-direction:column; gap:10px;
     }
@@ -90,7 +88,6 @@
     .chat{display:flex; gap:16px; flex:1; min-height:0;}
     .col{flex:1; min-width:0; display:flex; flex-direction:column; min-height:0;}
 
-    /* >>> a log legyen a rugalmas, görgethető rész */
     .chatlog{
       flex:1; min-height:0;
       overflow:auto; padding:16px;
@@ -100,7 +97,6 @@
 
     @media (max-width:820px){
       .chat{flex-direction:column}
-      /* mobilon a kártya magasabb lehet kicsit */
       .card{height:82vh}
     }
 
@@ -118,20 +114,6 @@
     .info .bubble{background:var(--bubbleInfo); color:var(--muted)}
     .bubble.glow{ box-shadow: var(--glow) }
 
-    /* typing indicator */
-    .typing{display:inline-flex; gap:6px; align-items:center}
-    .dot{width:6px; height:6px; border-radius:50%; background:#cfe0ff; opacity:.7;
-      animation:blink 1.2s infinite ease-in-out}
-    .dot:nth-child(2){animation-delay:.2s}
-    .dot:nth-child(3){animation-delay:.4s}
-    @keyframes blink{0%,80%,100%{transform:translateY(0);opacity:.35}40%{transform:translateY(-4px);opacity:1}}
-
-    .chips{display:flex; flex-wrap:wrap; gap:8px; margin:10px 6px 2px}
-    .chip{background:transparent; border:1px dashed rgba(255,255,255,.14); color:var(--muted);
-      padding:6px 10px; border-radius:999px; font-size:12px; cursor:pointer}
-    .chip:hover{border-style:solid; color:var(--text)}
-    .muted{color:var(--muted); font-size:12px}
-
     .composer{display:flex; align-items:center; gap:10px; padding:12px}
     .input{
       flex:1; display:flex; align-items:center; gap:10px; padding:10px 14px;
@@ -140,14 +122,12 @@
     }
     .input input{
       flex:1; background:transparent; border:0; outline:none; color:var(--text);
-      /* >>> 16px, hogy iOS ne nagyítson be fókuszkor */
-      font-size:16px;
+      font-size:16px; /* iOS ne nagyítson */
     }
     .send{padding:10px 16px; border-radius:16px; background:linear-gradient(90deg, #ffb84d, #ffa53a);
       color:#331d00; font-weight:800; border:0; cursor:pointer}
     .send:active{transform:translateY(1px)}
 
-    /* floating speak toggle (bottom-right inside input) */
     .speak-toggle{
       width:38px; height:38px; border-radius:50%;
       display:grid; place-items:center; cursor:pointer;
@@ -159,7 +139,7 @@
 
     footer{color:var(--muted); font-size:12px; text-align:center; padding:26px 8px 34px}
 
-    /* >>> Mobil-specifikus finomítások: nincs fixed háttér */
+    /* Mobilon ne legyen fixed háttér */
     @media (hover:none), (pointer:coarse){
       body{ background-attachment: scroll; }
     }
@@ -188,7 +168,7 @@
       <div class="chat">
         <div class="col">
           <div id="log" class="chatlog"></div>
-          <div class="chips" id="chips"></div>
+          <!-- Chipek és Tipp sor eltávolítva -->
           <div class="composer">
             <div class="input">
               <input id="txt" autocomplete="off" placeholder="Írj ide…   Enter = küldés, Shift+Enter = új sor" />
@@ -198,7 +178,6 @@
             </div>
             <button class="send" id="sendBtn">Küldés</button>
           </div>
-          <div class="muted">Tipp: kérdezhetsz bármit. A felolvasást a kis 🔊 ikonról ki- és bekapcsolhatod.</div>
         </div>
       </div>
     </section>
@@ -211,7 +190,6 @@
   <script>
     // ----- Parallax finom mozgatás -----
     (()=>{
-      // >>> Kapcsoljuk ki érintős eszközön (mobilon), hogy ne ugráljon
       const isTouch = matchMedia('(hover:none), (pointer:coarse)').matches || 'ontouchstart' in window;
       if(isTouch) return;
 
@@ -242,21 +220,6 @@
       const saved = localStorage.getItem('theme');
       if(saved) document.documentElement.setAttribute('data-theme', saved);
     })();
-
-    // ----- Gyors kérdés chipek -----
-    const chipData = [
-      "Ki készítette ezt az oldalt?",
-      "Mesélj Horváth Tamásról röviden!",
-      "Milyen modell vagy?",
-      "Mi a mai dátum?",
-      "Mit tudsz csinálni?"
-    ];
-    const chips = document.getElementById('chips');
-    chipData.forEach(q=>{
-      const b=document.createElement('button'); b.className='chip'; b.textContent=q;
-      b.onclick=()=>{ txt.value=q; txt.focus(); };
-      chips.appendChild(b);
-    });
 
     // ----- Chat funkciók -----
     const log = document.getElementById('log');
@@ -349,26 +312,21 @@
     // ----- Rögzített, helyi válaszok testreszabása -----
     function fixedAnswer(s){
       const t = s.toLowerCase();
-      // 1) modell kiléte
       if(/milyen modell|milyen ai|ki vagy te/.test(t)){
         return "Tamás modellje vagyok: ő készített és fejleszt, hogy segítsek neked bármiben. 😊";
       }
-      // 2) készítő
       if(/ki (készítette|hozta létre)|készítő|tulaj|fejlesztő/.test(t)){
         return "Az oldalt Horváth Tamás (Szabolcs bácska) készítette hobbi fejlesztésként. Folyamatosan csiszolja a funkciókat. 👨‍💻";
       }
-      // 3) rövid bemutatás
       if(/mesélj.*tamás|ki az a tamás/.test(t)){
         return "Tamás lelkes hobbifejlesztő, aki szívesen kísérletezik webes projektekkel és AI-val. Jó szórakozást az oldalon! 🚀";
       }
-      // 4) dátum/idő (helyi)
       if(/mai (nap|dátum)|hányadika|milyen dátum/.test(t)){
         const now = new Date();
         const napok = ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"];
         const d = now.toLocaleDateString('hu-HU');
         return `Ma ${d}, ${napok[now.getDay()]}.`;
       }
-      // 5) következő napok
       if(/következő napok|holnap|héten/.test(t)){
         const napok = ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"];
         let out = [];
