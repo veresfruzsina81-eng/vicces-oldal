@@ -2,8 +2,7 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8" />
-  <!-- font-zoom elkerülése mobilon + background ugrálás csökkentése -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Tamás Mesterséges (AI)</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
 
@@ -22,28 +21,15 @@
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
-
     html,body{height:100%}
     body{
       margin:0;
       color:var(--text);
       font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background:#0b1015 fixed no-repeat center/cover;
+      background-image: url("bg_tamas.jpg");
       -webkit-font-smoothing:antialiased;
-      -webkit-text-size-adjust:100%;
-      /* NEM használunk background-attachment: fixed-et közvetlenül, mert iOS ugráltat */
-      background:#0b1015;
-      overflow-x:hidden;
       padding-bottom: var(--safe-bottom);
-      touch-action: manipulation; /* double-tap zoom minimalizálása */
-    }
-
-    /* Fix háttér külön rétegen – nem ugrál a vh/keyboard miatt */
-    body::before{
-      content:"";
-      position:fixed; inset:0; z-index:-1;
-      background: url("bg_tamas.jpg") center/cover no-repeat;
-      transform: translateZ(0); /* GPU hint */
-      will-change: transform;
     }
 
     .glass{
@@ -66,15 +52,14 @@
     .wrap{max-width:var(--maxw); margin:0 auto; padding:16px}
     .chat{
       display:flex; flex-direction:column;
-      height:calc(100dvh - 220px);   /* stabilabb mobilon */
+      height:calc(100svh - 220px);      /* stabilabb mobilon */
       min-height:460px;
       padding:16px;
     }
     .msgs{
-      flex:1;
+      flex:1;                           /* << EZ tart távolságot a composertől */
       overflow:auto; padding:4px 4px 12px;
-      scroll-behavior:smooth;
-      -webkit-overflow-scrolling: touch;
+      scroll-behavior:smooth
     }
     .row{display:flex; margin:10px 0}
     .msg{
@@ -113,15 +98,12 @@
     }
     .composer .box{
       flex:1; padding:12px 16px; border-radius:16px;
-      background:rgba(255,255,255,.92); color:#111;
-      border:1px solid rgba(0,0,0,.06);
-      font-size:17px; /* iOS ne zoomoljon fókuszkor */
-      line-height:1.35;
+      background:rgba(255,255,255,.90); color:#111;
+      border:1px solid rgba(0,0,0,.06)
     }
     .send{
       border:0; cursor:pointer; border-radius:16px; padding:12px 18px; font-weight:700;
-      background:linear-gradient(180deg,#ffbf56,#ffa21a); color:#1e1606; box-shadow:0 6px 18px rgba(0,0,0,.2);
-      font-size:17px; /* iOS ne zoomoljon gombnyomáskor sem */
+      background:linear-gradient(180deg,#ffbf56,#ffa21a); color:#1e1606; box-shadow:0 6px 18px rgba(0,0,0,.2)
     }
     .send:active{transform:translateY(1px)}
 
@@ -140,6 +122,11 @@
       header .subtitle{color:#5a6b79}
     }
     ::selection{background:#ffe1a8;color:#1f1404}
+
+    /* iOS input fókusz ugrálás csökkentése */
+    @supports (height: 100dvh) {
+      .chat{ height:calc(100dvh - 220px); }
+    }
   </style>
 </head>
 <body>
@@ -165,6 +152,7 @@
   <!-- LÁBLÉC -->
   <footer>© Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.</footer>
 
+  <!-- A logika külön fájlban -->
   <script src="chat.js"></script>
 </body>
 </html>
