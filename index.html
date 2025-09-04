@@ -1,232 +1,320 @@
 <!doctype html>
 <html lang="hu">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tamás Mesterséges (AI)</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23ffb347'/></svg>">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tamás Mesterséges (AI)</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Ccircle cx='64' cy='64' r='60' fill='%23f5a623'/%3E%3Ctext x='50%' y='58%' dominant-baseline='middle' text-anchor='middle' font-size='64' fill='%23000' font-family='Segoe UI, Roboto, system-ui' %3E🤖%3C/text%3E%3C/svg%3E" />
+<style>
+  :root{
+    --bg: #0b0f18;
+    --text: #e9eef6;
+    --muted: #b8c2d3;
+    --bubble: rgba(15,18,26,.75);
+    --bubble-light: rgba(255,255,255,.75);
+    --accent: #ffb23d;
+    --ring: rgba(255,178,61,.35);
+    --glass: rgba(14,18,26,.55);
+    --glass-border: rgba(255,255,255,.08);
+  }
+  [data-theme="light"]{
+    --bg:#f4f6fb; --text:#0e1420; --muted:#40506a;
+    --bubble: rgba(255,255,255,.75);
+    --bubble-light: rgba(255,255,255,.85);
+    --glass: rgba(255,255,255,.55);
+    --glass-border: rgba(0,0,0,.08);
+  }
 
-  <style>
-    :root{
-      --bg-blur: 14px;
-      --glass: rgba(10,12,16,.55);
-      --glass-light: rgba(250,252,255,.55);
-      --border: rgba(255,255,255,.25);
-      --border-dark: rgba(0,0,0,.18);
-      --text: #eaf0f6;
-      --text-dark: #0d1117;
-      --bot: #1a232d;
-      --bot-ghost: rgba(0,0,0,.45);
-      --user-grad-1:#ffb347; /* narancs arany */
-      --user-grad-2:#ff8c42;
-      --accent:#ffd699;
-    }
+  *{ box-sizing:border-box }
+  html,body{ height:100% }
+  body{
+    margin:0; font: 16px/1.45 "Segoe UI", Roboto, system-ui, -apple-system, Arial, sans-serif;
+    color:var(--text); background:var(--bg) fixed;
+    overflow:hidden; /* saját görgető a chat dobozban */
+  }
 
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      color: var(--text);
-      background: #0b0f14 url("./bg_tamas.jpg") center/cover fixed no-repeat;
-      /* üveges háttérre rásegítés, hogy tisztán látszódjon */
-      background-attachment: fixed;
-    }
+  /* Háttérkép + üveges scrim, NEM blokkolja a kattintásokat */
+  .bg{
+    position:fixed; inset:0; z-index:-2;
+    background:#000 center/cover no-repeat url("bg_tamas.jpg");
+    transform: translateZ(0);
+  }
+  .scrim{
+    position:fixed; inset:0; z-index:-1;
+    backdrop-filter: blur(6px) saturate(1.05);
+    -webkit-backdrop-filter: blur(6px) saturate(1.05);
+    background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.25) 40%, rgba(0,0,0,.35));
+    pointer-events: none;     /* <<< NAGYON FONTOS: ne takarja a gombokat */
+  }
 
-    .page{
-      min-height:100dvh;
-      display:flex;
-      flex-direction:column;
-      gap:18px;
-      padding:18px;
-      backdrop-filter: blur(0px); /* a buborékokon lesz a blur, háttér tiszta */
-    }
+  /* Fejléc */
+  header{
+    position:fixed; left:0; right:0; top:0;
+    padding:16px 20px 10px;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px;
+  }
+  .glass{
+    background:var(--glass);
+    border:1px solid var(--glass-border);
+    border-radius:20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    backdrop-filter: blur(10px) saturate(1.2);
+    -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  }
+  .brand{
+    padding:18px 20px;
+  }
+  h1{ margin:0; font-size:28px; letter-spacing:.2px }
+  .subtitle{ margin-top:6px; color:var(--muted); font-size:14px }
 
-    /* fejléc */
-    .hero{
-      position:sticky; top:0; z-index:3;
-      display:flex; align-items:center; justify-content:space-between;
-      padding:16px 18px;
-      border-radius:20px;
-      background: var(--glass);
-      -webkit-backdrop-filter: blur(var(--bg-blur));
-      backdrop-filter: blur(var(--bg-blur));
-      border:1px solid var(--border);
-      box-shadow: 0 10px 30px rgba(0,0,0,.25);
-    }
-    .brand h1{
-      margin:0; font-size: clamp(22px, 4.5vw, 34px);
-      letter-spacing:.4px;
-    }
-    .brand small{
-      display:block; opacity:.85; margin-top:4px; font-weight:500;
-    }
-    .theme-toggle{
-      appearance:none; border:1px solid var(--border); color:var(--text);
-      background: var(--glass);
-      padding:10px 14px; border-radius:14px; cursor:pointer;
-      -webkit-backdrop-filter: blur(var(--bg-blur));
-      backdrop-filter: blur(var(--bg-blur));
-    }
+  .theme-toggle{
+    padding:14px 16px; cursor:pointer; user-select:none;
+  }
 
-    /* chat konténer */
-    .chat{
-      flex:1;
-      display:flex; flex-direction:column;
-      gap:16px;
-      max-width: 900px;
-      margin-inline:auto;
-      width:100%;
-    }
+  /* Chat kártya */
+  .chat{
+    position:fixed; inset:120px 16px 92px 16px;   /* headertől le, input fölé */
+    overflow:auto; padding:12px;
+    scroll-behavior:smooth;
+  }
+  .bubble{
+    max-width:min(780px, 92%);
+    padding:18px 20px;
+    margin:12px 8px;
+    border-radius:18px;
+    background: var(--bubble);
+    color: var(--text);
+    border:1px solid var(--glass-border);
+    box-shadow: 0 8px 20px rgba(0,0,0,.25);
+    text-shadow: 0 1px 1px rgba(0,0,0,.35);
+  }
+  .bubble.user{
+    margin-left:auto;
+    background: linear-gradient(180deg, #ffc05b, #ff9d2e);
+    color:#211000; text-shadow:none;
+    border: none; box-shadow: 0 10px 25px rgba(255,157,46,.35);
+  }
 
-    /* buborékok */
-    .msg{
-      max-width: min(780px, 96%);
-      padding:18px 20px;
-      border-radius:20px;
-      line-height:1.45;
-      word-wrap: break-word;
-      box-shadow: 0 8px 22px rgba(0,0,0,.25);
-      border:1px solid var(--border);
-      -webkit-backdrop-filter: blur(var(--bg-blur));
-      backdrop-filter: blur(var(--bg-blur));
-    }
-    .bot{
-      align-self:flex-start;
-      background: radial-gradient(1200px 400px at 10% -60%, rgba(255,255,255,.06), transparent 40%),
-                  rgba(8,12,18,.62);
-    }
-    .user{
-      align-self:flex-end;
-      color:#1b1206;
-      background: linear-gradient(135deg, var(--user-grad-1), var(--user-grad-2));
-      border:1px solid rgba(255,255,255,.35);
-    }
+  .actions{
+    display:flex; gap:12px; margin:8px 8px 4px;
+  }
+  .chip{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:8px 12px; border-radius:14px; font-size:14px;
+    background:rgba(0,0,0,.35); border:1px solid var(--glass-border);
+    cursor:pointer; user-select:none;
+  }
+  [data-theme="light"] .chip{ background:rgba(0,0,0,.06) }
 
-    /* buborék alatti akciók */
-    .actions{
-      display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;
-    }
-    .chip{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:8px 12px; border-radius:12px;
-      border:1px solid var(--border);
-      background: var(--glass);
-      -webkit-backdrop-filter: blur(var(--bg-blur));
-      backdrop-filter: blur(var(--bg-blur));
-      cursor:pointer; user-select:none;
-    }
-    .chip:hover{filter:brightness(1.05)}
+  .chip .ico{ font-size:16px }
 
-    /* írósáv */
-    .composer{
-      position: sticky; bottom: 72px; /* hogy a footer felett maradjon */
-      z-index:2;
-      display:flex; gap:10px; align-items:center; justify-content:center;
-      margin-top:10px;
-    }
-    .input{
-      flex:1; min-height:54px; padding:14px 16px; font-size:16px;
-      border-radius:16px; border:1px solid var(--border);
-      background: var(--glass);
-      -webkit-backdrop-filter: blur(var(--bg-blur));
-      backdrop-filter: blur(var(--bg-blur));
-      color:var(--text);
-      outline:none;
-    }
-    .send{
-      padding:0 22px; height:54px; border-radius:16px; cursor:pointer;
-      border:1px solid var(--border);
-      background: linear-gradient(135deg, var(--user-grad-1), var(--user-grad-2));
-      color:#1b1206; font-weight:700; letter-spacing:.3px;
-      box-shadow: 0 8px 22px rgba(0,0,0,.25);
-    }
+  /* Input-sáv */
+  .composer{
+    position:fixed; left:0; right:0; bottom:0;
+    padding:10px 16px 16px;
+  }
+  form{
+    display:flex; gap:12px; align-items:center;
+    padding:10px; border-radius:20px;
+  }
+  .field{
+    flex:1; border:none; outline:none; padding:14px 16px;
+    border-radius:14px; color:var(--text);
+    background: var(--glass);
+    border:1px solid var(--glass-border);
+  }
+  .field::placeholder{ color:color-mix(in oklab, var(--muted) 85%, transparent) }
+  .send{
+    padding:14px 18px; border:none; border-radius:14px;
+    background:linear-gradient(180deg, #ffc05b, #ff9d2e); color:#1a0e00;
+    font-weight:600; cursor:pointer;
+    box-shadow: 0 10px 25px var(--ring);
+  }
 
-    /* footer – FIXEN LEGALUL */
-    footer{
-      position: fixed; left:0; right:0; bottom:0; z-index:1;
-      display:flex; align-items:center; justify-content:center;
-      padding:12px 16px;
-      color: #eaeef4;
-      text-shadow: 0 1px 2px rgba(0,0,0,.7);
-      font-size: 13px;
-      background: linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,.0));
-      pointer-events: none; /* hogy ne takarja a gombot */
-    }
+  /* Alsó jog */
+  footer{
+    position:fixed; left:0; right:0; bottom:0;
+    transform: translateY(58px);   /* az input alatt, de kilógásmentesen */
+    text-align:center; color:var(--muted); font-size:13px; padding-bottom:10px;
+    text-shadow: 0 1px 1px rgba(0,0,0,.35);
+  }
 
-    /* ajánlott kérdések */
-    .quick-qs{
-      display:flex; flex-wrap:wrap; gap:10px;
-      max-width:900px; width:100%; margin: 4px auto 10px auto;
-      justify-content:center;
-    }
-    .qq{
-      border-radius:20px; padding:10px 14px; cursor:pointer;
-      background: var(--glass);
-      -webkit-backdrop-filter: blur(var(--bg-blur));
-      backdrop-filter: blur(var(--bg-blur));
-      border:1px solid var(--border);
-    }
-
-    /* világos mód */
-    .light body, .light .hero, .light .msg.bot, .light .chip, .light .qq, .light .input{
-      color: var(--text-dark);
-      border-color: var(--border-dark);
-    }
-    .light .hero, .light .chip, .light .qq, .light .input{
-      background: var(--glass-light);
-    }
-    .light .msg.bot{
-      background: rgba(255,255,255,.75);
-    }
-
-    @media (max-width: 480px){
-      .composer{bottom: 70px}
-      .send{padding:0 18px}
-    }
-  </style>
+  /* kisebb képernyő finomhang */
+  @media (min-width: 900px){
+    .chat{ inset:120px 24px 96px 24px }
+    .bubble{ max-width: 820px }
+  }
+</style>
 </head>
-
 <body>
-  <div class="page" id="page">
-    <header class="hero">
-      <div class="brand">
-        <h1>Tamás Mesterséges (AI)</h1>
-        <small>Haladó fejlesztés — barátságos magyar asszisztens</small>
-      </div>
-      <button class="theme-toggle" id="themeBtn">Light / Dark<br><small>(auto)</small></button>
-    </header>
 
-    <main class="chat" id="chat">
-      <!-- nyitó üzenet -->
-      <div class="msg bot">
-        Szia! Itt vagyok neked, segítek mindenben. Írj bátran! 😊
-        <div class="actions">
-          <button class="chip speak">🔊 Felolvasás</button>
-          <button class="chip copy">📋 Másolás</button>
-        </div>
-      </div>
-    </main>
+  <div class="bg"></div>
+  <div class="scrim"></div>
 
-    <!-- ajánlott kérdések (csak 4 marad) -->
-    <div class="quick-qs" id="qqWrap">
-      <button class="qq">Mesélj Horváth Tamásról röviden!</button>
-      <button class="qq">Milyen modell vagy?</button>
-      <button class="qq">Mi a mai dátum?</button>
-      <button class="qq">Mit tudsz csinálni?</button>
+  <header class="glass">
+    <div class="brand">
+      <h1>Tamás Mesterséges (AI)</h1>
+      <div class="subtitle">Haladó fejlesztés — barátságos magyar asszisztens</div>
     </div>
+    <div id="themeBtn" class="theme-toggle glass">Light / Dark<br><small>(auto)</small></div>
+  </header>
 
-    <!-- írósáv -->
-    <div class="composer">
-      <input id="input" class="input" placeholder="Írj ide…   Enter = küldés" />
-      <button id="send" class="send">Küldés</button>
-    </div>
+  <main id="chat" class="chat" aria-live="polite" aria-label="Beszélgetés terület"></main>
+
+  <div class="composer">
+    <form id="composer" class="glass">
+      <input id="message" class="field" type="text" placeholder="Írj ide…  Enter = küldés" autocomplete="off" />
+      <button id="sendBtn" class="send" type="submit">Küldés</button>
+    </form>
   </div>
 
-  <footer>
-    © Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.
-  </footer>
+  <footer>© Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.</footer>
 
-  <script src="./chat.js"></script>
+<script>
+(() => {
+  const el = {
+    chat: document.getElementById('chat'),
+    form: document.getElementById('composer'),
+    input: document.getElementById('message'),
+    sendBtn: document.getElementById('sendBtn'),
+    themeBtn: document.getElementById('themeBtn')
+  };
+
+  /* ======= Téma (auto / kézi váltás) ======= */
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+  const applyTheme = (mode) => {
+    const root = document.documentElement;
+    if(mode === 'auto'){
+      root.removeAttribute('data-theme'); // rendszer szerint
+      el.themeBtn.innerHTML = 'Light / Dark<br><small>(auto)</small>';
+    }else{
+      root.setAttribute('data-theme', mode);
+      el.themeBtn.innerHTML = (mode==='light'?'Dark / Light':'Light / Dark') + '<br><small>(kézi)</small>';
+    }
+  };
+  let savedTheme = localStorage.getItem('t_theme') || 'auto';
+  applyTheme(savedTheme);
+  prefersDark.addEventListener?.('change', () => savedTheme==='auto' && applyTheme('auto'));
+  el.themeBtn.addEventListener('click', () => {
+    savedTheme = savedTheme==='auto' ? (prefersDark.matches?'dark':'light')
+               : savedTheme==='dark' ? 'light' : 'dark';
+    localStorage.setItem('t_theme', savedTheme);
+    applyTheme(savedTheme);
+  });
+
+  /* ======= Kisegítő: beszéd felolvasás ======= */
+  const speak = (text) => {
+    try{
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'hu-HU'; u.rate = 1.0; u.pitch = 1.0;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    }catch(_){}
+  };
+
+  const copyText = async (text) => {
+    try{ await navigator.clipboard.writeText(text); }catch(_){}
+  };
+
+  /* ======= Üzenet rajzoló ======= */
+  function addMsg(text, who='bot'){
+    const wrap = document.createElement('div');
+    wrap.className = 'bubble' + (who==='user' ? ' user' : '');
+    wrap.textContent = text;
+    el.chat.appendChild(wrap);
+
+    // Bot akciók (felolvasás / másolás) – csak botnál
+    if(who==='bot'){
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      actions.innerHTML = `
+        <div class="chip" data-act="speak"><span class="ico">🔊</span>Felolvasás</div>
+        <div class="chip" data-act="copy"><span class="ico">📋</span>Másolás</div>
+      `;
+      actions.addEventListener('click', (e)=>{
+        const btn = e.target.closest('.chip'); if(!btn) return;
+        if(btn.dataset.act==='speak') speak(text);
+        if(btn.dataset.act==='copy') copyText(text);
+      });
+      el.chat.appendChild(actions);
+    }
+
+    // autoscroll
+    el.chat.scrollTop = el.chat.scrollHeight;
+    return wrap;
+  }
+
+  // Kezdő köszöntés
+  addMsg('Szia! Itt vagyok neked, segítek mindenben. Írj bátran! 😊','bot');
+
+  /* ======= Fix gyors válaszok (helyi logika) ======= */
+  function fixedAnswer(q){
+    const t = q.trim().toLowerCase();
+    if(!t) return null;
+
+    // „ki készített” kérdés – maradjon
+    if(t.includes('ki készítette') || t.includes('ki készitett') || t.includes('ki készített téged')){
+      return 'Az oldalt Horváth Tamás (Szabolcsbáka) készítette hobbi fejlesztésként; folyamatosan tanul és kísérletezik webes projektekkel.';
+    }
+    // Példa: dátum/idő
+    if(t.includes('hány óra') || t.includes('mennyi az idő')){
+      const now = new Date();
+      const hh = now.getHours().toString().padStart(2,'0');
+      const mm = now.getMinutes().toString().padStart(2,'0');
+      return `Most ${hh}:${mm} van.`;
+    }
+    if(t.includes('mi a mai dátum') || t.includes('milyen dátum van ma')){
+      const d = new Date();
+      return d.toLocaleDateString('hu-HU', {year:'numeric', month:'2-digit', day:'2-digit', weekday:'long'});
+    }
+    return null;
+  }
+
+  /* ======= Küldés kezelése ======= */
+  async function send(text){
+    const userText = text ?? el.input.value;
+    const cleaned = userText.trim();
+    if(!cleaned) return;
+
+    addMsg(cleaned,'user');
+    el.input.value = '';
+
+    // helyi fix válasz?
+    const fx = fixedAnswer(cleaned);
+    if(fx){ addMsg(fx,'bot'); return; }
+
+    // Hívás a Netlify funkcióra
+    addMsg('…','bot'); // info placeholder helyett pici „gondolkodik”
+    const thinking = el.chat.lastChild.previousSibling; // a buborék
+
+    try{
+      const r = await fetch('/.netlify/functions/chat', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ message: cleaned })
+      });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const data = await r.json();
+
+      // csere a kapott szövegre
+      thinking.textContent = (data.reply || '').trim() || 'Bocsi, most nem jött válasz.';
+    }catch(err){
+      // biztonságos, csöndes hiba – barátságos fallback
+      thinking.textContent = 'Bocsi, most épp nem érem el a szervert. Írj másként: mit szeretnél pontosan? 😊';
+    }
+    // autoscroll
+    el.chat.scrollTop = el.chat.scrollHeight;
+  }
+
+  // form submit + gomb click (mobilon is)
+  el.form.addEventListener('submit', (e)=>{ e.preventDefault(); send(); });
+  el.sendBtn.addEventListener('click', (e)=>{ e.preventDefault(); el.form.requestSubmit(); });
+
+  // Enter = küldés, Shift+Enter = új sor (mobil billentyűn is)
+  el.input.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); el.form.requestSubmit(); }
+  });
+})();
+</script>
 </body>
 </html>
