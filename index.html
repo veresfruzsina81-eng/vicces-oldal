@@ -1,189 +1,101 @@
-<!DOCTYPE html>
-<html lang="hu">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>HT Chat — Kellemes beszélgetést!</title>
-  <style>
-    :root{
-      --bg:#0e0f12; --surface:#16181d; --panel:#1d2026; --ink:#e9edf1; --muted:#a8b0bb;
-      --brand:#ffb02e; --brand-2:#ff7a18; --ok:#2ecc71; --err:#ff5d5d;
-      --radius:16px; --shadow:0 10px 30px rgba(0,0,0,.35);
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; background: radial-gradient(1200px 600px at 10% -10%, #1c2030 0%, #0e0f12 60%) no-repeat;
-      color:var(--ink); font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-      display:grid; place-items:center; padding:18px;
-    }
-    .app{width:min(980px,100%);}
-    header{
-      text-align:center; margin-bottom:14px;
-    }
-    h1{
-      margin:.2rem 0 0; font-size:clamp(22px,4.2vw,36px); font-weight:800;
-      letter-spacing:.3px;
-      background:linear-gradient(90deg,var(--brand),var(--brand-2));
-      -webkit-background-clip:text; background-clip:text; color:transparent;
-    }
-    .sub{
-      margin-top:6px; color:var(--muted); font-size:14px;
-    }
-    .card{
-      background:linear-gradient(180deg, #151821 0%, #12141a 100%);
-      border:1px solid #232733; border-radius:var(--radius); box-shadow:var(--shadow);
-      display:flex; flex-direction:column; height:72vh; min-height:520px; overflow:hidden;
-    }
-    .scroll{
-      padding:18px 18px 4px; overflow:auto; flex:1; scrollbar-width:thin; scrollbar-color:#3a4152 transparent;
-    }
-    .row{display:flex; margin:10px 0}
-    .me{justify-content:flex-end}
-    .bot{justify-content:flex-start}
-    .bubble{
-      max-width:min(80%,720px); padding:12px 14px; border-radius:14px;
-      border:1px solid #2a2f3b; background:var(--panel); color:var(--ink);
-      box-shadow:0 6px 16px rgba(0,0,0,.25);
-      white-space:pre-wrap; word-wrap:break-word;
-    }
-    .me .bubble{
-      background:linear-gradient(180deg, #252b38 0%, #1f2430 100%);
-      border-color:#3a4252;
-    }
-    .bot .bubble{
-      background:linear-gradient(180deg, #1b202a 0%, #171b23 100%);
-      border-color:#303545;
-    }
-    .inputBar{
-      display:flex; gap:10px; padding:12px; border-top:1px solid #242938; background:#12141a;
-    }
-    textarea{
-      flex:1; resize:none; max-height:160px; min-height:44px; height:44px;
-      padding:12px 14px; border-radius:12px; border:1px solid #31384a; outline:none;
-      color:var(--ink); background:#0f1218; transition:border .2s, box-shadow .2s;
-    }
-    textarea:focus{border-color:#44506a; box-shadow:0 0 0 2px rgba(68,80,106,.25)}
-    button{
-      padding:0 16px; min-width:110px; border-radius:12px; border:1px solid #3a3f52;
-      background:linear-gradient(90deg,var(--brand) 0%, var(--brand-2) 100%);
-      color:#1b1300; font-weight:700; letter-spacing:.2px; cursor:pointer;
-      transition:transform .06s ease-in-out, filter .2s;
-    }
-    button:active{transform:translateY(1px)}
-    .status{
-      position:absolute; top:10px; right:12px; font-size:12px; color:var(--muted);
-    }
-    .hint{color:var(--muted); font-size:12px; padding:0 14px 10px}
-    .error{color:var(--err)}
-    .ok{color:var(--ok)}
-    .brandDot{
-      display:inline-block; width:8px; height:8px; border-radius:50%;
-      background:conic-gradient(from 0deg,var(--brand),var(--brand-2));
-      box-shadow:0 0 0 3px rgba(255,160,64,.15); margin-right:6px; vertical-align:middle;
-    }
-  </style>
-</head>
-<body>
-  <div class="app">
-    <header>
-      <h1>HT Chat — Kellemes beszélgetést! 🎉</h1>
-      <div class="sub">Az oldalt létre hozta: <strong>H.T</strong> — egyedi fejlesztéssel.</div>
-    </header>
+// Netlify Function – OpenAI hívás + speciális válaszok H.T-ről
+exports.handler = async (event) => {
+  // CORS (ha később más domainről is hívnád)
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers: cors, body: "" };
+  }
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, headers: cors, body: "Method Not Allowed" };
+  }
 
-    <div class="card">
-      <div class="status" id="status"><span class="brandDot"></span>Készen állok</div>
-      <div class="scroll" id="log">
-        <div class="row bot">
-          <div class="bubble">Szia! Írj egy üzenetet, és válaszolok. 🙂</div>
-        </div>
-      </div>
-      <div class="hint">Tipp: Enter = küldés, Shift+Enter = új sor</div>
-      <div class="inputBar">
-        <textarea id="msg" placeholder="Írj ide…"></textarea>
-        <button id="send">Küldés</button>
-      </div>
-    </div>
-  </div>
+  try {
+    const { messages = [] } = JSON.parse(event.body || "{}");
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return { statusCode: 500, headers: cors, body: "Missing OPENAI_API_KEY env var" };
+    }
 
-  <script>
-    // ============== KLIENS LOGIKA ==============
-    const $log = document.getElementById('log');
-    const $msg = document.getElementById('msg');
-    const $send = document.getElementById('send');
-    const $status = document.getElementById('status');
+    // ---- Speciális triggerek (nem hív OpenAI-t, azonnal válaszol)
+    const lastUser = [...messages].reverse().find(m => m.role === "user")?.content?.toLowerCase() || "";
 
-    let busy = false;
-    const history = [
-      // Nyitó üzenet a modellnek kontextusnak (szerver oldali system üzenet is van)
-      { role: "user", content: "Kérlek magyarul, barátságosan válaszolj." }
+    // 1) „Ki hozta létre az oldalt?” jellegű kérdések
+    const creatorTriggers = [
+      "ki hozta létre az oldalt",
+      "ki készítette az oldalt",
+      "ki a tulajdonos",
+      "ki csinálta az oldalt",
+      "tulajdonosa az oldalnak",
+      "kié ez az oldal",
+      "ki hozta létre ezt az oldalt",
     ];
-
-    function addBubble(text, who='bot'){
-      const row = document.createElement('div');
-      row.className = `row ${who}`;
-      const b = document.createElement('div');
-      b.className = 'bubble';
-      b.textContent = text;
-      row.appendChild(b);
-      $log.appendChild(row);
-      $log.scrollTop = $log.scrollHeight;
+    if (creatorTriggers.some(t => lastUser.includes(t))) {
+      const reply = "Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!";
+      return { statusCode: 200, headers: { ...cors, "Content-Type":"application/json" }, body: JSON.stringify({ reply }) };
     }
 
-    function setStatus(txt, ok=false, err=false){
-      $status.textContent = txt;
-      $status.className = 'status ' + (ok ? 'ok' : err ? 'error' : '');
+    // 2) „Ki az a Horváth Tamás?” / „Mutasd be H.T-t” jellegű kérdések
+    const htTriggers = [
+      "ki az a horváth tamás",
+      "mutasd be horváth tamást",
+      "mesélj horváth tamásról",
+      "ki az a h.t",
+      "mutasd be h.t",
+      "ki az a ht",
+      "ki az a horvath tamas",
+      "mutasson be horváth tamást",
+      "mutasson be h.t"
+    ];
+    if (htTriggers.some(t => lastUser.includes(t))) {
+      const reply =
+        "Horváth Tamás (Szabolcsbáka) az oldal tulajdonosa és fejlesztője. " +
+        "Hobbi szinten foglalkozik webes projektekkel és mesterséges intelligenciával. " +
+        "Ezt az oldalt is ő készítette, hogy barátságos, magyar nyelvű AI beszélgetést kínáljon.";
+      return { statusCode: 200, headers: { ...cors, "Content-Type":"application/json" }, body: JSON.stringify({ reply }) };
     }
 
-    async function send(){
-      if(busy) return;
-      const text = $msg.value.trim();
-      if(!text) return;
-      addBubble(text, 'me');
-      $msg.value = '';
-      busy = true;
-      setStatus('Gondolkodom…');
+    // ---- Általános OpenAI hívás
+    const systemMsg = {
+      role: "system",
+      content:
+        "Magyarul válaszolj, barátságosan, tömören, lényegre törően. " +
+        "Ha rákérdeznek az oldal készítőjére, a válasz: 'Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!' " +
+        "Ha a felhasználó bemutatást kér Horváth Tamásról, adj rövid, udvarias bemutatást (az előző mondatban szereplő információkra támaszkodva, új adatot ne találj ki)."
+    };
 
-      try{
-        // elküldjük a beszélgetést a Netlify functionnek
-        const payload = [...history, { role:"user", content:text }];
-        const r = await fetch('/.netlify/functions/chat', {
-          method: 'POST',
-          headers: { 'Content-Type':'application/json' },
-          body: JSON.stringify({ messages: payload })
-        });
-
-        if(!r.ok){
-          const t = await r.text().catch(()=> '');
-          throw new Error('Szerver hiba ('+r.status+'): '+t);
-        }
-        const data = await r.json();
-        const reply = (data && data.reply) ? data.reply : 'Hopp, nem jött válasz.';
-
-        history.push({ role:"user", content:text });
-        history.push({ role:"assistant", content:reply });
-
-        addBubble(reply, 'bot');
-        setStatus('Készen állok', true);
-      }catch(err){
-        console.error(err);
-        addBubble('⚠️ Valami hiba történt. Próbáld újra kicsit később!', 'bot');
-        setStatus('Hiba: ' + err.message, false, true);
-      }finally{
-        busy = false;
-      }
-    }
-
-    $send.addEventListener('click', send);
-    $msg.addEventListener('keydown', (e)=>{
-      if(e.key === 'Enter' && !e.shiftKey){
-        e.preventDefault();
-        send();
-      }
+    const out = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type":"application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0.7,
+        messages: [systemMsg, ...messages],
+      }),
     });
 
-    // első fókusz
-    setTimeout(()=> $msg.focus(), 100);
-  </script>
-</body>
-</html>
+    if (!out.ok) {
+      const t = await out.text();
+      return { statusCode: out.status, headers: cors, body: t };
+    }
+
+    const j = await out.json();
+    const reply = j.choices?.[0]?.message?.content?.trim() || "Rendben.";
+    return {
+      statusCode: 200,
+      headers: { ...cors, "Content-Type":"application/json" },
+      body: JSON.stringify({ reply }),
+    };
+
+  } catch (e) {
+    return {
+      statusCode: 500, headers: cors,
+      body: JSON.stringify({ error: e?.message || "Szerver hiba" })
+    };
+  }
+};
