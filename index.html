@@ -3,21 +3,21 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mini Chat – beszélgető társ</title>
+<title>Mini Chat – okosított verzió</title>
 <style>
   :root{--bg:#0f1216;--card:#151a21;--ink:#e8ecf1;--muted:#a7b0bc;--accent:#7c5cff;}
   *{box-sizing:border-box} body{margin:0;background:linear-gradient(135deg,#0d1117,#111926);}
   .center{min-height:100svh;display:grid;place-items:center;padding:16px}
-  .card{width:min(900px,100%);background:var(--card);border:1px solid #232b36;border-radius:20px;
+  .card{width:min(980px,100%);background:var(--card);border:1px solid #232b36;border-radius:20px;
         box-shadow:0 10px 30px rgba(0,0,0,.35);color:var(--ink);overflow:hidden}
   .hero{padding:28px 24px;border-bottom:1px solid #232b36;display:flex;gap:16px;align-items:center}
   .badge{padding:4px 10px;border:1px solid #303a47;border-radius:999px;font-size:12px;color:var(--muted)}
   .h1{font-size:22px;margin:4px 0 2px} .muted{color:var(--muted);font-size:14px}
-  .grid{display:grid;grid-template-columns:1fr 280px;gap:16px;padding:16px}
+  .grid{display:grid;grid-template-columns:1fr 320px;gap:16px;padding:16px}
   .stack{display:flex;flex-direction:column;gap:10px}
-  label{font-size:13px;color:var(--muted)} input,textarea{width:100%;padding:12px 14px;border-radius:12px;
+  label{font-size:13px;color:var(--muted)} input{width:100%;padding:12px 14px;border-radius:12px;
         border:1px solid #2a3442;background:#0f141b;color:var(--ink);outline:none}
-  input:focus,textarea:focus{border-color:#3b4657;box-shadow:0 0 0 3px rgba(124,92,255,.15)}
+  input:focus{border-color:#3b4657;box-shadow:0 0 0 3px rgba(124,92,255,.15)}
   .row{display:flex;gap:10px;align-items:center}
   .btn{appearance:none;border:none;padding:12px 16px;border-radius:12px;background:var(--accent);color:white;
        font-weight:600;cursor:pointer}
@@ -33,42 +33,49 @@
   .typing{font-size:12px;color:#95a0b5;padding-left:6px}
   .small{font-size:12px;color:#9aa6b6}
   .hidden{display:none}
+  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, monospace; background:#202734; border:1px solid #2f3a4a; padding:2px 6px; border-radius:6px; font-size:12px;}
 </style>
 </head>
 <body>
 <div class="center">
+  <!-- ÜDV KÉPERNYŐ -->
   <div class="card" id="screen-welcome">
     <div class="hero">
       <div class="badge">Mini Chat</div>
       <div>
-        <div class="h1">Üdv a beszélgető társnál</div>
-        <div class="muted">Katt a kezdésre és már mehet is a csevej. (Offline is működik.)</div>
+        <div class="h1">Az oldalt létrehozta: <strong>H.T</strong> — Kellemes beszélgetést! 🎉</div>
+        <div class="muted">Add meg a beceneved (opcionális), aztán katt a Kezdésre és már indul is a chat.</div>
       </div>
     </div>
     <div class="grid">
       <div class="stack">
-        <label for="creator">Ki hozta létre? (megjelenik a fejlécben)</label>
-        <input id="creator" placeholder="pl. Horváth Tamás" />
-        <label for="nickname">Hogyan szólítsalak? (opcionális)</label>
+        <label for="nickname">Becenév (opcionális)</label>
         <input id="nickname" placeholder="pl. Zsanett" />
         <div class="row">
-          <button class="btn" id="startBtn">Jó szórakozást • Kezdés</button>
-          <button class="btn secondary" id="skipBtn">Kezdés azonnal</button>
+          <button class="btn" id="startBtn">Kezdés</button>
+          <button class="btn secondary" id="skipBtn">Név nélkül</button>
         </div>
-        <div class="small">Tipp: írd be a nevedet, és a bot megjegyzi a beszélgetés végéig.</div>
+        <div class="small">
+          Tipp: a beszélgetést és a nevet <strong>helyben</strong> elmentjük (localStorage), hogy újranyitáskor is megmaradjon.
+        </div>
       </div>
       <div class="stack">
-        <div class="brand">Mit tud?</div>
-        <div class="small">• Köszön, small talk • Megmondja az időt/dátumot<br>
-          • Kis „memória”: becenév • Számolás: csak biztonságos műveletek<br>
-          • Viccek • Alap válaszok</div>
+        <div class="brand">Mit tud ez a verzió?</div>
+        <div class="small">
+          • Köszön, small talk, idő/dátum • Egyszerű számolás <span class="kbd">calc 3*(4+5)</span><br>
+          • <strong>Unit-konverziók</strong> (cm↔m, kg↔g, °C↔°F) • <strong>To-Do</strong> lista (<span class="kbd">/todo add</span>, <span class="kbd">/todo list</span>, <span class="kbd">/todo done 1</span>)<br>
+          • <strong>Kis tudásbázis</strong> + „okos” keresés • Érme/dobókocka • Idézet, motiváció<br>
+          • Alap <strong>hangulatfelismerés</strong> → empatikus válasz<br>
+          • (Előkészítve: saját LLM-proxy későbbre)
+        </div>
       </div>
     </div>
   </div>
 
+  <!-- CHAT -->
   <div class="card hidden" id="screen-chat">
     <div class="hero">
-      <div class="badge" id="brand-badge">Létrehozta: —</div>
+      <div class="badge" id="brand-badge">Az oldalt létrehozta: H.T — Kellemes beszélgetést!</div>
       <div>
         <div class="h1">Mini Chat</div>
         <div class="muted">Írj üzenetet, és válaszolok. 😊 <span class="typing" id="typing"></span></div>
@@ -76,46 +83,78 @@
     </div>
     <div class="chat" id="chat"></div>
     <div class="footer">
-      <input id="input" placeholder="Írj ide... (Enter = küldés)" />
+      <input id="input" placeholder="Írj ide... (Enter = küldés) — /help a parancsokhoz" />
       <button class="btn" id="sendBtn">Küldés</button>
     </div>
   </div>
 </div>
 
 <script>
-/* ====== kis „agyi” logika (rule-based) ====== */
-const state = {
-  name: null,
-  creator: null
-};
+/* =================== ÁLLAPOT + MEMÓRIA =================== */
+const LS_KEY = "mini_chat_state_v3";
+const state = { name: null, history: [], todos: [] };
+function saveState(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function loadState(){
+  try{
+    const obj = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+    state.name = obj?.name || null;
+    state.history = Array.isArray(obj?.history) ? obj.history.slice(-300) : [];
+    state.todos = Array.isArray(obj?.todos) ? obj.todos.slice(0,200) : [];
+  }catch(_){}
+}
+loadState();
 
-const rnd = (...a)=>a[Math.floor(Math.random()*a.length)];
-
-function nowText(){
-  const d = new Date();
-  const pad = n => String(n).padStart(2,'0');
-  return `Most ${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}. ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} van.`;
+/* =================== KIS TUDÁSBÁZIS + HASONLÓSÁG =================== */
+const KB = [
+  {q:"mi az a gpt", a:"Egy nagy nyelvi modell (LLM), ami szöveget értelmez és generál."},
+  {q:"hogyan számoljak törtet", a:"Összeadás: a/b + c/d = (ad+bc)/bd. Szorzás: (a/b)*(c/d) = ac/bd. Osztás: (a/b)/(c/d) = ad/bc."},
+  {q:"mi a pubg", a:"A PUBG egy battle royale játék: sok játékos egy szigeten, utolsóként talpon maradni a cél."},
+  {q:"mi a gta v", a:"A GTA V a Rockstar Games nyílt világú akciójátéka, hatalmas eladásokkal és népszerű GTA Online móddal."},
+  {q:"mi az a rag", a:"Retrieval-Augmented Generation: külső tudás visszakeresése + generatív válasz."},
+  {q:"mi az ai", a:"Mesterséges intelligencia: olyan rendszerek, amelyek tipikusan emberi értelmet igénylő feladatokat oldanak meg."},
+];
+function tokenize(s){
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+          .replace(/[^a-z0-9áéíóöőúüű\s]/gi," ")
+          .split(/\s+/).filter(Boolean);
+}
+function jaccard(a,b){
+  const A = new Set(a), B = new Set(b);
+  let inter = 0; for(const x of A) if(B.has(x)) inter++;
+  return inter / (A.size + B.size - inter + 1e-9);
+}
+function kbSearch(query){
+  const qTok = tokenize(query);
+  if(!qTok.length) return null;
+  let best = null, bestScore = 0;
+  for(const item of KB){
+    const score = jaccard(qTok, tokenize(item.q));
+    if(score > bestScore){ bestScore = score; best = item; }
+  }
+  return (bestScore >= 0.22) ? best : null;
 }
 
+/* =================== MINI ESZKÖZÖK / PARANCSOK =================== */
+const rnd = (...a)=>a[Math.floor(Math.random()*a.length)];
+function nowText(){
+  const d = new Date(), pad = n=>String(n).padStart(2,'0');
+  return `Most ${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}. ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} van.`;
+}
 function setNameFromText(t){
   let m = t.match(/(?:hívj\s+([^,!.?:;]+?)\s*-?nek|a\s+nevem\s+([^,!.?:;]+))/i)
         || t.match(/(?:call\s+me\s+([^,!.?:;]+)|my\s+name\s+is\s+([^,!.?:;]+))/i);
   if(m){
     const name = (m[1]||m[2]||"").trim();
-    if(name){ state.name = name; return name; }
+    if(name){ state.name = name; saveState(); return name; }
   }
   return null;
 }
-
 function safeCalc(t){
-  // csak számok, +-*/(). és szóköz – semmi változó, semmi betű
   const m = t.match(/(?:^|\b)(?:calc|számold\s+ki|=)?\s*([0-9+\-*/().\s]+)$/i);
   if(!m) return null;
   const expr = m[1].trim();
   if(!/^[0-9+\-*/().\s]+$/.test(expr)) return "Csak számok és + - * / ( ) engedélyezett.";
   try{
-    // nagyon alap kiértékelés – csak akkor fut, ha a fenti regex átment
-    // eslint-disable-next-line no-new-func
     const val = Function(`"use strict"; return (${expr})`)();
     if(typeof val !== "number" || !isFinite(val)) throw 0;
     return `${expr} = ${val}`;
@@ -123,50 +162,156 @@ function safeCalc(t){
     return "Nem tudtam kiszámolni. Próbáld: calc (2+3*4)/5";
   }
 }
-
-function respond(text){
-  const t = text.trim();
-
-  // név beállítás
-  if(setNameFromText(t)){
-    return rnd(`Oké, ${state.name}! Megjegyeztem.`, `Rendben, így szólítalak: ${state.name}.`);
+/* Unit konverziók: cm<->m, kg<->g, C<->F */
+function convertUnits(t){
+  let m;
+  m = t.match(/\b(\d+(?:[.,]\d+)?)\s*cm\b\s*(?:in|->)\s*m\b/i);
+  if(m){ const v=parseFloat(m[1].replace(",","."));
+         return `${v} cm = ${v/100} m`; }
+  m = t.match(/\b(\d+(?:[.,]\d+)?)\s*m\b\s*(?:in|->)\s*cm\b/i);
+  if(m){ const v=parseFloat(m[1].replace(",","."));
+         return `${v} m = ${v*100} cm`; }
+  m = t.match(/\b(\d+(?:[.,]\d+)?)\s*kg\b\s*(?:in|->)\s*g\b/i);
+  if(m){ const v=parseFloat(m[1].replace(",","."));
+         return `${v} kg = ${v*1000} g`; }
+  m = t.match(/\b(\d+(?:[.,]\d+)?)\s*g\b\s*(?:in|->)\s*kg\b/i);
+  if(m){ const v=parseFloat(m[1].replace(",","."));
+         return `${v} g = ${v/1000} kg`; }
+  m = t.match(/\b(\-?\d+(?:[.,]\d+)?)\s*([cC])\b\s*(?:in|->)\s*[fF]\b/);
+  if(m){ const v=parseFloat(m[1].replace(",","."));
+         return `${v} °C = ${v*9/5+32} °F`; }
+  m = t.match(/\b(\-?\d+(?:[.,]\d+)?)\s*[fF]\b\s*(?:in|->)\s*[cC]\b/);
+  if(m){ const v=parseFloat(m[1].replace(",","."));
+         return `${v} °F = ${(v-32)*5/9} °C`; }
+  return null;
+}
+/* To-Do: /todo add szöveg | /todo list | /todo done 2 */
+function todoCommand(t){
+  if(/^\/todo\s+add\s+/.test(t)){
+    const txt = t.replace(/^\/todo\s+add\s+/,"").trim();
+    if(!txt) return "Írj valamit: /todo add bevásárlás";
+    state.todos.push({text:txt, done:false}); saveState();
+    return `Hozzáadva: “${txt}”`;
   }
-
-  // köszönés
-  if(/^(szia|hell[oó]|hali|cs[őo])/i.test(t)){
-    return state.name ? rnd(`Szia, ${state.name}!`, `Na szeva, ${state.name}!`) : rnd("Szia!", "Helló!", "Cső!");
+  if(/^\/todo\s+list\b/.test(t)){
+    if(!state.todos.length) return "Üres a lista. Adj hozzá így: /todo add valami";
+    const lines = state.todos.map((it,i)=>`${i+1}. [${it.done?"x":" "}] ${it.text}`);
+    return "Teendők:\n"+lines.join("\n");
   }
-
-  // hogy vagy?
-  if(/hogy\s+vagy|how\s+are\s+you/i.test(t)){
-    return state.name ? rnd(`Jól vagyok, ${state.name}! Te?`, `Szuperül, ${state.name}. Miben segítsek?`)
-                      : rnd("Megvagyok, köszi! Te?", "Királyul! Mizu?");
+  if(/^\/todo\s+done\s+\d+/.test(t)){
+    const n = parseInt(t.match(/done\s+(\d+)/)[1],10);
+    if(!state.todos[n-1]) return "Nincs ilyen sorszám.";
+    state.todos[n-1].done = true; saveState();
+    return `Késznek jelölve: ${n}.`;
   }
-
-  // idő/dátum
-  if(/mennyi\s+az\s+id[őo]|h[áa]ny\s+óra|d[áa]tum|^idő$|^time$/i.test(t)){
-    return nowText();
+  return null;
+}
+/* Hangulat (nagyon alap kulcsszavas) */
+function sentimentReply(t){
+  const s = t.toLowerCase();
+  if(/(szomor|rossz kedv|depi|sz*r nap)/.test(s)){
+    return rnd("Sajnálom, hogy így érzed. Itt vagyok veled. ❤️",
+               "Küldök egy virtuális ölelést. Ha kiírod, könnyebb lesz. 🤗");
   }
-
-  // vicc
-  if(/\b(vicc|po[eé]n|joke)\b/i.test(t)){
+  if(/(boldog|örül|jó kedv|király)/.test(s)){
+    return rnd("De jó ezt hallani! 🎉", "Szuper! 😄 Mesélj még!");
+  }
+  return null;
+}
+/* Egyebek */
+function coin(t){ if(/\b(érme|coin|fej|írás)/i.test(t)) return rnd("Fej!","Írás!"); return null; }
+function dice(t){ if(/\b(kocka|dice|dobj)/i.test(t)) return "Dobás: "+(1+Math.floor(Math.random()*6)); return null; }
+function quote(t){
+  if(/\b(idezet|idézet|quote|motiv)/i.test(t)){
     return rnd(
-      "Mi az: zöld és nem megy? A megállott uborka.",
-      "Miért ment át a csirke az úton? Hogy a túloldalon kérdezzen még egyet.",
-      "404: vicc nem található. Próbáld újra!"
+      "„A kitartás hosszú futás; sok rövid futás egymás után.” – W. Eliot",
+      "„A holnapot ma építed.”",
+      "„A kudarc csak visszajelzés, nem végállomás.”"
     );
   }
+  return null;
+}
 
-  // számolás
-  const calc = safeCalc(t);
-  if(calc){ return calc; }
+/* =================== Opcionális LLM csatlakozó (proxyval) =================== */
+const LLM_CONFIG = { enabled:false, endpoint:"", apiKey:"", model:"" };
+async function callLLM(messages){ if(!LLM_CONFIG.enabled) return null; try{
+  const res = await fetch(LLM_CONFIG.endpoint, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json",
+      ...(LLM_CONFIG.apiKey?{"Authorization":"Bearer "+LLM_CONFIG.apiKey}:{}) },
+    body: JSON.stringify({ model: LLM_CONFIG.model, messages, temperature:0.7 })
+  });
+  if(!res.ok) throw 0;
+  const data = await res.json();
+  return data.reply || data.choices?.[0]?.message?.content || null;
+}catch(_){ return null; }}
 
-  // elköszönés
-  if(/\b(viszl[áa]t|cs[aá]o|bye|exit|quit)\b/i.test(t)){
-    return rnd("Viszlát!", "Csáó!", "Jó pihenést!");
+/* =================== VÁLASZGENERÁLÁS (pipeline) =================== */
+function ruleBasedRespond(t){
+  // név
+  if(setNameFromText(t)){
+    return rnd(`Oké, ${state.name}! Megjegyeztem.`,`Rendben, így szólítalak: ${state.name}.`);
   }
+  // köszönés
+  if(/^(szia|hell[oó]|hali|cs[őo])/i.test(t)){
+    return state.name ? rnd(`Szia, ${state.name}!`,`Na szeva, ${state.name}!`) : rnd("Szia!","Helló!","Cső!");
+  }
+  // hogy vagy
+  if(/hogy\s+vagy|how\s+are\s+you/i.test(t)){
+    return state.name ? rnd(`Jól vagyok, ${state.name}! Te?`,`Szuperül, ${state.name}. Miben segítsek?`)
+                      : rnd("Megvagyok, köszi! Te?","Királyul! Mizu?");
+  }
+  // idő/dátum
+  if(/mennyi\s+az\s+id[őo]|h[áa]ny\s+óra|d[áa]tum|^idő$|^time$/i.test(t)) return nowText();
+  // parancsok
+  if(/^\/help\b/i.test(t)){
+    return [
+      "Parancsok:",
+      "• /help — ez a lista",
+      "• /clear — előzmények törlése",
+      "• /todo add SZÖVEG | /todo list | /todo done N",
+      "• Számolás: calc 3*(4+5)  — csak + - * / ( )",
+      "• Konverziók: 180 cm -> m, 2.5 m -> cm, 5 kg -> g, 500 g -> kg, 20 C -> F, 68 F -> C",
+      "• Érme: fej vagy írás | Kocka: dobj/kocka/dice",
+      "• Idézet/motiváció: „idézet”, „motiváció”",
+      "• Becs. beállítás: „Hívj XY-nek” / „A nevem XY”"
+    ].join("\n");
+  }
+  if(/^\/clear\b/i.test(t)){ state.history=[]; saveState(); return "Töröltem a helyi előzményeket."; }
+  // to-do
+  const td = todoCommand(t); if(td) return td;
+  // kalkulátor
+  const c = safeCalc(t); if(c) return c;
+  // konverzió
+  const conv = convertUnits(t); if(conv) return conv;
+  // érme/kocka/idézet
+  const coinAns = coin(t); if(coinAns) return coinAns;
+  const diceAns = dice(t); if(diceAns) return diceAns;
+  const quoteAns = quote(t); if(quoteAns) return quoteAns;
+  // hangulat
+  const mood = sentimentReply(t); if(mood) return mood;
+  return null;
+}
 
-  // alap fallback
+async function smartRespond(text){
+  // 1) szabályok/parancsok
+  const rule = ruleBasedRespond(text);
+  if(rule) return rule;
+
+  // 2) kis tudásbázis (RAG-light)
+  const kb = kbSearch(text);
+  if(kb) return kb.a;
+
+  // 3) opcionális LLM (ha később bekötöd proxyval)
+  const messages = [
+    {role:"system", content:"Magyarul, röviden és barátságosan válaszolj. Ha nem tudod, mondd meg őszintén."},
+    ...state.history.slice(-8).map(x => ({role: x.who==="me" ? "user":"assistant", content: x.text})),
+    {role:"user", content:text}
+  ];
+  const llm = await callLLM(messages);
+  if(llm) return llm;
+
+  // 4) fallback
   return rnd(
     "Ezt még tanulom. Mondd másképp, kérlek!",
     "Nem vagyok biztos benne. Tudsz példát írni?",
@@ -174,7 +319,7 @@ function respond(text){
   );
 }
 
-/* ====== UI ====== */
+/* =================== UI =================== */
 const $ = sel => document.querySelector(sel);
 const chatEl = $("#chat"), inputEl = $("#input"), typingEl = $("#typing");
 
@@ -184,45 +329,54 @@ function addBubble(text, who="bot"){
   div.textContent = text;
   chatEl.appendChild(div);
   chatEl.scrollTop = chatEl.scrollHeight;
+  state.history.push({who, text});
+  saveState();
 }
-
 function botReplyLater(text, delay=400){
   typingEl.textContent = "…gondolkodom";
-  setTimeout(()=>{
-    addBubble(text,"bot");
-    typingEl.textContent = "";
-  }, delay);
+  setTimeout(()=>{ addBubble(text,"bot"); typingEl.textContent = ""; }, delay);
 }
-
-function send(){
+async function send(){
   const v = inputEl.value.trim();
   if(!v) return;
   addBubble(v,"me");
   inputEl.value = "";
-  const r = respond(v);
-  botReplyLater(r, 300 + Math.min(1200, v.length*15));
+  const r = await smartRespond(v);
+  botReplyLater(r, 250 + Math.min(1200, v.length*15));
 }
-
 $("#sendBtn").addEventListener("click", send);
-inputEl.addEventListener("keydown", e=>{
-  if(e.key === "Enter"){ send(); }
-});
+inputEl.addEventListener("keydown", e=>{ if(e.key === "Enter"){ send(); }});
 
-/* ====== képernyő váltás ====== */
+/* képernyő váltás + előzmények visszatöltése */
+function restoreHistory(){
+  $("#brand-badge").textContent = "Az oldalt létrehozta: H.T — Kellemes beszélgetést!";
+  chatEl.innerHTML = "";
+  for(const msg of state.history){ addBubble(msg.text, msg.who); }
+}
 $("#startBtn").addEventListener("click", ()=>{
-  state.creator = $("#creator").value.trim() || "Ismeretlen";
-  state.name = ($("#nickname").value.trim() || null);
-  $("#brand-badge").textContent = `Létrehozta: ${state.creator}`;
+  const nick = $("#nickname").value.trim();
+  if(nick){ state.name = nick; saveState(); }
   $("#screen-welcome").classList.add("hidden");
   $("#screen-chat").classList.remove("hidden");
-  addBubble(rnd("Szia! Kezdhetjük. 😊","Helló! Miben segíthetek?","Cső! Írj egy üzenetet."));
-  if(state.name){ addBubble(`Megjegyeztem a neved: ${state.name}.`); }
+  if(state.history.length===0){
+    addBubble(rnd(
+      state.name?`Szia, ${state.name}! Kezdhetjük. 😊`:"Szia! Kezdhetjük. 😊",
+      "Helló! Miben segíthetek?",
+      "Cső! Írj egy üzenetet."
+    ));
+    if(state.name){ addBubble(`Megjegyeztem a neved: ${state.name}.`); }
+  }else{
+    restoreHistory();
+  }
 });
 $("#skipBtn").addEventListener("click", ()=>{
-  $("#brand-badge").textContent = `Létrehozta: —`;
   $("#screen-welcome").classList.add("hidden");
   $("#screen-chat").classList.remove("hidden");
-  addBubble(rnd("Szia! Kezdhetjük. 😊","Helló! Miben segíthetek?","Cső! Írj egy üzenetet."));
+  if(state.history.length===0){
+    addBubble("Szia! Kezdhetjük. 😊");
+  }else{
+    restoreHistory();
+  }
 });
 </script>
 </body>
