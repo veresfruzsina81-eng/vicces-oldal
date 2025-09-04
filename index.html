@@ -48,11 +48,11 @@
       display:flex; flex-direction:column;
     }
 
-    .wrap{max-width:1000px; margin:0 auto; padding:18px; width:100%}
+    .wrap{max-width:1200px; width:95%; margin:0 auto; padding:18px}
     header{
       position:sticky; top:0; z-index:10;
       backdrop-filter: blur(10px);
-      background: var(--panel);  
+      background: var(--panel);
       border-bottom: 1px solid rgba(255,255,255,.1);
     }
     .brand{
@@ -77,30 +77,23 @@
       border-radius:22px; padding:16px;
       box-shadow: var(--glow);
       display:flex; flex-direction:column;
-      height:calc(100vh - 160px); /* header + footer hely */
+      height:65vh; /* KÉRÉS: alacsonyabb chat panel */
     }
 
-    .chat{
-      flex:1;
-      display:flex; flex-direction:column;
-      min-height:0;
-    }
+    .chat{flex:1; display:flex; flex-direction:column; min-height:0}
     .col{flex:1; display:flex; flex-direction:column; min-height:0}
     .chatlog{
-      flex:1;
-      overflow-y:auto;
-      padding:16px;
-      scroll-behavior:smooth;
+      flex:1; overflow-y:auto; padding:16px; scroll-behavior:smooth;
     }
 
     .row{display:flex; margin:12px 0}
     .row.bot{justify-content:flex-start}
     .row.user{justify-content:flex-end}
     .bubble{
-      max-width:min(640px, 92%); padding:14px 16px; border-radius:18px;
+      max-width:min(900px, 96%); /* kicsit szélesebb buborék */
+      padding:14px 16px; border-radius:18px;
       border:1px solid rgba(255,255,255,.08);
-      position:relative;
-      word-wrap:break-word; white-space:pre-wrap;
+      position:relative; word-wrap:break-word; white-space:pre-wrap;
     }
     .bot .bubble{background:var(--bubbleBot)}
     .user .bubble{background:var(--bubbleUser); color:#1f1200}
@@ -124,7 +117,7 @@
       border-radius:16px; box-shadow: var(--glow);
     }
     .input input{
-      flex:1; background:transparent; border:0; outline:none; color:var(--text); font-size:16px;
+      flex:1; background:transparent; border:0; outline:none; color:var(--text); font-size:16px; /* 16px: mobilon ne zoomoljon */
     }
     .send{padding:10px 16px; border-radius:16px; background:linear-gradient(90deg, #ffb84d, #ffa53a);
       color:#331d00; font-weight:800; border:0; cursor:pointer}
@@ -142,11 +135,13 @@
     footer{
       color:#f0f0f0;
       text-shadow:0 1px 2px rgba(0,0,0,.8);
-      font-size:12px;
-      text-align:center;
-      padding:10px 8px;
-      background:rgba(0,0,0,.35);
+      font-size:12px; text-align:center;
+      padding:10px 8px; background:rgba(0,0,0,.35);
     }
+
+    /* Fade out animáció a "Gondolkodom…" buborékhoz */
+    .fade-out { opacity:1; transition: opacity .5s ease; }
+    .fade-out.hide { opacity:0; }
   </style>
 </head>
 
@@ -235,7 +230,7 @@
       const r=document.createElement('div'); 
       r.className='row bot';
       const b=document.createElement('div'); 
-      b.className='bubble glow';
+      b.className='bubble glow fade-out';
       b.innerHTML = '🤔 Gondolkodom… <span class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
       r.appendChild(b); 
       log.appendChild(r); 
@@ -261,14 +256,19 @@
       addRow('user', text);
       txt.value='';
 
-      const typing = addTyping();
+      const typing = addTyping(); // visszaad egy .row elemet
+
       try{
         const r = await fetch('/.netlify/functions/chat', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ message: text })
         });
-        typing.remove();
+
+        // szépen halványítsuk el a "Gondolkodom…" buborékot
+        const bubble = typing.querySelector('.bubble');
+        if (bubble) bubble.classList.add('hide');
+        setTimeout(()=> typing.remove(), 500);
 
         if(!r.ok) throw new Error(`HTTP ${r.status}`);
         const data = await r.json();
@@ -277,7 +277,10 @@
         if(speakOn) speakHu(b.textContent);
 
       }catch(e){
-        typing.remove();
+        const bubble = typing.querySelector('.bubble');
+        if (bubble) bubble.classList.add('hide');
+        setTimeout(()=> typing.remove(), 500);
+
         addRow('bot', `Hiba: ${e.message || e}`);
       }
     }
