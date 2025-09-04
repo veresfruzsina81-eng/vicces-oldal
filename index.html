@@ -1,82 +1,218 @@
-<!DOCTYPE html><html lang="hu"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mini AI Chat</title>
-<style>
-body{margin:0;background:#0f1216;color:#e8ecf1;font-family:system-ui,Segoe UI,Roboto,Arial}
-.wrap{max-width:900px;margin:40px auto;padding:16px}
-.h{font-size:22px;margin:0 0 6px}
-.sub{color:#96a1b3;margin:0 0 18px}
-.chat{height:60vh;min-height:320px;background:#0b1117;border:1px solid #202a36;border-radius:14px;padding:12px;overflow:auto}
-.b{max-width:80%;padding:10px 12px;border-radius:12px;margin:6px 0;white-space:pre-wrap}
-.me{background:#1b2430;border:1px solid #334051;margin-left:auto}
-.bot{background:#141b23;border:1px solid #2b3542}
-.row{display:flex;gap:8px;margin-top:10px}
-input,select{background:#0f141b;border:1px solid #2a3442;color:#e8ecf1;border-radius:10px;padding:10px 12px}
-input{flex:1}
-button{background:#7c5cff;border:0;color:#fff;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
-.note{font-size:12px;color:#96a1b3;margin-top:8px}
-</style></head><body>
-<div class="wrap">
-  <div class="h">Az oldalt létrehozta: <b>H.T</b> — Kellemes beszélgetést! 🎉</div>
-  <p class="sub">Ez a változat már **valóban** az OpenAI API-t hívja Netlify Functionön keresztül.</p>
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mini AI Chat</title>
+  <style>
+    :root {
+      --bg1: #0e0f13;
+      --bg2: #141826;
+      --glass: rgba(255,255,255,.06);
+      --txt: #eaeaf0;
+      --muted: #a9b0c0;
+      --acc: #7aa2ff;
+      --acc2: #9bffdd;
+      --err: #ff6b6b;
+      --radius: 16px;
+      --shadow: 0 10px 35px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box }
+    html, body { height: 100% }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--txt);
+      background:
+        radial-gradient(60% 70% at 20% 30%, #162044 0%, transparent 70%),
+        radial-gradient(60% 70% at 80% 70%, #213f38 0%, transparent 70%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+    .wrap {
+      width: min(900px, 100%);
+      display: grid;
+      gap: 16px;
+    }
+    .title {
+      text-align: center;
+      line-height: 1.2;
+      font-weight: 700;
+      letter-spacing: .2px;
+      text-shadow: 0 2px 12px rgba(0,0,0,.35);
+    }
+    .title span {
+      display: inline-block;
+      background: linear-gradient(90deg, var(--acc), var(--acc2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .card {
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      min-height: 60vh;
+      max-height: 78vh;
+    }
+    .messages {
+      padding: 16px;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+    }
+    .msg {
+      display: grid;
+      gap: 6px;
+      padding: 12px 14px;
+      margin: 8px 0;
+      border-radius: 12px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.06);
+      box-shadow: 0 2px 12px rgba(0,0,0,.15);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .msg.user { background: rgba(122,162,255,.10); border-color: rgba(122,162,255,.25) }
+    .msg.bot  { background: rgba(155,255,221,.08); border-color: rgba(155,255,221,.25) }
+    .msg .who { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px }
+    .input {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 12px;
+      border-top: 1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(0,0,0,.0), rgba(0,0,0,.15));
+    }
+    textarea {
+      resize: none;
+      height: 52px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.1);
+      outline: none;
+      background: rgba(20,24,38,.75);
+      color: var(--txt);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+      font-size: 15px;
+    }
+    button {
+      padding: 0 18px;
+      border: none;
+      height: 52px;
+      border-radius: 12px;
+      font-weight: 600;
+      color: #0d0f14;
+      background: linear-gradient(90deg, var(--acc), var(--acc2));
+      box-shadow: 0 8px 25px rgba(122,162,255,.35);
+      cursor: pointer;
+    }
+    button[disabled] { opacity: .7; cursor: wait; }
+    .hint { text-align: center; color: var(--muted); font-size: 13px }
+    .err { color: var(--err) }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 class="title">Mini AI Chat • <span>Kellemes beszélgetést!</span></h1>
 
-  <div id="chat" class="chat"></div>
+    <div class="card">
+      <div id="messages" class="messages"></div>
 
-  <div class="row">
-    <select id="modelSel">
-      <option value="gpt-5-nano">GPT-5 nano (olcsóbb)</option>
-      <option value="gpt-5-mini" selected>GPT-5 mini (erősebb)</option>
-    </select>
-    <input id="msg" placeholder="Írj ide... (Enter = küldés)">
-    <button id="send">Küldés</button>
+      <form id="form" class="input">
+        <textarea id="text" placeholder="Írj ide… (Enter = küld, Shift+Enter = új sor)"></textarea>
+        <button id="send" type="submit">Küldés</button>
+      </form>
+    </div>
+
+    <p class="hint">Tipp: kérdezd meg pl. „Ki hozta létre az oldalt?”</p>
   </div>
-  <div id="info" class="note"></div>
-</div>
 
-<script>
-const chat = document.getElementById('chat');
-const msg = document.getElementById('msg');
-const sendBtn = document.getElementById('send');
-const info = document.getElementById('info');
-const modelSel = document.getElementById('modelSel');
+  <script>
+    const $msgs = document.getElementById('messages');
+    const $form = document.getElementById('form');
+    const $text = document.getElementById('text');
+    const $send = document.getElementById('send');
 
-function add(text, who='bot'){
-  const d=document.createElement('div'); d.className='b '+(who==='me'?'me':'bot'); d.textContent=text;
-  chat.appendChild(d); chat.scrollTop=chat.scrollHeight;
-}
+    const history = [];
 
-async function callAI(userText){
-  info.textContent = 'Gondolkodom…';
-  try{
-    const res = await fetch('/.netlify/functions/chat', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        model: modelSel.value || 'gpt-5-mini',
-        temperature: 0.7,
-        messages: [
-          { role:'system', content:'Magyarul, barátságosan, röviden válaszolj.' },
-          { role:'user', content: userText }
-        ]
-      })
+    function addMsg(who, text, kind = 'bot') {
+      const el = document.createElement('div');
+      el.className = `msg ${kind}`;
+      el.innerHTML = `<div class="who">${who}</div><div>${text}</div>`;
+      $msgs.appendChild(el);
+      $msgs.scrollTop = $msgs.scrollHeight;
+    }
+
+    function addTyping() {
+      const el = document.createElement('div');
+      el.className = 'msg bot';
+      el.dataset.typing = '1';
+      el.innerHTML = `<div class="who">AI</div><div>gépel…</div>`;
+      $msgs.appendChild(el);
+      $msgs.scrollTop = $msgs.scrollHeight;
+      return el;
+    }
+
+    async function ask(text) {
+      $send.disabled = true;
+      const typing = addTyping();
+
+      try {
+        // felhasználói üzenet a képernyőre
+        addMsg('Te', text, 'user');
+
+        // összerakjuk a messages formát
+        history.push({ role: 'user', content: text });
+
+        const r = await fetch('/.netlify/functions/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: history })
+        });
+
+        if (!r.ok) throw new Error(`Szerver hiba: ${r.status}`);
+
+        const data = await r.json();
+        // eltávolítjuk a „gépel…” sort
+        typing.remove();
+
+        const reply = data.reply || 'Hopp, nem érkezett válasz.';
+        history.push({ role: 'assistant', content: reply });
+        addMsg('AI', reply, 'bot');
+
+      } catch (e) {
+        typing.remove();
+        addMsg('Hiba', e.message, 'msg err');
+      } finally {
+        $send.disabled = false;
+      }
+    }
+
+    $form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const txt = $text.value.trim();
+      if (!txt) return;
+      $text.value = '';
+      ask(txt);
     });
-    if(!res.ok){ info.textContent='Hiba: '+res.status; return 'Hiba a szerverrel.'; }
-    const data = await res.json();
-    info.textContent = '';
-    return data.reply || 'Üres válasz.';
-  }catch(e){ info.textContent='Hálózati hiba'; return 'Hálózati hiba: '+e; }
-}
 
-async function send(){
-  const text = msg.value.trim(); if(!text) return;
-  add(text,'me'); msg.value=''; 
-  const reply = await callAI(text);
-  add(reply,'bot');
-}
+    // Enter = küldés, Shift+Enter = új sor
+    $text.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        $send.click();
+      }
+    });
 
-sendBtn.addEventListener('click', send);
-msg.addEventListener('keydown', e=>{ if(e.key==='Enter') send(); });
-
-add('Szia! Írj egy üzenetet, és válaszolok. 🤖','bot');
-</script>
-</body></html>
+    // köszöntő
+    addMsg('AI', 'Szia! Írj egy üzenetet, és válaszolok. 😊');
+  </script>
+</body>
+</html>
