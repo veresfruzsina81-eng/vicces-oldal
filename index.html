@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>HT Chat — Kellemes beszélgetést!</title>
+  <title>HT – Hangos asszistenS</title>
   <meta name="theme-color" content="#0e1118" />
   <style>
     :root{
       --bg1:#0e1118; --bg2:#141a23; --text:#e9edf4; --muted:#aab3c2;
-      --border:#22324a; --accent:#ff8a1f; --accent2:#ffb256; --err:#ff6b6b;
-      --shadow:0 12px 32px rgba(0,0,0,.35); --r:16px;
+      --border:#22324a; --accent:#ff8a1f; --accent2:#ff5757;
+      --shadow:0 12px 32px rgba(0,0,0,.35);
     }
     *{box-sizing:border-box}
     html,body{height:100%}
@@ -19,273 +19,243 @@
         radial-gradient(1100px 700px at 90% -10%, #1b2540 0%, transparent 60%),
         radial-gradient(900px 600px at -10% 110%, #15362a 0%, transparent 60%),
         linear-gradient(160deg, var(--bg1), var(--bg2));
-      background-attachment:fixed;
+      background-attachment:fixed; -webkit-font-smoothing:antialiased;
+      display:flex; flex-direction:column;
     }
-    .wrap{max-width:1100px;margin:22px auto;padding:0 16px}
-    header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
-    h1{margin:0;font-size:clamp(28px,4.2vw,46px);color:var(--accent);text-shadow:0 2px 0 #0007}
-    .sub{color:var(--muted)}
-
-    /* Chat kártya */
-    .card{
-      background:linear-gradient(180deg,#1a2336,#0f1626);
-      border:1px solid var(--border); border-radius:var(--r); box-shadow:var(--shadow); padding:12px;
+    header{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:12px 16px; background:#0f1626; border-bottom:1px solid var(--border);
     }
-    .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 6px}
-    .switch{display:inline-flex;gap:8px;align-items:center;background:#0e1728;border:1px solid var(--border);padding:8px 10px;border-radius:999px}
-    .switch input{accent-color:var(--accent);transform:scale(1.08)}
-    .tip{margin-left:auto;color:var(--muted);font-size:.95rem}
-
-    .chat{
-      height:min(72vh,760px);overflow:auto;padding:10px;scroll-behavior:smooth;
-      background:#0c1424;border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;
+    .brand{font-weight:800; letter-spacing:.3px; color:var(--accent); font-size:18px}
+    .togbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .pill{display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px;
+      background:#10182a; border:1px solid var(--border); color:#dfe6f3; cursor:pointer}
+    .pill input{accent-color:#ff8a1f; transform:scale(1.05)}
+    main{flex:1; display:grid; place-items:center; padding:24px; text-align:center}
+    .hint{color:var(--muted); max-width:720px}
+    .state{
+      margin-top:16px; display:inline-flex; align-items:center; gap:10px;
+      background:#121a2a; border:1px solid var(--border); border-radius:12px; padding:10px 14px;
     }
-    .row{display:flex;margin:10px 0}
-    .row.user{justify-content:flex-end}
-    .row.info{justify-content:center}
-    .bubble{
-      max-width:78%;padding:12px 14px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.25);
-      border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);backdrop-filter:blur(6px)
-    }
-    .row.user .bubble{background:linear-gradient(180deg,var(--accent),var(--accent2));color:#1b1209;border:none}
-    .row.err .bubble{background:#3a1f24;border-color:#6a2b36}
-    .row.info .bubble{background:#142a22;border-color:#1d6d4e}
-
-    .inputbar{display:flex;gap:10px;align-items:center;margin-top:10px;background:#0b1426;border:1px solid var(--border);border-radius:12px;padding:8px}
-    .inputbar input{flex:1;background:transparent;border:none;outline:none;color:var(--text);padding:10px;font-size:1rem}
-    .btn{background:linear-gradient(180deg,var(--accent),var(--accent2));color:#1b1209;border:none;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.25)}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
-
-    /* Lebegő mikrofon + MODAL */
-    .fab{position:fixed;right:20px;bottom:20px;z-index:50}
+    .dot{width:10px; height:10px; border-radius:50%; background:#666;}
+    .dot.on{ background:#2bd48e; box-shadow:0 0 0 6px #2bd48e22 }
+    .dot.talk{ background:#ffb256; box-shadow:0 0 0 6px #ffb25622 }
+    .fab{position:fixed; right:20px; bottom:20px; z-index:10}
     .fab button{
-      width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;color:#111;font-size:24px;font-weight:900;
-      background:radial-gradient(circle at 30% 30%,#fff2,#0000),linear-gradient(135deg,#ff8a1f,#ff5757);
-      box-shadow:0 14px 36px rgba(0,0,0,.45);
+      width:72px; height:72px; border-radius:50%; border:none; cursor:pointer; color:#111; font-size:28px; font-weight:900;
+      background:radial-gradient(circle at 30% 30%,#fff2,#0000), linear-gradient(135deg,var(--accent),var(--accent2));
+      box-shadow:0 18px 40px rgba(0,0,0,.45);
     }
-    .modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
-    .modal.open{display:flex}
-    .sheet{
-      width:min(560px,94vw);background:linear-gradient(180deg,#162035,#0f1523);
-      border:1px solid var(--border);border-radius:20px;box-shadow:0 28px 60px rgba(0,0,0,.55);
-      padding:18px;color:var(--text);display:grid;gap:14px;animation:pop .18s ease-out both;
-    }
-    @keyframes pop{from{transform:scale(.98);opacity:0}to{transform:scale(1);opacity:1}}
-    .sheet header{display:flex;gap:10px;align-items:center;justify-content:space-between}
-    .xbtn{background:#0f1626;border:1px solid var(--border);color:#dfe6f3;border-radius:10px;padding:8px 12px;cursor:pointer}
-    .rowc{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-
-    .micwrap{display:grid;place-items:center;padding:6px;margin:6px 0}
-    .micbtn{
-      width:120px;height:120px;border-radius:50%;border:none;cursor:pointer;color:#111;font-size:28px;font-weight:900;
-      background:radial-gradient(circle at 30% 30%,#fff3,#0000),linear-gradient(135deg,#ff8a1f,#ff5757);
-      box-shadow:0 18px 50px rgba(0,0,0,.45), inset 0 1px 0 #ffffff66;transition:transform .1s ease
-    }
-    .micbtn:active{transform:scale(.98)}
-    .pulse{position:relative}
-    .pulse::after{
-      content:"";position:absolute;inset:-10px;border-radius:999px;border:2px solid #ff8a1f99;opacity:.7;
-      animation:pulse 1.6s ease-out infinite;
-    }
-    .tog{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#10182a;border:1px solid var(--border);cursor:pointer}
-    .tog input{accent-color:var(--accent);transform:scale(1.1)}
-    .hint{color:var(--muted);font-size:.95rem}
-
-    @media (max-width:720px){
-      .chat{height:66vh}
-      .bubble{max-width:88%}
-    }
+    .listen{position:fixed; left:16px; bottom:28px; color:var(--muted); font-size:14px}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>HT Chat — Kellemes beszélgetést! 🥳</h1>
-      <div class="sub">Az oldalt létrehozta <strong>H.T</strong> — egyedi fejlesztéssel.</div>
-    </header>
-
-    <section class="card">
-      <div class="toolbar">
-        <label class="switch"><input id="copyToggle" type="checkbox"> Másolás (utolsó válasz)</label>
-        <label class="switch"><input id="ttsToggle" type="checkbox"> Hang (felolvasás)</label>
-        <span class="tip">Tipp: Enter = küldés, Shift+Enter = új sor</span>
-      </div>
-
-      <div id="chat" class="chat" aria-live="polite"></div>
-
-      <form id="form" class="inputbar" autocomplete="off">
-        <input id="msg" placeholder="Írj ide…" />
-        <button class="btn">Küldés</button>
-      </form>
-    </section>
-  </div>
-
-  <!-- Lebegő mikrofon gomb -->
-  <div class="fab"><button id="openVoice" title="Hangos asszisztens">🎤</button></div>
-
-  <!-- Modern felugró (modal) Voice UI -->
-  <div id="voiceModal" class="modal" role="dialog" aria-label="Hangos asszisztens">
-    <div class="sheet">
-      <header>
-        <div style="font-weight:800;letter-spacing:.3px">Hangos asszisztens — magyar</div>
-        <button class="xbtn" id="closeVoice">Bezár</button>
-      </header>
-
-      <div class="micwrap">
-        <button id="mic" class="micbtn" title="Indítás / Leállítás">🎙️</button>
-      </div>
-
-      <div class="rowc">
-        <label class="tog"><input id="autoListenToggle" type="checkbox"> Folyamatos mód</label>
-        <label class="tog"><input id="muteMode" type="checkbox"> Néma (ne olvassa fel)</label>
-        <label class="tog" title="Mini = gpt-4o-mini, Pro = gpt-4o"><input id="modelPro" type="checkbox"> Pro minőség</label>
-      </div>
-
-      <div class="hint" id="recState">Állapot: inaktív. Tipp: Chrome/Edge + HTTPS. Első indításkor engedélyezd a mikrofont!</div>
+  <header>
+    <div class="brand">HT – Hangos asszisztens</div>
+    <div class="togbar">
+      <label class="pill" title="Felolvasás ki/be">
+        <input id="muteMode" type="checkbox" />
+        Néma
+      </label>
+      <label class="pill" title="Pro = GPT-4-Turbo (okosabb, drágább)">
+        <input id="modelPro" type="checkbox" />
+        Pro minőség
+      </label>
     </div>
-  </div>
+  </header>
+
+  <main>
+    <div class="hint">
+      Koppints a jobb alsó 🎤 gombra. Egyszer elindítod → <b>folyamatosan</b> hallgat és válaszol, amíg le nem állítod.
+      iPhone-on is működik (szerveroldali átirat). A beszélgetés <b>nem jelenik meg</b> a képernyőn – csak szóban zajlik.
+      <div class="state"><span id="dot" class="dot"></span><span id="recState">Állapot: inaktív</span></div>
+    </div>
+  </main>
+
+  <div class="fab"><button id="toggle">🎤</button></div>
+  <div class="listen" id="listenHint"></div>
 
   <script>
-    /* ======== Chat (írás) ======== */
-    const chat = document.getElementById('chat');
-    const form = document.getElementById('form');
-    const msg  = document.getElementById('msg');
-    const copyToggle = document.getElementById('copyToggle');
-    const ttsToggle  = document.getElementById('ttsToggle');
-
-    function addRow(text, who='bot'){
-      const row = document.createElement('div');
-      row.className = 'row ' + (who==='user'?'user':(who==='info'?'info':(who==='err'?'err':'')));
-      const b = document.createElement('div'); b.className='bubble'; b.textContent = text;
-      row.appendChild(b); chat.appendChild(row); chat.scrollTop = chat.scrollHeight;
-      if (who==='bot' && ttsToggle.checked && !voiceMuted()) speakHu(text);
-    }
-
-    addRow('Szia! Írj bátran, miben segíthetek? Itt vagyok neked, segítek bármiben. 😊','info');
-
-    form.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const text = (msg.value||'').trim(); if(!text) return;
-      addRow(text,'user'); msg.value='';
-
-      try{
-        const r = await fetch('/.netlify/functions/chat', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ message: text })
-        });
-        let data; try{ data = await r.json(); }catch{ data=null; }
-        if(!r.ok || data?.error){ addRow('Hiba: '+(data?.error || `HTTP ${r.status}`),'err'); return; }
-        const answer = (data?.reply ?? '').toString().trim();
-        addRow(answer || 'Értem. Miben segíthetek még?','bot');
-        if(copyToggle.checked){ try{ await navigator.clipboard.writeText(answer||''); }catch{} }
-      }catch(err){ addRow('Hálózati hiba: '+(err.message||err),'err'); }
-    });
-
-    function voiceMuted(){ return document.getElementById('muteMode')?.checked; }
-    function speakHu(text){
-      try{
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'hu-HU'; u.rate = 1; u.pitch = 1;
-        speechSynthesis.cancel(); speechSynthesis.speak(u);
-      }catch{}
-    }
-
-    /* ======== VOICE-ONLY, folyamatos beszélgetés (nincs kiírás) ======== */
-    const openVoice = document.getElementById('openVoice');
-    const voiceModal= document.getElementById('voiceModal');
-    const closeVoice= document.getElementById('closeVoice');
-    const micBtn    = document.getElementById('mic');
-    const autoToggle= document.getElementById('autoListenToggle');
+    // ========= Közös segédek =========
+    const toggleBtn = document.getElementById('toggle');
     const muteCb    = document.getElementById('muteMode');
-    const modelPro  = document.getElementById('modelPro');
-    const recState  = document.getElementById('recState');
+    const proCb     = document.getElementById('modelPro');
+    const stateEl   = document.getElementById('recState');
+    const dotEl     = document.getElementById('dot');
+    const hintEl    = document.getElementById('listenHint');
 
-    openVoice.addEventListener('click', ()=> voiceModal.classList.add('open'));
-    function closeModal(){ voiceModal.classList.remove('open'); stopVoiceAll(); }
-    closeVoice.addEventListener('click', closeModal);
-    voiceModal.addEventListener('click', (e)=>{ if(e.target===voiceModal) closeModal(); });
+    let running=false, recognizing=false, speaking=false;
+    function setState(t, mode){ stateEl.textContent='Állapot: '+t; dotEl.className='dot'+(mode?' '+mode:''); }
+    function voiceMuted(){ return !!muteCb.checked; }
+    function isIOS(){
+      return /iP(hone|ad|od)/.test(navigator.platform) ||
+             (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+    }
 
+    // === TTS (magyar) ===
+    function speakHu(text){
+      if(voiceMuted()) return;
+      const u = new SpeechSynthesisUtterance(String(text||''));
+      u.lang='hu-HU'; u.rate=1; u.pitch=1;
+      try{ speechSynthesis.cancel(); }catch{}
+      speaking = true; setState('válaszolok…','talk');
+      u.onend = ()=>{ speaking=false; if(running) startListening(); else setState('inaktív'); };
+      speechSynthesis.speak(u);
+    }
+
+    // ======== 1) ANDROID/CHROME (van SpeechRecognition) ========
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let rec=null, recognizing=false, autoOn=false;
-    function setRecState(t){ recState.textContent = 'Állapot: ' + t; }
 
-    // beszélgetési előzmény (okosabb válaszok)
-    let vmHistory = [
-      { role: "system", content: "Mindig magyarul válaszolj. Légy természetes, közvetlen és tartalmas." }
-    ];
-    // csak az utolsó ~8 párbeszédet küldjük
-    const shortHistory = () => [vmHistory[0], ...vmHistory.slice(-16)];
-
-    function ensureRec(){
-      if(!SR){ setRecState('nem támogatott (Chrome/Edge ajánlott)'); micBtn.disabled=true; return null; }
-      if(rec) return rec;
-      rec = new SR();
+    async function startSR(){
+      // engedélykérés user gesztusra
+      await navigator.mediaDevices.getUserMedia({audio:true}).catch(()=>{});
+      const rec = new SR();
       rec.lang='hu-HU'; rec.continuous=true; rec.interimResults=false;
-      rec.onstart = ()=>{ recognizing=true; micBtn.classList.add('pulse'); setRecState('hallgatok…'); };
-      rec.onerror = e => { setRecState('hiba: '+(e.error||'ismeretlen')); };
-      rec.onresult = (ev)=>{
+
+      rec.onstart = ()=>{ recognizing=true; setState('hallgatok…','on'); };
+      rec.onerror = e => { setState('hiba: '+(e.error||'ismeretlen')); };
+      rec.onresult = async (ev)=>{
         const last = ev.results[ev.results.length-1];
         if(!last || !last.isFinal) return;
-        const said = (last[0]?.transcript || '').trim();
+        const said = (last[0]?.transcript||'').trim();
         if(!said) return;
-        askVoice(said).catch(()=> speakHu('Hálózati hiba történt.'));
+
+        // kérés a szervernek (chat mód, kontextussal)
+        const payload = { messages: window._history(), model: proCb.checked ? 'gpt-4-turbo' : 'gpt-4-turbo' };
+        payload.messages.push({ role:'user', content: said });
+        try{
+          const r = await fetch('/.netlify/functions/chat', {
+            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+          });
+          const data = await r.json();
+          if(!r.ok || data.error) throw new Error(data.error||('HTTP '+r.status));
+          const reply = (data.reply||'').toString().trim() || 'Rendben.';
+          window._push({ role:'user', content: said });
+          window._push({ role:'assistant', content: reply });
+          speakHu(reply);
+          // beszéd alatt állítsuk le a felismerést (különben visszahallja)
+          try{ rec.stop(); recognizing=false; }catch{}
+        }catch{ speakHu('Elnézést, hiba történt.'); }
       };
       rec.onend = ()=>{
-        recognizing=false; micBtn.classList.remove('pulse');
-        setRecState(autoOn ? 'újraindítom…' : 'inaktív');
-        if(autoOn){ setTimeout(()=>{ try{ rec.start(); recognizing=true; }catch{} }, 150); }
+        recognizing=false;
+        if(running && !speaking){
+          setTimeout(()=>{ try{ rec.start(); recognizing=true; setState('hallgatok…','on'); }catch{} }, 150);
+        }else if(!running){ setState('inaktív'); }
       };
-      return rec;
+
+      // indul
+      try{ rec.start(); recognizing=true; setState('hallgatok…','on'); }catch{}
+      // a vezérlő visszaindítja, ha kell
+      window._stopSR = ()=>{ try{ rec.stop(); }catch{} };
     }
 
-    async function startListening(){
-      const inst = ensureRec(); if(!inst) return;
+    // ======== 2) iPHONE / SAFARI (szerveroldali STT – Whisper) ========
+    let stream=null, mr=null, processing=false;
+    function pickMime(){
+      const cand = [
+        'audio/webm;codecs=opus', 'audio/webm',
+        'audio/mp4;codecs=mp4a',  'audio/mp4'
+      ];
+      for(const m of cand){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; }
+      return ''; // hagyja a defaultot
+    }
+    async function startRecorder(){
       try{
-        await navigator.mediaDevices.getUserMedia({audio:true});
-        try{ speechSynthesis.cancel(); }catch{}
-        try{ inst.start(); recognizing=true; setRecState('hallgatok…'); }catch{}
-      }catch{ setRecState('kérlek engedélyezd a mikrofont (lakat ikon)'); }
+        stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      }catch{
+        setState('kérlek engedélyezd a mikrofont (lakat ikon)'); return;
+      }
+      const mime = pickMime();
+      mr = new MediaRecorder(stream, mime ? { mimeType:mime } : {});
+      mr.ondataavailable = async (ev)=>{
+        if(!running || !ev.data || ev.data.size < 4000) return; // túl kicsi zaj → kihagyjuk
+        if(processing || speaking) return;
+        processing = true; setState('feldolgozom…');
+
+        // blob → base64
+        const b64 = await blobToBase64(ev.data);
+        // küldés a szervernek: STT + chat válasz
+        try{
+          const payload = {
+            audio_b64: b64, mime: ev.data.type || 'audio/webm',
+            history: window._history(),
+            model: proCb.checked ? 'gpt-4-turbo' : 'gpt-4-turbo'
+          };
+          const r = await fetch('/.netlify/functions/chat', {
+            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+          });
+          const data = await r.json();
+          if(!r.ok || data.error) throw new Error(data.error||('HTTP '+r.status));
+
+          // szerver visszaadja: { reply, stt }
+          const heard = (data.stt||'').toString().trim();
+          const reply = (data.reply||'').toString().trim() || 'Rendben.';
+          if(heard) window._push({ role:'user', content: heard });
+          window._push({ role:'assistant', content: reply });
+
+          speakHu(reply); // beszéd után a vezérlés újraindítja a hallgatást
+        }catch{
+          speakHu('Elnézést, hiba történt.');
+        }finally{
+          processing = false;
+          if(running && !speaking){ setState('hallgatok…','on'); }
+        }
+      };
+      mr.onstart = ()=>{ recognizing=true; setState('hallgatok…','on'); };
+      mr.onstop  = ()=>{ recognizing=false; setState('inaktív'); };
+      // 3 másodperces szeletek – egyszerű „kvázi-folyamatos” beszédbevitel
+      mr.start(3000);
+      hintEl.textContent = 'Fut: folyamatos hallgatás és válasz.';
     }
-    function stopListening(){ try{ rec && rec.stop(); }catch{} recognizing=false; setRecState('inaktív'); }
-    function startVoiceContinuous(){ autoOn=true; startListening(); }
-    function stopVoiceAll(){ autoOn=false; stopListening(); }
-
-    // TTS: válasz után automatikus visszahallgatás
-    function speakHuVoice(text){
-      if (voiceMuted()) return;
-      try{
-        const u = new SpeechSynthesisUtterance(String(text||''));
-        u.lang='hu-HU'; u.rate=1; u.pitch=1;
-        try{ rec && recognizing && rec.stop(); }catch{}
-        speechSynthesis.cancel();
-        u.onend = ()=>{ if(autoOn) startListening(); };
-        speechSynthesis.speak(u);
-      }catch{}
+    function stopRecorder(){
+      try{ mr && mr.state!=='inactive' && mr.stop(); }catch{}
+      try{ stream && stream.getTracks().forEach(t=>t.stop()); }catch{}
+      mr=null; stream=null; processing=false;
+      hintEl.textContent = '';
     }
-
-    // Voice → kérés a szerver felé, előzmény + modell választó
-    async function askVoice(userText){
-      vmHistory.push({ role:'user', content:userText });
-      const payload = { messages: shortHistory() };
-      // ha „Pro minőség” be van kapcsolva, kérjünk 4o-t (backendnek ezt le kell kezelnie)
-      if(modelPro.checked) payload.model = 'gpt-4o';
-
-      const r = await fetch('/.netlify/functions/chat', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
+    function blobToBase64(blob){
+      return new Promise((res,rej)=>{
+        const rd = new FileReader();
+        rd.onload = ()=> res((rd.result||'').toString().split(',')[1]||'');
+        rd.onerror = rej; rd.readAsDataURL(blob);
       });
-      let data=null; try{ data = await r.json(); }catch{}
-      if(!r.ok || data?.error){ speakHuVoice('Elnézést, hiba történt.'); return; }
-      const reply = (data.reply||'').toString().trim() || 'Rendben.';
-      vmHistory.push({ role:'assistant', content: reply });
-      speakHuVoice(reply);
     }
 
-    // UI események
-    micBtn.addEventListener('click', ()=>{ (!recognizing && !autoOn) ? startListening() : stopVoiceAll(); });
-    autoToggle.addEventListener('change', ()=>{ autoToggle.checked ? startVoiceContinuous() : stopVoiceAll(); });
-    muteCb.addEventListener('change', ()=>{ if(muteCb.checked){ try{ speechSynthesis.cancel(); }catch{} } });
+    // ======== Egységes vezérlés ========
+    window._conv = [{ role:'system', content:'Mindig magyarul válaszolj. Légy természetes, közvetlen és tartalmas.' }];
+    window._history = ()=> [window._conv[0], ...window._conv.slice(-16)];
+    window._push = (m)=> window._conv.push(m);
 
+    toggleBtn.addEventListener('click', async ()=>{
+      if(!running){
+        running = true;
+        setState('indítom…');
+        // ha van SR és nem iOS → SR, különben Recorder+Whisper
+        if(SR && !isIOS()){
+          await startSR();
+        }else{
+          await startRecorder();
+        }
+      }else{
+        running = false;
+        setState('leállítom…');
+        try{ window._stopSR && window._stopSR(); }catch{}
+        stopRecorder();
+        try{ speechSynthesis.cancel(); }catch{}
+        setState('inaktív');
+      }
+    });
+
+    document.addEventListener('visibilitychange', ()=>{
+      if(document.visibilityState==='visible' && running && !recognizing && !speaking){
+        setState('újraindítom…');
+        if(SR && !isIOS()) startSR();
+        else startRecorder();
+      }
+    });
+
+    muteCb.addEventListener('change', ()=>{ if(muteCb.checked){ try{ speechSynthesis.cancel(); }catch{} } });
   </script>
 </body>
 </html>
