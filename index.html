@@ -318,5 +318,39 @@
     micFab.addEventListener('click', ()=> listening ? stopRec() : startRec());
     document.addEventListener('click', ()=>{}, {once:true}); // iOS TTS engedély
   </script>
+<div id="robot-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;"></div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.getElementById("robot-container").appendChild(renderer.domElement);
+
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(0, 1, 1).normalize();
+  scene.add(light);
+
+  const loader = new THREE.GLTFLoader();
+  loader.load('robot.glb', (gltf) => {
+    scene.add(gltf.scene);
+    gltf.scene.position.set(0, -1, 0);
+    gltf.scene.scale.set(2, 2, 2);
+    animate();
+  });
+
+  camera.position.z = 5;
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+</script>
 </body>
 </html>
