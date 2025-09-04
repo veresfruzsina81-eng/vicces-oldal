@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mini AI Chat</title>
+<title>Mini AI Chat (CPU fallback)</title>
 <style>
   :root{--bg:#0f1216;--card:#151a21;--ink:#e8ecf1;--muted:#a7b0bc;--accent:#7c5cff;}
   *{box-sizing:border-box} body{margin:0;background:linear-gradient(135deg,#0d1117,#111926);}
@@ -28,13 +28,13 @@
       <div class="badge">Mini AI Chat</div>
       <div>
         <div class="h1">Az oldalt létrehozta: H.T — Kellemes beszélgetést! 🎉</div>
-        <div class="muted">Írj bármit, és a böngészőben futó kis AI válaszol. (Első betöltésnél letölt egy modellt.)</div>
+        <div class="muted">Ez a verzió CPU-n is fut, így mindig működik (lassabb lehet elsőre).</div>
       </div>
     </div>
     <div class="chat" id="chat"></div>
     <div class="footer">
       <input id="input" placeholder="Írj ide... (Enter = küldés)" />
-      <button class="btn" id="sendBtn">Küldés</button>
+      <button id="sendBtn">Küldés</button>
     </div>
     <div class="typing" id="typing"></div>
   </div>
@@ -45,7 +45,8 @@
 <script>
 let engine = null;
 let ready = false;
-const MODEL = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; // mini AI modell
+// CPU-barát kis modell
+const MODEL = "Qwen2.5-0.5B-Instruct-q0f16-MLC";
 
 async function init(){
   try{
@@ -53,7 +54,9 @@ async function init(){
       initProgressCallback:(p)=>{
         document.getElementById("typing").textContent = 
           `Modell betöltése: ${Math.round((p.progress||0)*100)}%`;
-      }
+      },
+      // kényszerített CPU fallback
+      gpuDisabled: true
     });
     ready = true;
     document.getElementById("typing").textContent = "";
