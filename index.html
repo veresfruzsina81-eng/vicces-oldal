@@ -14,7 +14,7 @@
 
   <style>
     :root{
-      --bg: #0b0f14;
+      --bg:#0b0f14;
       --panel:#0f1620cc;
       --bubbleUser:#ffb84d;
       --bubbleBot:#243447;
@@ -22,20 +22,13 @@
       --text:#e8eef6;
       --muted:#9fb0c3;
       --accent:#6ea8fe;
-      --glow: 0 10px 30px rgba(110,168,254,.18);
-      --ring: 0 0 0 2px rgba(110,168,254,.35);
+      --glow:0 10px 30px rgba(110,168,254,.18);
+      --ring:0 0 0 2px rgba(110,168,254,.35);
     }
     [data-theme="light"]{
-      --bg:#f4f7fb;
-      --panel:#ffffffd9;
-      --bubbleUser:#ffd089;
-      --bubbleBot:#eaf0f7;
-      --bubbleInfo:#dde7f3;
-      --text:#0c1624;
-      --muted:#52657a;
-      --accent:#2b74ff;
-      --glow: 0 10px 26px rgba(43,116,255,.15);
-      --ring: 0 0 0 2px rgba(43,116,255,.25);
+      --bg:#f4f7fb; --panel:#ffffffd9; --bubbleUser:#ffd089; --bubbleBot:#eaf0f7;
+      --bubbleInfo:#dde7f3; --text:#0c1624; --muted:#52657a; --accent:#2b74ff;
+      --glow:0 10px 26px rgba(43,116,255,.15); --ring:0 0 0 2px rgba(43,116,255,.25);
     }
 
     *{box-sizing:border-box}
@@ -44,130 +37,99 @@
       margin:0; font:16px/1.55 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
       color:var(--text); background:var(--bg);
       background-image: radial-gradient(transparent, rgba(0,0,0,.35)), url('/bg_tamas.jpg');
-      background-size: cover; background-position: center top; background-attachment: fixed;
+      background-size:cover; background-position:center top; background-attachment:fixed;
       display:flex; flex-direction:column;
     }
 
-    .wrap{max-width:1200px; width:95%; margin:0 auto; padding:18px}
+    /* Középre igazított, valamivel szélesebb tartalom */
+    .wrap{max-width:1100px; width:96%; margin:0 auto; padding:18px}
+
     header{
       position:sticky; top:0; z-index:10;
-      backdrop-filter: blur(10px);
-      background: var(--panel);
-      border-bottom: 1px solid rgba(255,255,255,.1);
+      backdrop-filter:blur(10px);
+      background:var(--panel);
+      border-bottom:1px solid rgba(255,255,255,.1);
     }
-    .brand{
-      display:flex; align-items:center; gap:14px; padding:8px 10px 14px;
-    }
-    .brand .ttl{font-weight:800; font-size:24px; letter-spacing:.3px}
+    .brand{display:flex; align-items:center; gap:14px; padding:8px 10px 14px}
+    .brand .ttl{font-weight:800; font-size:26px; letter-spacing:.3px}
     .brand .sub{color:var(--muted); font-size:13px; margin-top:2px}
-
     .toolbar{margin-left:auto; display:flex; gap:10px}
-    .btn{
-      border:1px solid rgba(255,255,255,.12);
-      background:var(--panel); color:var(--text);
-      padding:8px 12px; border-radius:12px; cursor:pointer;
-      font-weight:600; font-size:13px;
-      box-shadow: var(--glow); transition:.2s transform, .2s background;
-    }
-    .btn:hover{transform:translateY(-1px)}
+    .btn{border:1px solid rgba(255,255,255,.12); background:var(--panel); color:var(--text);
+      padding:8px 12px; border-radius:12px; cursor:pointer; font-weight:600; font-size:13px; box-shadow:var(--glow)}
 
+    /* Chat kártya – középen, picit nagyobb, sötét háttérrel */
     .card{
-      background: rgba(0,0,0,0.45);
+      background:rgba(0,0,0,.45);
       border:1px solid rgba(255,255,255,.08);
-      border-radius:22px; padding:16px;
-      box-shadow: var(--glow);
+      border-radius:22px; padding:18px;
+      box-shadow:var(--glow);
       display:flex; flex-direction:column;
-      height:70vh; /* picit hosszabb lett, de nem ér a footerhez */
-      margin-bottom:20px;
+      height:72vh;           /* picivel magasabb, de nem ér a footerhez */
+      margin:12px auto 22px; /* középre húzva */
     }
 
     .chat{flex:1; display:flex; flex-direction:column; min-height:0}
     .col{flex:1; display:flex; flex-direction:column; min-height:0}
-    .chatlog{
-      flex:1; overflow-y:auto; padding:16px; scroll-behavior:smooth;
-    }
+    .chatlog{flex:1; overflow-y:auto; padding:16px; scroll-behavior:smooth}
 
     .row{display:flex; margin:12px 0}
     .row.bot{justify-content:flex-start}
     .row.user{justify-content:flex-end}
     .bubble{
-      max-width:min(900px, 96%);
+      max-width:min(920px, 96%);
       padding:14px 16px; border-radius:18px;
       border:1px solid rgba(255,255,255,.08);
-      position:relative; word-wrap:break-word; white-space:pre-wrap;
+      position:relative; white-space:pre-wrap; word-wrap:break-word;
     }
     .bot .bubble{background:var(--bubbleBot)}
     .user .bubble{background:var(--bubbleUser); color:#1f1200}
     .info .bubble{background:var(--bubbleInfo); color:var(--muted)}
-    .bubble.glow{ box-shadow: var(--glow) }
+    .bubble.glow{box-shadow:var(--glow)}
 
-    /* typing indicator */
+    /* "Gondolkodom…" pöttyök */
     .typing{display:inline-flex; gap:6px; align-items:center; margin-left:6px}
-    .dot{width:6px; height:6px; border-radius:50%; background:#cfe0ff; opacity:.7;
-      animation:blink 1.2s infinite ease-in-out}
+    .dot{width:6px; height:6px; border-radius:50%; background:#cfe0ff; opacity:.7; animation:blink 1.2s infinite ease-in-out}
     .dot:nth-child(2){animation-delay:.2s}
     .dot:nth-child(3){animation-delay:.4s}
     @keyframes blink{0%,80%,100%{transform:translateY(0);opacity:.35}40%{transform:translateY(-4px);opacity:1}}
 
     .muted{color:var(--muted); font-size:12px}
 
-    /* Input + Küldés egy sorban */
-    .composer {
-      display: flex;
-      align-items: center;
-      padding: 12px;
+    /* --- ÚJ: Egységes kapszula, beépített Küldés gombbal a jobb szélen --- */
+    .composer{padding:12px}
+    .composerBar{
+      display:flex; align-items:center; gap:10px;
+      background:var(--panel);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:18px;
+      box-shadow:var(--glow);
+      padding:10px 10px 10px 14px;
     }
-    .input {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      background: var(--panel);
-      border: 1px solid rgba(255,255,255,.12);
-      border-radius: 16px 0 0 16px;
-      box-shadow: var(--glow);
+    .composerBar input{
+      flex:1; background:transparent; border:0; outline:none; color:var(--text); font-size:16px; /* 16px: nincs mobil zoom */
     }
-    .input input {
-      flex: 1;
-      background: transparent;
-      border: 0;
-      outline: none;
-      color: var(--text);
-      font-size: 16px;
+    .icon-btn{
+      width:40px; height:40px; border-radius:12px; display:grid; place-items:center;
+      border:1px solid rgba(255,255,255,.14); background:rgba(0,0,0,.15); cursor:pointer;
     }
-    .send {
-      padding: 14px 28px; /* hosszabb és picit magasabb */
-      border-radius: 0 16px 16px 0;
-      background: linear-gradient(90deg, #ffb84d, #ffa53a);
-      color: #331d00;
-      font-weight: 800;
-      font-size: 15px;
-      border: 0;
-      cursor: pointer;
-      box-shadow: var(--glow);
+    .icon-btn.on{outline:var(--ring)}
+    .icon-btn svg{width:18px; height:18px; fill:var(--text)}
+    .send{
+      padding:12px 28px;   /* picit hosszabb és magasabb */
+      border-radius:12px;  /* külön gomb, de a kapszulán belül */
+      background:linear-gradient(90deg,#ffb84d,#ffa53a);
+      color:#331d00; font-weight:800; font-size:15px; border:0; cursor:pointer; box-shadow:var(--glow)
     }
-    .send:active { transform: translateY(1px); }
-
-    .speak-toggle{
-      width:38px; height:38px; border-radius:50%;
-      display:grid; place-items:center; cursor:pointer;
-      border:1px solid rgba(255,255,255,.14); background:var(--panel);
-      box-shadow: var(--glow);
-    }
-    .speak-toggle.on{outline: var(--ring)}
-    .speak-toggle svg{width:18px; height:18px; fill:var(--text)}
+    .send:active{transform:translateY(1px)}
 
     footer{
-      color:#f0f0f0;
-      text-shadow:0 1px 2px rgba(0,0,0,.8);
-      font-size:12px; text-align:center;
-      padding:10px 8px; background:rgba(0,0,0,.35);
+      color:#f0f0f0; text-shadow:0 1px 2px rgba(0,0,0,.8);
+      font-size:12px; text-align:center; padding:10px 8px; background:rgba(0,0,0,.35);
     }
 
-    /* Fade out animáció a "Gondolkodom…" buborékhoz */
-    .fade-out { opacity:1; transition: opacity .5s ease; }
-    .fade-out.hide { opacity:0; }
+    /* Fade out a "Gondolkodom…" buborékhoz */
+    .fade-out{opacity:1; transition:opacity .5s ease}
+    .fade-out.hide{opacity:0}
   </style>
 </head>
 
@@ -193,15 +155,18 @@
       <div class="chat">
         <div class="col">
           <div id="log" class="chatlog"></div>
+
+          <!-- ÚJ: beépített sáv -->
           <div class="composer">
-            <div class="input">
+            <div class="composerBar">
               <input id="txt" autocomplete="off" placeholder="Írj ide…   Enter = küldés, Shift+Enter = új sor" />
-              <div class="speak-toggle" id="ttsBtn" title="Felolvasás ki/be">
+              <button class="icon-btn" id="ttsBtn" title="Felolvasás ki/be">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2a3.5 3.5 0 0 0-2.5 1.03v-2.14A5.5 5.5 0 0 1 22 12a5.5 5.5 0 0 1-8 4.93v-2.14A3.5 3.5 0 0 0 16.5 12z"/></svg>
-              </div>
+              </button>
+              <button class="send" id="sendBtn">Küldés</button>
             </div>
-            <button class="send" id="sendBtn">Küldés</button>
           </div>
+
           <div class="muted">Tipp: kérdezhetsz bármit. A felolvasást a kis 🔊 ikonról ki- és bekapcsolhatod.</div>
         </div>
       </div>
@@ -213,108 +178,70 @@
   </footer>
 
   <script>
-    // ----- Téma kapcsoló -----
-    const themeBtn = document.getElementById('themeBtn');
-    themeBtn.addEventListener('click', ()=>{
-      const cur = document.documentElement.getAttribute('data-theme') || 'dark';
-      const next = cur==='dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('theme', next);
+    // Téma kapcsoló
+    const themeBtn=document.getElementById('themeBtn');
+    themeBtn.addEventListener('click',()=>{
+      const cur=document.documentElement.getAttribute('data-theme')||'dark';
+      const next=cur==='dark'?'light':'dark';
+      document.documentElement.setAttribute('data-theme',next);
+      localStorage.setItem('theme',next);
     });
-    (()=>{ 
-      const saved = localStorage.getItem('theme'); 
-      if(saved) document.documentElement.setAttribute('data-theme', saved); 
-    })();
+    (()=>{const saved=localStorage.getItem('theme'); if(saved) document.documentElement.setAttribute('data-theme',saved);})();
 
-    // ----- Chat funkciók -----
-    const log = document.getElementById('log');
-    const txt = document.getElementById('txt');
-    const sendBtn = document.getElementById('sendBtn');
-    const ttsBtn = document.getElementById('ttsBtn');
+    // Chat elemek
+    const log=document.getElementById('log');
+    const txt=document.getElementById('txt');
+    const sendBtn=document.getElementById('sendBtn');
+    const ttsBtn=document.getElementById('ttsBtn');
 
-    let speakOn = false;
-    ttsBtn.addEventListener('click', ()=>{
-      speakOn = !speakOn;
-      ttsBtn.classList.toggle('on', speakOn);
-    });
+    let speakOn=false;
+    ttsBtn.addEventListener('click',()=>{speakOn=!speakOn; ttsBtn.classList.toggle('on',speakOn);});
 
-    function addRow(kind, text){
-      const r=document.createElement('div');
-      r.className = `row ${kind}`;
-      const b=document.createElement('div');
-      b.className = 'bubble';
-      if(kind==='bot') b.classList.add('glow');
+    function addRow(kind,text){
+      const r=document.createElement('div'); r.className=`row ${kind}`;
+      const b=document.createElement('div'); b.className='bubble'; if(kind==='bot') b.classList.add('glow');
       if(kind==='info') r.className='row bot info';
-      b.textContent = text;
-      r.appendChild(b);
-      log.appendChild(r);
-      log.scrollTop = log.scrollHeight;
-      return b; 
+      b.textContent=text; r.appendChild(b); log.appendChild(r); log.scrollTop=log.scrollHeight; return b;
     }
 
     function addTyping(){
-      const r=document.createElement('div'); 
-      r.className='row bot';
-      const b=document.createElement('div'); 
-      b.className='bubble glow fade-out';
-      b.innerHTML = '🤔 Gondolkodom… <span class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
-      r.appendChild(b); 
-      log.appendChild(r); 
-      log.scrollTop=log.scrollHeight;
-      return r;
+      const r=document.createElement('div'); r.className='row bot';
+      const b=document.createElement('div'); b.className='bubble glow fade-out';
+      b.innerHTML='🤔 Gondolkodom… <span class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
+      r.appendChild(b); log.appendChild(r); log.scrollTop=log.scrollHeight; return r;
     }
 
     function speakHu(text){
-      try{
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'hu-HU';
-        u.rate = 1; u.pitch=1;
-        window.speechSynthesis.speak(u);
-      }catch(e){}
+      try{window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang='hu-HU'; u.rate=1; u.pitch=1; window.speechSynthesis.speak(u);}catch(e){}
     }
 
     txt.focus();
 
     async function ask(){
-      const text = (txt.value || '').trim();
-      if(!text) return;
-      addRow('user', text);
-      txt.value='';
+      const text=(txt.value||'').trim(); if(!text) return;
+      addRow('user',text); txt.value='';
 
-      const typing = addTyping();
-
+      const typing=addTyping();
       try{
-        const r = await fetch('/.netlify/functions/chat', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ message: text })
-        });
+        const r=await fetch('/.netlify/functions/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
 
-        // fade out
-        const bubble = typing.querySelector('.bubble');
-        if (bubble) bubble.classList.add('hide');
-        setTimeout(()=> typing.remove(), 500);
+        const bubble=typing.querySelector('.bubble'); if(bubble) bubble.classList.add('hide');
+        setTimeout(()=>typing.remove(),500);
 
         if(!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = await r.json();
-        const reply = String(data.reply ?? '').trim() || "Értem. Miben segíthetek még?";
-        const b = addRow('bot', reply);
-        if(speakOn) speakHu(b.textContent);
+        const data=await r.json();
+        const reply=String(data.reply??'').trim()||"Értem. Miben segíthetek még?";
+        const b=addRow('bot',reply); if(speakOn) speakHu(b.textContent);
 
       }catch(e){
-        const bubble = typing.querySelector('.bubble');
-        if (bubble) bubble.classList.add('hide');
-        setTimeout(()=> typing.remove(), 500);
-
-        addRow('bot', `Hiba: ${e.message || e}`);
+        const bubble=typing.querySelector('.bubble'); if(bubble) bubble.classList.add('hide');
+        setTimeout(()=>typing.remove(),500);
+        addRow('bot',`Hiba: ${e.message||e}`);
       }
     }
 
-    sendBtn.addEventListener('click', ask);
-    txt.addEventListener('keydown', (e)=>{
-      if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ask(); }
-    });
+    sendBtn.addEventListener('click',ask);
+    txt.addEventListener('keydown',(e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ask(); }});
   </script>
 </body>
 </html>
