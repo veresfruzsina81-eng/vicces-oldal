@@ -2,260 +2,273 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>HT – Hangos asszistenS</title>
-  <meta name="theme-color" content="#0e1118" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HT Chat – Kellemes beszélgetést!</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
   <style>
     :root{
-      --bg1:#0e1118; --bg2:#141a23; --text:#e9edf4; --muted:#aab3c2;
-      --border:#22324a; --accent:#ff8a1f; --accent2:#ff5757;
-      --shadow:0 12px 32px rgba(0,0,0,.35);
+      --bg:#0f1116; --panel:#171a22; --panel2:#1f2430;
+      --text:#eaeef7; --muted:#a9b3c7; --brand:#ff8a2a; --ok:#2ecc71; --err:#ff5e57;
+      --bubble:#222736; --bubble-me:#ff8a2a22; --ring:#ff8a2a55;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
-      margin:0; color:var(--text); font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:
-        radial-gradient(1100px 700px at 90% -10%, #1b2540 0%, transparent 60%),
-        radial-gradient(900px 600px at -10% 110%, #15362a 0%, transparent 60%),
-        linear-gradient(160deg, var(--bg1), var(--bg2));
-      background-attachment:fixed; -webkit-font-smoothing:antialiased;
-      display:flex; flex-direction:column;
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+      background: radial-gradient(1200px 800px at 20% -20%, #ff8a2a18, transparent 60%),
+                  radial-gradient(800px 800px at 120% 0%, #5a9cff18, transparent 60%),
+                  var(--bg);
+      color:var(--text); display:flex; flex-direction:column; gap:8px;
     }
-    header{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      padding:12px 16px; background:#0f1626; border-bottom:1px solid var(--border);
+    header{padding:18px 16px 0; text-align:center}
+    h1{margin:0; font-weight:800; letter-spacing:.5px}
+    .sub{color:var(--muted); font-size:.95rem; margin-top:6px}
+
+    .tabs{display:flex; gap:8px; justify-content:center; margin:14px 0 6px}
+    .tab{padding:10px 14px; border-radius:999px; background:var(--panel); color:var(--muted);
+         cursor:pointer; border:1px solid #ffffff12}
+    .tab.active{background:var(--panel2); color:var(--text); box-shadow:0 0 0 3px #ffffff08 inset}
+    main{flex:1; display:grid; place-items:center; padding:10px}
+    .container{width:min(1024px, 100%); display:grid; grid-template-columns:1fr; gap:14px}
+
+    /* Chat panel */
+    .card{background:var(--panel2); border:1px solid #ffffff10; border-radius:18px; padding:14px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .toggle{display:flex; align-items:center; gap:8px; font-size:.92rem; color:var(--muted)}
+    input[type="checkbox"]{width:18px; height:18px; accent-color:var(--brand)}
+    .chat{
+      height:52vh; min-height:360px; overflow:auto; padding:12px; background:var(--panel);
+      border:1px solid #ffffff10; border-radius:14px; scroll-behavior:smooth;
     }
-    .brand{font-weight:800; letter-spacing:.3px; color:var(--accent); font-size:18px}
-    .togbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
-    .pill{display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px;
-      background:#10182a; border:1px solid var(--border); color:#dfe6f3; cursor:pointer}
-    .pill input{accent-color:#ff8a1f; transform:scale(1.05)}
-    main{flex:1; display:grid; place-items:center; padding:24px; text-align:center}
-    .hint{color:var(--muted); max-width:720px}
-    .state{
-      margin-top:16px; display:inline-flex; align-items:center; gap:10px;
-      background:#121a2a; border:1px solid var(--border); border-radius:12px; padding:10px 14px;
+    .b{max-width:82%; padding:10px 12px; margin:6px 0; border-radius:12px;
+       background:var(--bubble); box-shadow:0 1px 0 #0004}
+    .me{margin-left:auto; background:var(--bubble-me); border:1px solid var(--ring)}
+    .info{background:#1b2030; color:#cfe3ff}
+    .err{background:#2b1516; color:#ffc9c9; border:1px solid #ff6b6b44}
+    .inputRow{display:flex; gap:8px; margin-top:10px}
+    textarea{
+      flex:1; background:transparent; color:var(--text); border:1px solid #ffffff1a; border-radius:12px;
+      resize:none; height:48px; padding:12px 12px; outline:none;
     }
-    .dot{width:10px; height:10px; border-radius:50%; background:#666;}
-    .dot.on{ background:#2bd48e; box-shadow:0 0 0 6px #2bd48e22 }
-    .dot.talk{ background:#ffb256; box-shadow:0 0 0 6px #ffb25622 }
-    .fab{position:fixed; right:20px; bottom:20px; z-index:10}
-    .fab button{
-      width:72px; height:72px; border-radius:50%; border:none; cursor:pointer; color:#111; font-size:28px; font-weight:900;
-      background:radial-gradient(circle at 30% 30%,#fff2,#0000), linear-gradient(135deg,var(--accent),var(--accent2));
-      box-shadow:0 18px 40px rgba(0,0,0,.45);
+    button{
+      background:var(--brand); color:#1b120a; border:none; padding:0 16px; border-radius:12px;
+      font-weight:700; cursor:pointer; height:48px;
     }
-    .listen{position:fixed; left:16px; bottom:28px; color:var(--muted); font-size:14px}
+
+    /* Voice panel */
+    .voiceHint{color:var(--muted); font-size:.95rem; margin-bottom:10px}
+    .pill{display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:999px;
+          background:var(--panel); border:1px solid #ffffff12}
+    .mic{
+      width:74px; height:74px; border-radius:50%; border:none; cursor:pointer;
+      background: radial-gradient(120% 120% at 30% 20%, #ffb37c, #ff8a2a 60%);
+      box-shadow:0 8px 24px #ff8a2a55, inset 0 0 0 4px #ffffff22;
+      color:#281709; font-size:26px; font-weight:700;
+    }
+    .mic.stop{background: radial-gradient(120% 120% at 30% 20%, #ff7c7c, #ff2a2a 60%);
+              box-shadow:0 8px 24px #ff2a2a55, inset 0 0 0 4px #ffffff22;}
+    .voiceUI{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+    .status{font-size:.9rem; color:var(--muted)}
+    footer{padding:16px; text-align:center; color:var(--muted); font-size:.9rem}
+    @media (max-width:600px){
+      .chat{height:56vh}
+      .mic{width:68px; height:68px}
+    }
   </style>
 </head>
 <body>
   <header>
-    <div class="brand">HT – Hangos asszisztens</div>
-    <div class="togbar">
-      <label class="pill" title="Felolvasás ki/be">
-        <input id="muteMode" type="checkbox" />
-        Néma
-      </label>
-      <label class="pill" title="Pro = GPT-4-Turbo (okosabb, drágább)">
-        <input id="modelPro" type="checkbox" />
-        Pro minőség
-      </label>
-    </div>
+    <h1>HT Chat — Kellemes beszélgetést! 🧡</h1>
+    <div class="sub">Az oldalt létrehozta <b>H.T</b> — egyedi fejlesztéssel.</div>
   </header>
 
+  <div class="tabs">
+    <div class="tab active" data-tab="chat">Chat</div>
+    <div class="tab" data-tab="voice">Hangos mód</div>
+  </div>
+
   <main>
-    <div class="hint">
-      Koppints a jobb alsó 🎤 gombra. Egyszer elindítod → <b>folyamatosan</b> hallgat és válaszol, amíg le nem állítod.
-      iPhone-on is működik (szerveroldali átirat). A beszélgetés <b>nem jelenik meg</b> a képernyőn – csak szóban zajlik.
-      <div class="state"><span id="dot" class="dot"></span><span id="recState">Állapot: inaktív</span></div>
+    <div class="container">
+      <!-- CHAT -->
+      <section id="chat" class="card">
+        <div class="row">
+          <label class="toggle"><input id="copyToggle" type="checkbox" /> Másolás (utolsó válasz)</label>
+          <label class="toggle"><input id="speakToggle" type="checkbox" /> Hang (felolvasás)</label>
+          <div class="toggle">Tipp: Enter = küldés, Shift+Enter = új sor</div>
+        </div>
+
+        <div id="chatBox" class="chat"></div>
+
+        <div class="inputRow">
+          <textarea id="msg" placeholder="Írj ide…"></textarea>
+          <button id="send">Küldés</button>
+        </div>
+      </section>
+
+      <!-- VOICE -->
+      <section id="voice" class="card" style="display:none">
+        <div class="voiceHint">
+          Koppints a jobb oldali gombra. Egyszer elindítod → <b>folyamatosan hallgat és válaszol</b>, amíg le nem állítod.
+          iPhone-on a böngészők többsége <b>nem támogatja</b> a webes beszédfelismerést – ott külön Realtime megoldás kell.
+        </div>
+
+        <div class="voiceUI">
+          <div class="pill">
+            <span>Állapot:</span>
+            <b id="vState">inaktív</b>
+          </div>
+
+          <button id="micBtn" class="mic" title="Start/Stop">🎤</button>
+        </div>
+      </section>
     </div>
   </main>
 
-  <div class="fab"><button id="toggle">🎤</button></div>
-  <div class="listen" id="listenHint"></div>
+  <footer>© H.T — saját hobbi fejlesztés. Jó szórakozást! 🎉</footer>
 
   <script>
-    // ========= Közös segédek =========
-    const toggleBtn = document.getElementById('toggle');
-    const muteCb    = document.getElementById('muteMode');
-    const proCb     = document.getElementById('modelPro');
-    const stateEl   = document.getElementById('recState');
-    const dotEl     = document.getElementById('dot');
-    const hintEl    = document.getElementById('listenHint');
+    // ===== Tabs =====
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(t => t.addEventListener('click', () => {
+      tabs.forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('chat').style.display  = t.dataset.tab==='chat'  ? '' : 'none';
+      document.getElementById('voice').style.display = t.dataset.tab==='voice' ? '' : 'none';
+    }));
 
-    let running=false, recognizing=false, speaking=false;
-    function setState(t, mode){ stateEl.textContent='Állapot: '+t; dotEl.className='dot'+(mode?' '+mode:''); }
-    function voiceMuted(){ return !!muteCb.checked; }
-    function isIOS(){
-      return /iP(hone|ad|od)/.test(navigator.platform) ||
-             (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+    // ===== Chat UI =====
+    const chatBox = document.getElementById('chatBox');
+    const msg     = document.getElementById('msg');
+    const send    = document.getElementById('send');
+    const speakOn = document.getElementById('speakToggle');
+    const copyOn  = document.getElementById('copyToggle');
+
+    let lastBot = "";
+
+    function addMsg(text, who='bot'){
+      const div = document.createElement('div');
+      div.className = 'b ' + (who==='me' ? 'me':'' );
+      div.textContent = text;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      return div;
     }
+    function addInfo(t){ addMsg(t,'info'); }
+    function addErr(t){ addMsg(t,'err'); }
 
-    // === TTS (magyar) ===
-    function speakHu(text){
-      if(voiceMuted()) return;
-      const u = new SpeechSynthesisUtterance(String(text||''));
-      u.lang='hu-HU'; u.rate=1; u.pitch=1;
-      try{ speechSynthesis.cancel(); }catch{}
-      speaking = true; setState('válaszolok…','talk');
-      u.onend = ()=>{ speaking=false; if(running) startListening(); else setState('inaktív'); };
-      speechSynthesis.speak(u);
-    }
-
-    // ======== 1) ANDROID/CHROME (van SpeechRecognition) ========
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    async function startSR(){
-      // engedélykérés user gesztusra
-      await navigator.mediaDevices.getUserMedia({audio:true}).catch(()=>{});
-      const rec = new SR();
-      rec.lang='hu-HU'; rec.continuous=true; rec.interimResults=false;
-
-      rec.onstart = ()=>{ recognizing=true; setState('hallgatok…','on'); };
-      rec.onerror = e => { setState('hiba: '+(e.error||'ismeretlen')); };
-      rec.onresult = async (ev)=>{
-        const last = ev.results[ev.results.length-1];
-        if(!last || !last.isFinal) return;
-        const said = (last[0]?.transcript||'').trim();
-        if(!said) return;
-
-        // kérés a szervernek (chat mód, kontextussal)
-        const payload = { messages: window._history(), model: proCb.checked ? 'gpt-4-turbo' : 'gpt-4-turbo' };
-        payload.messages.push({ role:'user', content: said });
-        try{
-          const r = await fetch('/.netlify/functions/chat', {
-            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
-          });
-          const data = await r.json();
-          if(!r.ok || data.error) throw new Error(data.error||('HTTP '+r.status));
-          const reply = (data.reply||'').toString().trim() || 'Rendben.';
-          window._push({ role:'user', content: said });
-          window._push({ role:'assistant', content: reply });
-          speakHu(reply);
-          // beszéd alatt állítsuk le a felismerést (különben visszahallja)
-          try{ rec.stop(); recognizing=false; }catch{}
-        }catch{ speakHu('Elnézést, hiba történt.'); }
-      };
-      rec.onend = ()=>{
-        recognizing=false;
-        if(running && !speaking){
-          setTimeout(()=>{ try{ rec.start(); recognizing=true; setState('hallgatok…','on'); }catch{} }, 150);
-        }else if(!running){ setState('inaktív'); }
-      };
-
-      // indul
-      try{ rec.start(); recognizing=true; setState('hallgatok…','on'); }catch{}
-      // a vezérlő visszaindítja, ha kell
-      window._stopSR = ()=>{ try{ rec.stop(); }catch{} };
-    }
-
-    // ======== 2) iPHONE / SAFARI (szerveroldali STT – Whisper) ========
-    let stream=null, mr=null, processing=false;
-    function pickMime(){
-      const cand = [
-        'audio/webm;codecs=opus', 'audio/webm',
-        'audio/mp4;codecs=mp4a',  'audio/mp4'
-      ];
-      for(const m of cand){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; }
-      return ''; // hagyja a defaultot
-    }
-    async function startRecorder(){
+    function speakHu(t){
       try{
-        stream = await navigator.mediaDevices.getUserMedia({audio:true});
-      }catch{
-        setState('kérlek engedélyezd a mikrofont (lakat ikon)'); return;
-      }
-      const mime = pickMime();
-      mr = new MediaRecorder(stream, mime ? { mimeType:mime } : {});
-      mr.ondataavailable = async (ev)=>{
-        if(!running || !ev.data || ev.data.size < 4000) return; // túl kicsi zaj → kihagyjuk
-        if(processing || speaking) return;
-        processing = true; setState('feldolgozom…');
-
-        // blob → base64
-        const b64 = await blobToBase64(ev.data);
-        // küldés a szervernek: STT + chat válasz
-        try{
-          const payload = {
-            audio_b64: b64, mime: ev.data.type || 'audio/webm',
-            history: window._history(),
-            model: proCb.checked ? 'gpt-4-turbo' : 'gpt-4-turbo'
-          };
-          const r = await fetch('/.netlify/functions/chat', {
-            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
-          });
-          const data = await r.json();
-          if(!r.ok || data.error) throw new Error(data.error||('HTTP '+r.status));
-
-          // szerver visszaadja: { reply, stt }
-          const heard = (data.stt||'').toString().trim();
-          const reply = (data.reply||'').toString().trim() || 'Rendben.';
-          if(heard) window._push({ role:'user', content: heard });
-          window._push({ role:'assistant', content: reply });
-
-          speakHu(reply); // beszéd után a vezérlés újraindítja a hallgatást
-        }catch{
-          speakHu('Elnézést, hiba történt.');
-        }finally{
-          processing = false;
-          if(running && !speaking){ setState('hallgatok…','on'); }
-        }
-      };
-      mr.onstart = ()=>{ recognizing=true; setState('hallgatok…','on'); };
-      mr.onstop  = ()=>{ recognizing=false; setState('inaktív'); };
-      // 3 másodperces szeletek – egyszerű „kvázi-folyamatos” beszédbevitel
-      mr.start(3000);
-      hintEl.textContent = 'Fut: folyamatos hallgatás és válasz.';
+        const u = new SpeechSynthesisUtterance(t);
+        u.lang = 'hu-HU';
+        u.rate = 1; u.pitch = 1;
+        speechSynthesis.cancel();
+        speechSynthesis.speak(u);
+      }catch(_){}
     }
-    function stopRecorder(){
-      try{ mr && mr.state!=='inactive' && mr.stop(); }catch{}
-      try{ stream && stream.getTracks().forEach(t=>t.stop()); }catch{}
-      mr=null; stream=null; processing=false;
-      hintEl.textContent = '';
-    }
-    function blobToBase64(blob){
-      return new Promise((res,rej)=>{
-        const rd = new FileReader();
-        rd.onload = ()=> res((rd.result||'').toString().split(',')[1]||'');
-        rd.onerror = rej; rd.readAsDataURL(blob);
+
+    async function ask(text){
+      const r = await fetch('/.netlify/functions/chat', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ message: text })
       });
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
     }
 
-    // ======== Egységes vezérlés ========
-    window._conv = [{ role:'system', content:'Mindig magyarul válaszolj. Légy természetes, közvetlen és tartalmas.' }];
-    window._history = ()=> [window._conv[0], ...window._conv.slice(-16)];
-    window._push = (m)=> window._conv.push(m);
-
-    toggleBtn.addEventListener('click', async ()=>{
-      if(!running){
-        running = true;
-        setState('indítom…');
-        // ha van SR és nem iOS → SR, különben Recorder+Whisper
-        if(SR && !isIOS()){
-          await startSR();
-        }else{
-          await startRecorder();
+    async function onSend(){
+      const t = msg.value.trim();
+      if(!t) return;
+      addMsg(t,'me');
+      msg.value = '';
+      try{
+        const data = await ask(t);
+        lastBot = (data.reply||'').toString();
+        addMsg(lastBot,'bot');
+        if(speakOn.checked) speakHu(lastBot);
+        if(copyOn.checked){
+          try{ await navigator.clipboard.writeText(lastBot); }catch(_){}
         }
-      }else{
-        running = false;
-        setState('leállítom…');
-        try{ window._stopSR && window._stopSR(); }catch{}
-        stopRecorder();
-        try{ speechSynthesis.cancel(); }catch{}
-        setState('inaktív');
+      }catch(e){
+        addErr('Hiba: ' + (e.message||e));
       }
+    }
+
+    send.addEventListener('click', onSend);
+    msg.addEventListener('keydown', e=>{
+      if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); onSend(); }
     });
 
-    document.addEventListener('visibilitychange', ()=>{
-      if(document.visibilityState==='visible' && running && !recognizing && !speaking){
-        setState('újraindítom…');
-        if(SR && !isIOS()) startSR();
-        else startRecorder();
-      }
-    });
+    // Kezdő üzenet
+    addInfo('Szia! Írj bátran, miben segíthetek? 🙂');
 
-    muteCb.addEventListener('change', ()=>{ if(muteCb.checked){ try{ speechSynthesis.cancel(); }catch{} } });
+    // ===== Hangos mód (Web Speech API – Android/Chrome/Edge támogatott) =====
+    const vState = document.getElementById('vState');
+    const micBtn = document.getElementById('micBtn');
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const TTSok = 'speechSynthesis' in window;
+    let rec = null, listening = false, watchdog = null;
+
+    function setVState(s){ vState.textContent = s; }
+    function supportsSR(){ return !!SR; }
+
+    function startWatchdog(){
+      stopWatchdog();
+      watchdog = setTimeout(()=>{
+        // ha 12 mp-ig nincs esemény, újraindítjuk a felvételt
+        if(listening && rec){ try{ rec.stop(); }catch(_){ } }
+      }, 12000);
+    }
+    function stopWatchdog(){ if(watchdog){ clearTimeout(watchdog); watchdog=null; } }
+
+    function initRec(){
+      if(!supportsSR()) return null;
+      const r = new SR();
+      r.lang = 'hu-HU';
+      r.continuous = true;
+      r.interimResults = false;
+
+      r.onstart = ()=>{ setVState('hallgat…'); startWatchdog(); };
+      r.onend   = ()=>{ stopWatchdog(); if(listening){ try{ r.start(); }catch(_){ setTimeout(()=>{ try{ r.start(); }catch(_){} }, 400); } } };
+      r.onerror = (e)=>{ stopWatchdog(); addErr('Felismerési hiba: ' + (e.error||'ismeretlen')); };
+      r.onresult = async (ev)=>{
+        stopWatchdog();
+        const res = ev.results[ev.results.length-1];
+        const said = res[0].transcript.trim();
+        if(!said) { startWatchdog(); return; }
+
+        // nem írjuk be a chatbe → tiszta voice mód
+        try{
+          const data = await ask(said);
+          const reply = (data.reply||'').toString();
+          if(TTSok){ speakHu(reply); }
+        }catch(e){
+          addErr('Hiba (voice): ' + (e.message||e));
+        }
+        startWatchdog();
+      };
+      return r;
+    }
+
+    function startVoice(){
+      if(!supportsSR()){ addErr('A böngésződ nem támogatja a beszédfelismerést (iPhone Safari nem támogatott).'); return; }
+      if(!rec) rec = initRec();
+      listening = true;
+      micBtn.classList.add('stop');
+      setVState('hallgat…');
+      try{ rec.start(); }catch(_){ /* ha already started, onend újraindítja */ }
+    }
+    function stopVoice(){
+      listening = false;
+      setVState('inaktív');
+      micBtn.classList.remove('stop');
+      stopWatchdog();
+      if(rec){ try{ rec.stop(); }catch(_){} }
+      if(TTSok){ speechSynthesis.cancel(); }
+    }
+
+    micBtn.addEventListener('click', ()=> listening ? stopVoice() : startVoice());
   </script>
 </body>
 </html>
