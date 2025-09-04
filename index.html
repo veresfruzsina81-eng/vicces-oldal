@@ -3,104 +3,94 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>TamAI – barátságos beszélgető</title>
+<title>HT Chat — Kellemes beszélgetést!</title>
 <style>
   :root{
     --bg:#0c1116; --panel:#111827; --muted:#9aa4b2; --text:#e5e7eb;
-    --brand:#7c3aed; --brand-2:#06b6d4; --card:#0f172a; --border:#1f2937;
+    --brand:#f59e0b; --border:#1f2937;
   }
   *{box-sizing:border-box}
-  body{margin:0; font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial; background:linear-gradient(180deg,#0b0f14,#0d131b 60%,#0b1220); color:var(--text)}
-  .wrap{max-width:1100px;margin:0 auto;padding:24px}
-  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-  .title{font-weight:800;letter-spacing:.3px;font-size:clamp(20px,4vw,28px)}
-  .owner{color:var(--muted);font-size:14px}
-  .owner strong{color:#fff}
-  .panel{background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.35);}
-  .chat{display:grid; grid-template-columns: 1fr 320px; gap:16px; min-height:70vh}
-  @media (max-width:960px){ .chat{grid-template-columns:1fr} }
-  .msgs{padding:16px; overflow:auto; max-height:68vh}
-  .bubble{max-width:75%;padding:12px 14px;border-radius:14px;margin:8px 0;line-height:1.45;white-space:pre-wrap}
-  .me{background:linear-gradient(180deg,#0b1220,#0b1220); border:1px solid #1b2634}
-  .ai{background:linear-gradient(180deg,#0f1630,#0b1630); border:1px solid #1f2d48}
-  .inputbar{display:flex; gap:8px; padding:12px; border-top:1px solid var(--border); background:rgba(0,0,0,.25); border-radius:0 0 16px 16px}
+  body{margin:0; font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;
+       background:linear-gradient(180deg,#0b0f14,#0d131b 60%,#0b1220);
+       color:var(--text)}
+  .wrap{max-width:980px;margin:0 auto;padding:20px}
+  header{margin-bottom:14px}
+  .title{font-weight:800;letter-spacing:.3px;font-size:clamp(22px,4.5vw,30px);color:#fff}
+  .subtitle{color:var(--muted);font-size:14px;margin-top:6px}
+  .panel{background:rgba(255,255,255,.03); border:1px solid var(--border);
+         border-radius:14px; box-shadow:0 8px 30px rgba(0,0,0,.35);}
+  .msgs{padding:16px; min-height:58vh; max-height:65vh; overflow:auto}
+  .bubble{max-width:80%;padding:12px 14px;border-radius:14px;margin:8px 0;
+          line-height:1.45;white-space:pre-wrap}
+  .me{background:#0e1a2a; border:1px solid #1b2634}
+  .ai{background:#162238; border:1px solid #22324d}
+  .inputbar{display:flex; gap:8px; padding:12px; border-top:1px solid var(--border);
+            background:rgba(0,0,0,.25); border-radius:0 0 14px 14px}
   input,button,select{color:var(--text)}
-  input[type=text]{flex:1; padding:12px 14px; border-radius:12px; background:#0c1420; border:1px solid #203043; outline:none}
+  input[type=text]{flex:1; padding:12px 14px; border-radius:10px;
+                   background:#0c1420; border:1px solid #203043; outline:none}
   input[type=text]::placeholder{color:#6b7280}
-  .btn{padding:12px 14px; border-radius:12px; border:1px solid #2a3750; background:linear-gradient(180deg,#1b2750,#182347); cursor:pointer}
+  .btn{padding:12px 14px; border-radius:10px; border:1px solid #2a3750;
+       background:linear-gradient(180deg,#1b2750,#182347); cursor:pointer}
   .btn:hover{filter:brightness(1.08)}
-  .btn.secondary{background:#0e1524}
-  .toolbar{padding:12px; border-left:1px solid var(--border)}
-  .row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
-  .toggle{display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none}
-  .switch{width:42px;height:24px;border-radius:999px;background:#263246; position:relative;border:1px solid #31405c}
-  .knob{position:absolute; top:2px; left:2px; width:20px;height:20px;border-radius:50%; background:#9aa4b2; transition:.18s all}
-  .switch.on{background:linear-gradient(90deg,var(--brand),var(--brand-2))}
-  .switch.on .knob{left:20px; background:#fff}
-  .small{color:var(--muted); font-size:12px}
+  .toolbar{display:flex; gap:10px; align-items:center; padding:10px 12px;
+           border-top:1px solid var(--border); background:#0b1320}
+  .tag{display:inline-block; padding:6px 10px; border-radius:999px;
+       border:1px solid #2a3750; background:#0e1524; font-size:12px; color:var(--muted)}
+  .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+  .sw{width:42px;height:24px;border-radius:999px;background:#263246; position:relative;border:1px solid #31405c}
+  .knob{position:absolute; top:2px; left:2px; width:20px;height:20px;border-radius:50%; background:#9aa4b2; transition:.18s}
+  .on{background:linear-gradient(90deg,#7c3aed,#06b6d4)}
+  .on .knob{left:20px; background:#fff}
 </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <div class="title">TamAI – barátságos beszélgető</div>
-      <div class="owner">Az oldalt létrehozta: <strong>Horváth Tamás (Szabolcsbáka)</strong>. Kellemes beszélgetést! 🎉</div>
+      <div class="title">HT Chat — Kellemes beszélgetést! 🎉</div>
+      <div class="subtitle">Az oldalt létre hozta: <strong>H.T</strong> — egyedi fejlesztéssel.</div>
     </header>
 
-    <div class="panel chat">
-      <!-- ÜZENETEK -->
+    <div class="panel">
       <div class="msgs" id="msgs"></div>
 
-      <!-- OLDALSÁV / BEÁLLÍTÁSOK -->
-      <aside class="toolbar">
-        <div class="row">
-          <div class="toggle" id="ttsToggle">
-            <div class="switch" id="ttsSwitch"><div class="knob"></div></div>
-            <div>🎧 Felolvasás</div>
-          </div>
-          <button class="btn secondary" id="stopBtn" title="Felolvasás megállítása">⏹ Megállít</button>
-        </div>
-        <div class="row">
-          <label class="small">🎙️ Hang:</label>
-          <select id="voiceSel" class="btn" style="flex:1"></select>
-        </div>
-        <div class="row">
-          <label class="small">🔤 Stílus:</label>
-          <select id="toneSel" class="btn" style="flex:1">
-            <option value="alap">Alap</option>
-            <option value="baratsagos">Barátságos</option>
-            <option value="vicces">Vicces</option>
-            <option value="rövid">Nagyon rövid</option>
-          </select>
-        </div>
-        <div class="small">A felolvasás **alapból ki van kapcsolva**. Kapcsold be, ha szeretnéd, és válassz hangot.</div>
-      </aside>
+      <!-- TTS eszköztár (csak ha támogatott) -->
+      <div class="toolbar" id="ttsBar" style="display:none">
+        <span class="tag">🎧 Felolvasás</span>
+        <label class="switch" id="ttsToggle">
+          <div class="sw" id="sw"><div class="knob"></div></div>
+          <span>Be / Ki</span>
+        </label>
+        <select id="voiceSel" class="btn" title="Hangválasztás"></select>
+        <button class="btn" id="stopBtn" title="Megállít">⏹ Megállít</button>
+        <span class="tag" id="ttsInfo" style="margin-left:auto">Ki</span>
+      </div>
 
-      <!-- INPUT SOR -->
-      <div class="inputbar" style="grid-column:1/-1">
-        <input id="inp" type="text" placeholder="Írj ide… (Enter = küldés)" />
-        <button id="send" class="btn">Küldés</button>
+      <div class="inputbar">
+        <input id="inp" type="text" placeholder="Írj egy üzenetet… (Enter = küldés)" />
+        <button id="send" class="btn" title="Küldés">Küldés</button>
       </div>
     </div>
   </div>
 
 <script>
-  // ======= KLIENS ÁLLAPOT =======
+  // ======= UI elemek =======
   const msgsEl = document.getElementById('msgs');
   const inpEl  = document.getElementById('inp');
   const sendEl = document.getElementById('send');
 
-  const ttsSwitch = document.getElementById('ttsSwitch');
-  const ttsToggle = document.getElementById('ttsToggle');
-  const stopBtn   = document.getElementById('stopBtn');
-  const voiceSel  = document.getElementById('voiceSel');
-  const toneSel   = document.getElementById('toneSel');
+  // TTS elemek
+  const ttsBar   = document.getElementById('ttsBar');
+  const ttsToggle= document.getElementById('ttsToggle');
+  const sw       = document.getElementById('sw');
+  const voiceSel = document.getElementById('voiceSel');
+  const stopBtn  = document.getElementById('stopBtn');
+  const ttsInfo  = document.getElementById('ttsInfo');
 
-  let history = [];            // {role:'user'|'assistant', content:'...'}
-  let ttsEnabled = false;      // alapból KI
+  let history = [];
+  let ttsEnabled = false;
   let voices = [];
 
-  // ======= UI SEGÉDEK =======
   function addBubble(text, who='assistant'){
     const b = document.createElement('div');
     b.className = 'bubble ' + (who==='user' ? 'me' : 'ai');
@@ -110,69 +100,62 @@
     return b;
   }
 
-  function setSwitch(on){
-    ttsEnabled = !!on;
-    if(on) ttsSwitch.classList.add('on'); else ttsSwitch.classList.remove('on');
-    localStorage.setItem('ttsEnabled', ttsEnabled ? '1' : '0');
-  }
+  // ======= Felolvasás kezelése =======
+  const ttsSupported = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
 
-  // ======= TTS =======
   function loadVoices(){
     voices = speechSynthesis.getVoices();
     voiceSel.innerHTML = '';
     voices
       .filter(v => v.lang.startsWith('hu') || v.lang.startsWith('en') || v.lang.startsWith('de'))
-      .forEach((v,i) => {
+      .forEach(v => {
         const o = document.createElement('option');
         o.value = v.name; o.textContent = `${v.name} (${v.lang})`;
         voiceSel.appendChild(o);
       });
   }
-  if ('speechSynthesis' in window){
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+  function setSwitch(on){
+    ttsEnabled = !!on;
+    if(on){ sw.classList.add('on'); ttsInfo.textContent='Be'; }
+    else  { sw.classList.remove('on'); ttsInfo.textContent='Ki'; speechSynthesis.cancel(); }
+    localStorage.setItem('ttsEnabled',''+(on?1:0));
   }
 
   function speak(text){
-    if(!ttsEnabled) return;
-    if(!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel(); // biztonság kedvéért
+    if(!ttsEnabled || !ttsSupported) return;
     const u = new SpeechSynthesisUtterance(text);
     const v = voices.find(v => v.name === voiceSel.value);
     if(v) u.voice = v;
     u.rate = 1.0; u.pitch = 1.0;
+    speechSynthesis.cancel();
     speechSynthesis.speak(u);
   }
 
-  stopBtn.onclick = () => speechSynthesis.cancel();
-  ttsToggle.onclick = () => setSwitch(!ttsEnabled);
+  if(ttsSupported){
+    ttsBar.style.display = 'flex';
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    setSwitch(localStorage.getItem('ttsEnabled')==='1');
+    ttsToggle.onclick = ()=> setSwitch(!ttsEnabled);
+    stopBtn.onclick   = ()=> speechSynthesis.cancel();
+  }
 
-  // Visszatöltjük a felhasználó korábbi preferenciáját
-  setSwitch(localStorage.getItem('ttsEnabled') === '1');
-
-  // ======= OPENAI HÍVÁS (Netlify function) =======
+  // ======= OpenAI hívás a Netlify functionön át =======
   async function askOpenAI(message){
-    const tone = toneSel.value;
-    let sys = "Magyarul válaszolj, barátságosan és tömören.";
-    if(tone === 'baratsagos') sys = "Magyarul válaszolj, nagyon barátságosan és közérthetően.";
-    if(tone === 'vicces')     sys = "Magyarul válaszolj, könnyed, kicsit vicces stílusban, de lényegre törően.";
-    if(tone === 'rövid')      sys = "Magyarul válaszolj, a lehető legrövidebben (1-2 mondat).";
-
-    const body = { messages: [{role:'system',content:sys}, ...history, {role:'user',content:message}] };
+    const system = "Magyarul válaszolj, barátságosan és tömören.";
+    const body = { messages: [{role:'system',content:system}, ...history, {role:'user',content:message}] };
 
     const r = await fetch('/.netlify/functions/chat', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(body)
     });
-    if(!r.ok){
-      throw new Error('Szerver hiba: '+r.status);
-    }
+    if(!r.ok) throw new Error('Szerver hiba: '+r.status);
     const data = await r.json();
     return (data && data.reply) ? data.reply : 'Hmm, most nem tudok válaszolni.';
   }
 
-  // ======= KÜLDÉS FOLYAM =======
   async function send(){
     const text = inpEl.value.trim();
     if(!text) return;
@@ -180,14 +163,12 @@
     history.push({role:'user', content:text});
     inpEl.value=''; inpEl.focus();
 
-    // "Gondolkodom…" placeholder
     const thinking = addBubble('Gondolkodom…','assistant');
-
     try{
       const reply = await askOpenAI(text);
-      thinking.textContent = reply; // felülírjuk
+      thinking.textContent = reply;
       history.push({role:'assistant', content:reply});
-      speak(reply);                 // ← csak akkor, ha ttsEnabled = true
+      speak(reply); // csak ha be van kapcsolva és támogatott
     }catch(e){
       thinking.textContent = 'Hopp, valami hiba történt. Próbáld újra.';
       console.error(e);
@@ -195,9 +176,9 @@
   }
 
   sendEl.onclick = send;
-  inpEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter') send(); });
+  inpEl.addEventListener('keydown', e => { if(e.key==='Enter') send(); });
 
-  // üdvözlő buborék
+  // Üdvözlés
   addBubble('Szia! Írj egy üzenetet, és válaszolok. 😊','assistant');
 </script>
 </body>
