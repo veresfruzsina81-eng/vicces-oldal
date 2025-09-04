@@ -1,40 +1,64 @@
+// netlify/functions/chat.js
+
 exports.handler = async (event) => {
-  // ---- CORS (ha később más domainekről is hívnád) ----
+  // --- CORS / preflight ---
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
-
-  // Preflight
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: cors, body: "" };
   }
-
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, headers: cors, body: "Method Not Allowed" };
   }
 
   try {
-    // ---- Bejövő adatok ----
-    const { messages = [], message = "" } = JSON.parse(event.body || "{}");
-
-    // API kulcs
+    // --- Környezeti változó ---
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return {
         statusCode: 500,
         headers: cors,
-        body: JSON.stringify({ error: "Missing OPENAI_API_KEY env var" }),
+        body: JSON.stringify({ error: "Hiányzik az OPENAI_API_KEY" }),
       };
     }
 
-    // ---- Kulcsszavas válaszok (branding) ----
-    const lastUser =
-      [...messages].reverse().find((m) => m.role === "user")?.content?.toLowerCase() ||
-      message.toLowerCase?.() ||
-      "";
+    // --- Kérés beolvasása ---
+    let body;
+    try {
+      body = JSON.parse(event.body || "{}");
+    } catch {
+      return {
+        statusCode: 400,
+        headers: cors,
+        body: JSON.stringify({ error: "Érvénytelen JSON" }),
+      };
+    }
 
-    // „Ki hozta létre…” / „Ki az a Horváth Tamás?” jellegű kérdések
+    // Frontendünk jellemzően { message: "..." }-t küld
+    const incomingMessage = (body.message || "").toString().trim();
+    const messages = Array.isArray(body.messages) ? body.messages : [];
+
+    if (!incomingMessage && messages.length === 0) {
+      return {
+        statusCode: 400,
+        headers: cors,
+        body: JSON.stringify({ error: "Hiányzó üzenet (message / messages)" }),
+      };
+    }
+
+    // --- Gyors, fix válaszok (branding) ---
+    const lastUser =
+      (messages
+        .slice()
+        .reverse()
+        .find((m) => m.role === "user")?.content ||
+        incomingMessage ||
+        ""
+      ).toLowerCase();
+
     const creatorTriggers = [
       "ki hozta létre az oldalt",
       "ki készítette az oldalt",
@@ -42,43 +66,56 @@ exports.handler = async (event) => {
       "ki csinálta az oldalt",
       "tulajdonosa az oldalnak",
       "ki az oldal készítője",
+      "kié ez az oldal",
     ];
+    if (creatorTriggers.some((t) => lastUser.includes(t))) {
+      return {
+        statusCode: 200,
+        headers: { ...cors, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reply:
+            "Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!",
+        }),
+      };
+    }
 
     const whoIsHTTriggers = [
       "ki az a horváth tamás",
-      "mesélsz horváth tamásról",
+      "mesélj horváth tamásról",
+      "mutasd be horváth tamást",
       "ki horváth tamás",
       "horváth tamásról",
-      "mutasd be horváth tamást",
     ];
-
-    if (creatorTriggers.some((t) => lastUser.includes(t))) {
-      const reply = "Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!";
-      return { statusCode: 200, headers: { ...cors, "Content-Type": "application/json" }, body: JSON.stringify({ reply }) };
-    }
-
     if (whoIsHTTriggers.some((t) => lastUser.includes(t))) {
-      const reply =
-        "Horváth Tamás (Szabolcsbáka) az oldal tulajdonosa és fejlesztője. Hobbiszinten foglalkozik webes projektekkel és mesterséges intelligenciával. " +
-        "Ezen az oldalon barátságos, magyar nyelvű AI beszélgetést kínál.";
-      return { statusCode: 200, headers: { ...cors, "Content-Type": "application/json" }, body: JSON.stringify({ reply }) };
+      return {
+        statusCode: 200,
+        headers: { ...cors, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reply:
+            "Horváth Tamás (Szabolcsbáka) az oldal tulajdonosa és fejlesztője. Hobbiszinten webes projektekkel és mesterséges intelligenciával foglalkozik; célja egy barátságos, magyar nyelvű AI-beszélgetés biztosítása.",
+        }),
+      };
     }
 
-    // ---- Rendszerüzenet (stílus / szerep) ----
+    // --- Rendszer üzenet (mindig magyar válasz) ---
     const systemMsg = {
       role: "system",
       content:
-        "Magyarul válaszolj, barátságosan és tömören. " +
-        "Ha rákérdeznek az oldal készítőjére, a válasz: 'Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!'",
+        "Mindig magyarul válaszolj. Légy barátságos, érthető és tömör. " +
+        "Ha az oldal készítőjéről kérdeznek, mondd: 'Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!'",
     };
 
-    // A front-end néha `message` mezőt küld külön; illesszük a messages sorába.
-    const mergedMessages = [...messages];
-    if (message && !messages?.length) {
-      mergedMessages.push({ role: "user", content: message });
+    // Összeállított kontextus: system + (opcionális) korábbi üzenetek + mostani user üzenet
+    const convo = [systemMsg];
+    if (messages.length) {
+      // ha a front-end messages tömböt küld
+      convo.push(...messages);
+    } else if (incomingMessage) {
+      // ha csak egyetlen üzenet érkezett
+      convo.push({ role: "user", content: incomingMessage });
     }
 
-    // ---- OpenAI hívás ----
+    // --- OpenAI Chat Completions hívás ---
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -87,28 +124,30 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [systemMsg, ...mergedMessages],
-        // FONTOS: az új Chat Completions API nem támogatja a `max_tokens` mezőt,
-        // helyette `max_completion_tokens` kell:
+        messages: convo,
+        // új API: max_tokens helyett ezt kell használni:
         max_completion_tokens: 500,
-        // Temperature-t inkább kihagyjuk, mert egyes modellek hibát adnak rá.
-        // Ha szeretnéd: pl. temperature: 1
       }),
     });
 
     const data = await r.json();
 
     if (!r.ok) {
-      // Visszaadjuk a hiba üzenetet a kliensnek
-      const msg = data?.error?.message || `OpenAI error (status ${r.status})`;
       return {
         statusCode: 502,
         headers: { ...cors, "Content-Type": "application/json" },
-        body: JSON.stringify({ error: msg }),
+        body: JSON.stringify({
+          error:
+            data?.error?.message ||
+            `OpenAI hiba (HTTP ${r.status})`,
+        }),
       };
     }
 
-    const reply = data?.choices?.[0]?.message?.content?.trim?.() || "Rendben, szívesen segítek! Miben lehetek hasznodra?";
+    const reply =
+      data?.choices?.[0]?.message?.content?.trim() ||
+      "Rendben, miben segíthetek?";
+
     return {
       statusCode: 200,
       headers: { ...cors, "Content-Type": "application/json" },
@@ -118,7 +157,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       headers: cors,
-      body: JSON.stringify({ error: e?.message || "Szerver hiba" }),
+      body: JSON.stringify({ error: e?.message || "Ismeretlen szerver hiba" }),
     };
   }
 };
