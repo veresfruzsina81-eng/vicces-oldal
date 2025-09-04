@@ -3,388 +3,449 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HT Chat — Kellemes beszélgetést!</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2285%22>💬</text></svg>">
+  <title>Tamás AI — Kellemes beszélgetést!</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23222'/%3E%3Ctext x='50' y='62' font-size='56' text-anchor='middle' fill='%23ffa32a' font-family='Segoe UI, Roboto, Arial'%3ET%3C/text%3E%3C/svg%3E">
   <style>
     :root{
-      --glass-bg: rgba(15,15,18,.55);
-      --glass-brd: rgba(255,255,255,.14);
-      --prim: #ff9a3c;
-      --txt:#e7ebf3; --muted:#aab3c2;
+      --bg:#0e0f12;
+      --bg2:#15171c;
+      --glass:rgba(255,255,255,0.05);
+      --line:rgba(255,255,255,0.12);
+      --text:#e7e7ea;
+      --muted:#b9bdc7;
+      --brand:#ffa32a;
+      --accent:#7bdcff;
+      --ok:#21c07a;
+      --warn:#ffb84d;
+      --err:#ff5c6c;
+      --bubble:#20232a;
+      --bubble-me:#2b1e12;
+      --bubble-info:#1b2130;
     }
-    *{box-sizing:border-box} html,body{height:100%}
+    *{box-sizing:border-box}
+    html,body{height:100%}
     body{
-      margin:0; color:var(--txt);
-      font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-      background: #0b0e13 url("bg_tamas.jpg") center/cover fixed no-repeat;
+      margin:0; color:var(--text); background:radial-gradient(1200px 1200px at 10% 10%, #1b1f27 0%, #101217 40%, #0b0c10 100%), var(--bg);
+      font-family: "Segoe UI", Roboto, Arial, sans-serif; overflow:hidden;
     }
-    .bg-dim::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
-      background:radial-gradient(1200px 800px at 75% 10%, rgba(255,154,60,.20), transparent 40%),
-                 linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.78));
+    .app{
+      display:grid; grid-template-rows:auto 1fr auto; height:100%;
     }
-    .wrap{max-width:1100px;margin:0 auto;padding:18px}
-    header{padding:28px 24px 8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;text-shadow:0 10px 30px rgba(0,0,0,.6)}
-    .brand{font-weight:800;letter-spacing:.4px;font-size:clamp(22px,3.6vw,42px)}
-    .brand em{color:var(--prim);font-style:normal}
-    .sub{width:100%;color:var(--muted);margin-top:6px;font-size:14px}
-    .panel{border:1px solid var(--glass-brd);background:var(--glass-bg);backdrop-filter:blur(14px) saturate(120%);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
-    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--glass-brd)}
-    .chip{display:inline-flex;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:#2a2f3a;color:#d9e0ee;font-size:14px;border:1px solid rgba(255,255,255,.06)}
-    .chip input{accent-color:var(--prim)}
-    .tabs{margin-left:auto;display:flex;gap:6px;background:#1a1e26;padding:5px;border-radius:999px;border:1px solid var(--glass-brd)}
-    .tab{padding:8px 14px;border-radius:999px;cursor:pointer;color:#cfd7e6;border:1px solid transparent}
-    .tab.active{background:var(--prim);color:#111;font-weight:700}
-    .chat{display:grid;grid-template-rows:1fr auto;height:min(72vh,720px)}
-    .log{overflow:auto;padding:18px;scroll-behavior:smooth}
-    .msg{max-width:min(720px,92%);margin:10px 0;padding:12px 14px;border-radius:14px;border:1px solid var(--glass-brd);background:rgba(255,255,255,.04)}
-    .msg.user{margin-left:auto;background:rgba(255,154,60,.14);border-color:rgba(255,154,60,.35)}
-    .msg.bot{margin-right:auto}
-    .msg.info{margin:18px auto;text-align:center;color:#cbd3e4;background:transparent;border-color:transparent}
-    .msg.err{background:rgba(255,93,93,.14);border-color:rgba(255,93,93,.4)}
-    .inputRow{display:flex;gap:10px;align-items:center;padding:12px;border-top:1px solid var(--glass-brd)}
-    textarea{flex:1;resize:none;min-height:44px;max-height:120px;padding:12px 14px;border-radius:14px;border:1px solid var(--glass-brd);background:#0f131a;color:var(--txt);outline:none}
-    .btn{border:0;cursor:pointer;padding:12px 16px;border-radius:12px;background:var(--prim);color:#151515;font-weight:700;box-shadow:0 10px 30px rgba(255,154,60,.35)}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
-    .fab{position:fixed;right:18px;bottom:18px;width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--prim);color:#111;border:0;cursor:pointer;box-shadow:0 16px 50px rgba(255,154,60,.5)}
-    .fab[data-state="listening"]{animation:pulse 1.6s infinite;background:#1fe07a;box-shadow:0 16px 50px rgba(32,224,122,.55)}
-    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(32,224,122,.5)}70%{box-shadow:0 0 0 26px rgba(32,224,122,0)}100%{box-shadow:0 0 0 0 rgba(32,224,122,0)}}
-    footer{text-align:center;color:#cbd3e4;font-size:12.5px;opacity:.9;padding:18px 10px;text-shadow:0 10px 30px rgba(0,0,0,.6)}
-    @media (max-width:680px){.chat{height:68vh}.log{padding:12px}.msg{max-width:96%}}
+    header{
+      display:flex; align-items:center; gap:14px; padding:12px 18px; border-bottom:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      backdrop-filter:saturate(140%) blur(6px);
+    }
+    .logo{
+      width:36px; height:36px; border-radius:50%; background:#222; display:grid; place-items:center; 
+      box-shadow:0 0 0 2px #333 inset, 0 8px 24px rgba(0,0,0,.35);
+      font-weight:700; color:var(--brand);
+    }
+    .title{font-weight:800; letter-spacing:.2px}
+    .grow{flex:1}
+    .chip{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; background:var(--glass); border:1px solid var(--line); font-size:13px; color:var(--muted)}
+    .chip input{accent-color:var(--brand)}
+    .layout{
+      display:grid; grid-template-columns: minmax(280px, 720px) minmax(260px, 1fr); gap:16px; height:100%; padding:16px;
+    }
+    /* Chat card */
+    .card{
+      height:100%; border:1px solid var(--line); border-radius:16px; background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      box-shadow:0 10px 30px rgba(0,0,0,.45); display:flex; flex-direction:column; overflow:hidden;
+    }
+    .cardhd{display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--line); background:rgba(255,255,255,0.02)}
+    .badge{font-size:12px; padding:5px 9px; border-radius:999px; background:var(--bubble-info); color:#cfe3ff; border:1px solid #223048}
+    .chat{
+      flex:1; overflow:auto; padding:16px; display:flex; flex-direction:column; gap:10px; scroll-behavior:smooth;
+    }
+    .msg{
+      max-width:82%; padding:12px 14px; border-radius:14px; border:1px solid var(--line);
+      box-shadow: 0 8px 20px rgba(0,0,0,.25);
+      line-height:1.45; font-size:15px;
+    }
+    .bot{ align-self:flex-start; background:var(--bubble); }
+    .me{ align-self:flex-end; background:var(--bubble-me); border-color:rgba(255,163,42,.35)}
+    .info{ align-self:center; background:var(--bubble-info); color:#cfe3ff}
+    .time{font-size:12px; color:var(--muted); margin-top:6px}
+    .inputbar{
+      display:flex; gap:10px; padding:12px; border-top:1px solid var(--line); background:rgba(255,255,255,0.02)
+    }
+    textarea{
+      flex:1; resize:none; min-height:44px; max-height:120px; padding:12px 14px; border-radius:12px;
+      border:1px solid var(--line); background:#171a20; color:var(--text); outline:none;
+    }
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      padding:0 16px; min-width:86px; height:44px; border-radius:12px; border:1px solid #4a331a;
+      background:linear-gradient(180deg,#ffb761,#ff9a1d); color:#1a1208; font-weight:700; cursor:pointer;
+      box-shadow:0 8px 18px rgba(255,163,42,.25);
+    }
+    .btn:disabled{opacity:.6; cursor:not-allowed}
+    /* Voice drawer */
+    .voice{
+      height:100%; border:1px solid var(--line); border-radius:16px; background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      box-shadow:0 10px 30px rgba(0,0,0,.45); overflow:hidden; display:flex; flex-direction:column;
+    }
+    .voice .top{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.02)}
+    .status{font-size:13px; color:var(--muted)}
+    .micwrap{display:grid; place-items:center; padding:22px}
+    .micbtn{
+      width:84px; height:84px; border-radius:50%; border:2px solid #2a2d36;
+      background: radial-gradient(circle at 30% 30%, #ffcd85, #ff8e1a);
+      box-shadow:0 12px 30px rgba(255,163,42,.3), inset 0 0 0 6px rgba(0,0,0,.25);
+      cursor:pointer;
+    }
+    .micbtn.stop{
+      background: radial-gradient(circle at 30% 30%, #ff8aa0, #ff485f);
+      box-shadow:0 12px 30px rgba(255,92,108,.35), inset 0 0 0 6px rgba(0,0,0,.25);
+    }
+    .switch{
+      display:flex; align-items:center; gap:10px; padding:6px 10px; border-radius:999px; background:var(--glass); border:1px solid var(--line); font-size:13px; color:var(--muted)
+    }
+    .switch input{accent-color:var(--brand)}
+    /* 3D panel */
+    .stage{
+      position:relative; flex:1; min-height:280px; background:radial-gradient(600px 300px at 60% 10%, #242833, #14171c);
+    }
+    canvas{display:block; width:100%; height:100%}
+    .stage .overlay{
+      position:absolute; inset:auto 10px 10px 10px; display:flex; justify-content:space-between; gap:10px; pointer-events:none;
+      font-size:12px; color:var(--muted)
+    }
+    .stage .overlay .pill{pointer-events:auto; padding:6px 10px; background:var(--glass); border:1px solid var(--line); border-radius:999px}
+    footer{
+      display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 16px; border-top:1px solid var(--line); background:rgba(255,255,255,0.02); color:var(--muted); font-size:13px;
+    }
+    @media (max-width: 980px){
+      .layout{grid-template-columns:1fr; grid-template-rows: 1fr 320px;}
+      .stage{min-height:260px}
+      body{overflow:auto}
+    }
   </style>
 </head>
-<body class="bg-dim">
-  <header class="wrap">
-    <div class="brand">HT <em>Chat</em> — Kellemes beszélgetést! 🎉</div>
-    <div class="sub">Az oldalt létrehozta <strong>H.T</strong> — egyedi fejlesztéssel.</div>
-  </header>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">T</div>
+      <div class="title">Tamás AI</div>
+      <div class="grow"></div>
+      <label class="chip"><input type="checkbox" id="copyLast"> Másolás (utolsó válasz)</label>
+      <label class="chip"><input type="checkbox" id="tts" checked> Hang (felolvasás)</label>
+    </header>
 
-  <main class="wrap panel">
-    <section class="toolbar">
-      <label class="chip"><input id="copyToggle" type="checkbox"> Másolás (utolsó válasz)</label>
-      <label class="chip"><input id="ttsToggle" type="checkbox"> Hang (felolvasás)</label>
-      <div class="tabs" role="tablist" aria-label="Mód választó">
-        <button class="tab active" data-tab="chat" aria-selected="true">Chat</button>
-        <button class="tab" data-tab="voice" aria-selected="false">Hangos mód</button>
-      </div>
-    </section>
+    <div class="layout">
+      <!-- CHAT -->
+      <section class="card" aria-label="Beszélgetés">
+        <div class="cardhd">
+          <span class="badge" id="todayBadge">Dátum betöltése…</span>
+          <span class="badge" id="timeBadge">Idő betöltése…</span>
+          <span class="badge" id="modelBadge">Modell: Tamás</span>
+          <span class="grow"></span>
+          <span class="badge" id="apiStatus">API: kész</span>
+        </div>
+        <div id="chat" class="chat" aria-live="polite"></div>
+        <div class="inputbar">
+          <textarea id="ta" placeholder="Írj ide…"></textarea>
+          <button id="send" class="btn">Küldés</button>
+        </div>
+      </section>
 
-    <section class="chat" id="chatPane" role="region" aria-live="polite">
-      <div id="log" class="log"></div>
-      <div class="inputRow">
-        <textarea id="input" placeholder="Írj ide…"></textarea>
-        <button id="send" class="btn">Küldés</button>
-      </div>
-    </section>
-  </main>
+      <!-- VOICE + 3D -->
+      <section class="voice" aria-label="Hangos mód">
+        <div class="top">
+          <div style="display:flex; gap:10px; align-items:center">
+            <strong>Hangos mód</strong>
+            <span class="status" id="recStatus">Inaktív</span>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center">
+            <label class="switch"><input type="checkbox" id="continuous" checked> Folyamatos</label>
+            <label class="switch"><input type="checkbox" id="voiceOnly"> Ne jelenjen meg a chatben</label>
+          </div>
+        </div>
+        <div class="micwrap">
+          <button id="mic" class="micbtn" title="Indítás / Leállítás"></button>
+        </div>
+        <div class="stage" id="stage">
+          <div class="overlay">
+            <span class="pill">3D robot</span>
+            <span class="pill" id="stageStatus">Betöltés…</span>
+          </div>
+        </div>
+      </section>
+    </div>
 
-  <button id="micFab" class="fab" title="Hangos mód indítása" aria-label="Hangos mód">🎤</button>
-  <footer>© H.T — saját hobbi fejlesztés. Jó szórakozást! 🎊</footer>
+    <footer>
+      <div>© H.T — saját hobbi fejlesztés. Jó szórakozást! 🎉</div>
+      <div id="footerClock">—</div>
+    </footer>
+  </div>
+
+  <!-- Three.js + GLTFLoader (CDN) -->
+  <script src="https://unpkg.com/three@0.157.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.157.0/examples/js/loaders/GLTFLoader.js"></script>
 
   <script>
-    // --------- Alap UI ----------
-    const logEl   = document.getElementById('log');
-    const inputEl = document.getElementById('input');
-    const sendBtn = document.getElementById('send');
-    const copyTgl = document.getElementById('copyToggle');
-    const ttsTgl  = document.getElementById('ttsToggle');
-    const tabs    = document.querySelectorAll('.tab');
-    const micFab  = document.getElementById('micFab');
+  // ======= UTIL =======
+  const $ = (sel, root=document)=>root.querySelector(sel);
+  const chatEl = $('#chat');
+  const ta = $('#ta'); const sendBtn = $('#send');
+  const copyLast = $('#copyLast'); const tts = $('#tts');
+  const apiStatus = $('#apiStatus');
+  const todayBadge = $('#todayBadge'); const timeBadge = $('#timeBadge');
+  const footerClock = $('#footerClock');
+  let lastBot = '';
 
-    let lastBot = '';
-
-    function addMsg(text, who='bot', cls=''){
-      const d = document.createElement('div');
-      d.className = `msg ${who} ${cls}`.trim();
-      d.textContent = text;
-      logEl.appendChild(d);
-      logEl.scrollTop = logEl.scrollHeight;
-      if (who==='bot'){ lastBot=text; if (ttsTgl.checked) speakHu(text); }
-    }
-
-    addMsg("Szia! Örülök, hogy itt vagy! Kérdezz bátran; segítek. 😊", "info");
-
-    // --------- Magyar felolvasás ----------
-    let huVoice = null;
-    function pickHuVoice(){
+  function nowHu(){
+    const d = new Date();
+    const date = d.toLocaleDateString('hu-HU', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
+    const time = d.toLocaleTimeString('hu-HU', { hour:'2-digit', minute:'2-digit' });
+    return {date, time, d};
+  }
+  function addMsg(text, who='bot', kind=''){
+    const m = document.createElement('div');
+    m.className = 'msg ' + (who==='me' ? 'me' : (who==='info' ? 'info' : 'bot'));
+    m.innerText = text;
+    chatEl.appendChild(m);
+    chatEl.scrollTop = chatEl.scrollHeight;
+    return m;
+  }
+  function speakHu(text){
+    if(!tts.checked || !('speechSynthesis' in window)) return;
+    const utter = new SpeechSynthesisUtterance(text);
+    const chooseVoice = ()=>{
       const vs = speechSynthesis.getVoices();
-      huVoice = vs.find(v => /hu|hungarian|magyar/i.test(v.lang+v.name)) || vs[0] || null;
+      const hu = vs.find(v=>/hu/i.test(v.lang)) || vs.find(v=>/Google magyar/i.test(v.name)) || vs[0];
+      if(hu) utter.voice = hu;
+      utter.rate = 1; utter.pitch = 1; utter.lang = (hu && hu.lang) || 'hu-HU';
+      speechSynthesis.cancel(); // stop previous
+      speechSynthesis.speak(utter);
+    };
+    const ready = speechSynthesis.getVoices();
+    if(!ready || ready.length===0){
+      speechSynthesis.onvoiceschanged = chooseVoice;
+    }else chooseVoice();
+  }
+
+  // ======= FIX & SMART ANSWERS =======
+  function dayName(d){ return d.toLocaleDateString('hu-HU', { weekday:'long' }); }
+  function dateStr(d){ return d.toLocaleDateString('hu-HU', { year:'numeric', month:'long', day:'numeric' }); }
+  function plusDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d; }
+
+  function timeAnswers(textRaw){
+    const text = textRaw.toLowerCase().trim();
+    const {date, time} = nowHu();
+
+    // ma/holnap/holnapután
+    if (/(mennyi az idő|hány óra|hány óra van)/.test(text)) return `Most ${time} van.`;
+    if (/(mi a mai dátum|milyen dátum van ma|milyen nap van ma)/.test(text)) return `Ma ${date}.`;
+    if (/holnap( mi| milyen)? (a )?dátum/.test(text) || /milyen dátum lesz holnap/.test(text)){
+      const d = plusDays(1); return `Holnap ${dateStr(d)} (${dayName(d)}).`;
     }
-    if ('speechSynthesis' in window){
-      pickHuVoice();
-      window.speechSynthesis.onvoiceschanged = pickHuVoice;
+    if (/holnapután/.test(text)){
+      const d = plusDays(2); return `Holnapután ${dateStr(d)} (${dayName(d)}).`;
     }
-    function speakHu(t){
-      try{
-        const u = new SpeechSynthesisUtterance(t);
-        if (huVoice) u.voice = huVoice;
-        u.lang = huVoice?.lang || 'hu-HU';
-        u.rate = 1; u.pitch = 1;
-        speechSynthesis.cancel();
-        speechSynthesis.speak(u);
-      }catch{}
+    const napMulva = text.match(/(\d+)\s*nap(?:\s*múlva|\s*mulva)/);
+    if(napMulva){
+      const n = parseInt(napMulva[1],10); const d=plusDays(n);
+      return `${n} nap múlva ${dateStr(d)} (${dayName(d)}).`;
     }
+    return null;
+  }
 
-    // --------- Dátum/Idő segédek ----------
-    const WEEKDAYS = ['vasárnap','hétfő','kedd','szerda','csütörtök','péntek','szombat'];
-    const WEEKDAY_INDEX = { 'vasárnap':0, 'hetfo':1,'hétfő':1,'kedd':2,'szerda':3,'csütörtok':4,'csütörtök':4,'pentek':5,'péntek':5,'szombat':6 };
+  function fixedAnswer(textRaw){
+    const text = textRaw.toLowerCase().trim();
 
-    function norm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,''); }
+    // 1) idők, dátumok
+    const t = timeAnswers(textRaw);
+    if(t) return t;
 
-    function fmtDateHu(dt){
-      return new Intl.DateTimeFormat('hu-HU',{
-        year:'numeric', month:'long', day:'numeric', weekday:'long'
-      }).format(dt);
-    }
-    function fmtTimeHu(dt){
-      return new Intl.DateTimeFormat('hu-HU',{hour:'2-digit',minute:'2-digit'}).format(dt);
-    }
-    function addDays(base, n){
-      const d = new Date(base);
-      d.setDate(d.getDate()+n);
-      return d;
-    }
-    function nextWeekday(base, targetIdx){
-      const d0 = new Date(base);
-      const todayIdx = d0.getDay();
-      let delta = (targetIdx - todayIdx + 7) % 7;
-      if (delta===0) delta = 7; // következő ugyanaz = +7
-      return addDays(d0, delta);
-    }
-
-    // --------- Helyi (API nélküli) válaszok dátum/időre ----------
-    function localDateAnswer(raw){
-      const t = norm(raw).trim();
-      if (!t) return null;
-
-      // teljes dátum + idő
-      if (t.includes('datum es ido') || t.includes('pontos datum es ido')){
-        const now = new Date();
-        return `Ma ${fmtDateHu(now)} van, az idő pedig ${fmtTimeHu(now)}.`;
-      }
-
-      // csak idő
-      if (t.includes('mennyi az ido') || t.includes('hany ora van') || t.includes('pontos ido') || /^ido\??$/.test(t)){
-        return `Most az idő: ${fmtTimeHu(new Date())}.`;
-      }
-
-      // csak dátum / mai nap
-      if (t.includes('milyen datum van ma') || t.includes('mai datum') || t.includes('hanyadika van') || t.includes('milyen nap van ma') || /^datum\??$/.test(t)){
-        return `Ma ${fmtDateHu(new Date())} van.`;
-      }
-
-      // relatív napok: tegnap/holnap/holnapután
-      if (t.includes('tegnap')){
-        const d = addDays(new Date(), -1);
-        return `Tegnap ${fmtDateHu(d)} volt.`;
-      }
-      if (t.includes('holnaputan') || t.includes('holnap utan')){
-        const d = addDays(new Date(), 2);
-        return `Holnapután ${fmtDateHu(d)} lesz.`;
-      }
-      if (t.includes('holnap')){
-        const d = addDays(new Date(), 1);
-        return `Holnap ${fmtDateHu(d)} lesz.`;
-      }
-
-      // X nap múlva / X nap után
-      let m;
-      m = t.match(/(\d+)\s*nap\s*(mulva|utan)/);
-      if (m){
-        const n = parseInt(m[1],10);
-        const d = addDays(new Date(), n);
-        return `${n} nap múlva ${fmtDateHu(d)} lesz.`;
-      }
-      // X napja / X nappal ezelőtt
-      m = t.match(/(\d+)\s*nap(pal)?\s*(ezelott|korabban|ota|ja)/);
-      if (m){
-        const n = parseInt(m[1],10);
-        const d = addDays(new Date(), -n);
-        return `${n} napja ${fmtDateHu(d)} volt.`;
-      }
-
-      // következő hétfő/kedd/… (következo <nap>)
-      m = t.match(/kovetkez[oö]\s+([a-záéíóöőúüű]+)\b/);
-      if (m){
-        const wdName = m[1];
-        const idx = WEEKDAY_INDEX[ norm(wdName) ];
-        if (typeof idx === 'number'){
-          const d = nextWeekday(new Date(), idx);
-          return `A következő ${WEEKDAYS[idx]} ${fmtDateHu(d)} lesz.`;
-        }
-      }
-
-      // jövő hét <nap> — szintén következő előfordulásként kezeljük
-      m = t.match(/jov[oő]\s+h[eé]t\s+([a-záéíóöőúüű]+)\b/);
-      if (m){
-        const wdName = m[1];
-        const idx = WEEKDAY_INDEX[ norm(wdName) ];
-        if (typeof idx === 'number'){
-          const d = nextWeekday(new Date(), idx);
-          return `Jövő héten, ${WEEKDAYS[idx]} napján: ${fmtDateHu(d)}.`;
-        }
-      }
-
-      return null; // nem helyi dátum/ido kérdés
+    // 2) modell
+    if (/(milyen modell|milyen ai|ki vagy te|ki beszél)/.test(text)){
+      return "Én Tamás modellje vagyok. Horváth Tamás készített és fejlesztett — azért, hogy segítsek neked bármiben. 🙂";
     }
 
-    // --------- Speciális fix válaszok (készítő/modell) ----------
-    function fixedAnswer(raw){
-      const t = raw.toLowerCase();
-      const owner = ['ki készítette','ki hozta létre','ki a tulaj','ki a tulajdonos','készítője','tulajdonosa','készítette ezt az oldalt'];
-      if (owner.some(k => t.includes(k))){
-        return "Az oldalt Horváth Tamás (Szabolcsbáka) készítette hobbi fejlesztésként. 😊";
-      }
-      if ((t.includes('horváth tamás') || t.includes('horvath tamas')) && (t.includes('ki') || t.includes('mesélj') || t.includes('mutasd'))){
-        return "Horváth Tamás lelkes hobbiprogramozó Szabolcsbákáról. Webes projektekkel és mesterséges intelligenciával kísérletezik; folyamatosan fejleszti a tudását.";
-      }
-      if (t.includes('milyen modell') || t.includes('ki vagy te') || t.includes('milyen chat')){
-        return "Én Tamás modellje vagyok. Ő készített és fejlesztett, hogy segítsek neked bármiben. 🙂";
-      }
-      return null;
+    // 3) készítő
+    if (/(ki készítette|ki hozta létre|ki csinálta).*(oldal|weboldal)/.test(text)){
+      return "Az oldalt Horváth Tamás (Szabolcsbáka) készítette hobbi-fejlesztésként. 🌟";
+    }
+    if (/(mesélj).*(horváth tamás|szabolcsbáka)/.test(text)){
+      return "Horváth Tamás lelkes hobbiprogramozó: webes projektekkel és mesterséges intelligenciával kísérletezik, új ötleteket próbál ki és folyamatosan fejleszti a tudását. 💡";
     }
 
-    // --------- Küldés logika ----------
-    async function sendNow(){
-      const text = inputEl.value.trim();
-      if(!text) return;
-      inputEl.value=''; addMsg(text,'user');
-
-      // 1) Helyi dátum/idő
-      const local = localDateAnswer(text);
-      if (local){ addMsg(local,'bot'); return; }
-
-      // 2) Fix infók
-      const fx = fixedAnswer(text);
-      if (fx){ addMsg(fx,'bot'); return; }
-
-      // 3) OpenAI backend
-      addMsg("…","bot","info");
-      try{
-        const r = await fetch("/.netlify/functions/chat", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({ message: text })
-        });
-        const info = document.querySelector('.msg.info:last-of-type'); if(info) info.remove();
-        if(!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = await r.json();
-        const reply = (data.reply||"").toString().trim() || "Rendben. Miben segíthetek még?";
-        addMsg(reply,'bot');
-        if (copyTgl.checked){ try{ await navigator.clipboard.writeText(reply); }catch{} }
-      }catch(e){
-        const info = document.querySelector('.msg.info:last-of-type'); if(info) info.remove();
-        addMsg("Hiba: "+(e?.message||'ismeretlen hiba'),'bot','err');
-      }
+    // 4) más sablon
+    if (/köszön|szia|helló|hello|üdv/.test(text)){
+      return "Szia! Örülök, hogy itt vagy. Kérdezz bátran — segítek. 🙂";
     }
 
-    sendBtn.addEventListener('click', sendNow);
-    inputEl.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendNow(); } });
+    return null;
+  }
 
-    // --------- Tabok ----------
-    tabs.forEach(t=>{
-      t.addEventListener('click', ()=>{
-        tabs.forEach(x=>x.classList.remove('active'));
-        t.classList.add('active');
-        const isVoice = t.dataset.tab==='voice';
-        document.querySelector('.inputRow').style.display = isVoice ? 'none' : 'flex';
-        micFab.style.display = isVoice ? 'grid' : 'none';
-        addMsg(isVoice
-          ? "Koppints a jobb alsó 🎤 gombra. Egyszer elindítod → folyamatosan hallgat és válaszol (amíg le nem állítod)."
-          : "Írj nyugodtan bármit. 🙂","info");
+  // ======= CHAT FLOW =======
+  async function ask(text){
+    if(!text) return;
+    addMsg(text, 'me');
+    ta.value = '';
+
+    // helyi okos válasz
+    const local = fixedAnswer(text);
+    if(local){ lastBot = local; addMsg(local, 'bot'); speakHu(local); return; }
+
+    // információs csík
+    const info = addMsg("…", "info");
+    try{
+      const r = await fetch('/.netlify/functions/chat', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ message: text })
       });
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      info.remove();
+      lastBot = String(data.reply || "Értem. Miben segíthetek még?");
+      addMsg(lastBot, 'bot'); speakHu(lastBot);
+    }catch(e){
+      info.remove();
+      addMsg(`Hiba: ${e.message || e}`, 'info');
+    }
+  }
+
+  // UI kötés
+  sendBtn.addEventListener('click', ()=>ask(ta.value.trim()));
+  ta.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ask(ta.value.trim()); }
+  });
+  copyLast.addEventListener('change', ()=>{
+    if(copyLast.checked && lastBot) navigator.clipboard.writeText(lastBot).catch(()=>{});
+  });
+
+  // Kezdő üzenet
+  addMsg("Szia! Örülök, hogy itt vagy! Kérdezz bátran; segítek. 🙂", 'bot');
+
+  // Fejlécek: dátum/óra
+  function refreshClocks(){
+    const {date,time} = nowHu();
+    todayBadge.textContent = date;
+    timeBadge.textContent = time;
+    footerClock.textContent = `${date} — ${time}`;
+  }
+  refreshClocks(); setInterval(refreshClocks, 10_000);
+
+  // ======= VOICE (Web Speech API) =======
+  const recStatus = $('#recStatus'); const micBtn = $('#mic');
+  const continuous = $('#continuous'); const voiceOnly = $('#voiceOnly');
+  let rec = null; let listening = false; let interim = '';
+
+  function setRecState(state){
+    recStatus.textContent = state;
+    if(state==='Hallgatok…'){ micBtn.classList.add('stop'); }
+    else{ micBtn.classList.remove('stop'); }
+  }
+
+  function setupRecognition(){
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SR){ setRecState('Nem támogatott ezen az eszközön 😕'); return null; }
+    const r = new SR();
+    r.lang = 'hu-HU';
+    r.interimResults = true;
+    r.continuous = true; // mi is kezeljük újraindítással
+    r.maxAlternatives = 1;
+
+    r.onstart = ()=> setRecState('Hallgatok…');
+    r.onerror = (e)=> setRecState('Hiba: ' + (e.error || 'ismeretlen'));
+    r.onend = ()=>{
+      setRecState('Leállítva');
+      if(listening && continuous.checked){
+        // iOS/Android miatt kis késleltetéssel újraindítás
+        setTimeout(()=>{ try{ r.start(); }catch{} }, 300);
+      }
+    };
+    r.onresult = (ev)=>{
+      let finalText = '';
+      for(let i=ev.resultIndex; i<ev.results.length; i++){
+        const res = ev.results[i];
+        if(res.isFinal) finalText += res[0].transcript;
+        else interim = res[0].transcript;
+      }
+      if(finalText){
+        const text = finalText.trim();
+        if(!voiceOnly.checked) addMsg(text, 'me');
+        // helyi -> backend
+        const local = fixedAnswer(text);
+        const respond = async (t)=>{
+          lastBot = t; if(!voiceOnly.checked) addMsg(t,'bot'); speakHu(t);
+        }
+        if(local) respond(local);
+        else fetch('/.netlify/functions/chat',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text})})
+          .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+          .then(d=>respond(String(d.reply||'Értem. Miben segíthetek még?')))
+          .catch(e=>{ if(!voiceOnly.checked) addMsg('Hiba: '+e.message,'info'); });
+      }
+    };
+    return r;
+  }
+
+  micBtn.addEventListener('click', ()=>{
+    if(!rec) rec = setupRecognition();
+    if(!rec) return;
+    if(!listening){ try{ rec.start(); listening = true; }catch(e){} }
+    else{ try{ rec.stop(); }catch(e){} listening = false; }
+  });
+
+  // ======= 3D ROBOT (Three.js) =======
+  const stage = $('#stage'); const stageStatus = $('#stageStatus');
+  let renderer, scene, camera;
+
+  function init3D(){
+    const w = stage.clientWidth, h = stage.clientHeight;
+    renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+    renderer.setSize(w, h); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+    stage.appendChild(renderer.domElement);
+
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(35, w/h, 0.1, 100);
+    camera.position.set(0, 1.2, 2.6);
+
+    // fények
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x222233, 0.9); scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(2,2,2); scene.add(dir);
+
+    // talaj gyűrű
+    const geo = new THREE.TorusGeometry(1.2, 0.02, 16, 60);
+    const mat = new THREE.MeshStandardMaterial({ color:0x293140, metalness:.2, roughness:.6 });
+    const ring = new THREE.Mesh(geo, mat); ring.rotation.x = -Math.PI/2; ring.position.y = -0.6; scene.add(ring);
+
+    // robot betöltés
+    stageStatus.textContent = 'Robot betöltése…';
+    const loader = new THREE.GLTFLoader();
+    loader.load('CesiumMan.glb', (gltf)=>{
+      const model = gltf.scene;
+      model.scale.set(1.8,1.8,1.8);
+      model.position.set(0,-0.6,0);
+      scene.add(model);
+      stageStatus.textContent = 'Robot kész ✅';
+      // kis mozgás
+      function animate(){
+        requestAnimationFrame(animate);
+        model.rotation.y += 0.006;
+        renderer.render(scene, camera);
+      }
+      animate();
+      // kedves köszönés TTS-ben is
+      setTimeout(()=> speakHu('Szia! Itt vagyok. Kérdezz bátran!'), 600);
+    }, undefined, (err)=>{
+      console.error('GLB hiba:', err); stageStatus.textContent = 'Robot betöltési hiba';
     });
 
-    // --------- Hangos mód (Web Speech API) ----------
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let rec=null, listening=false;
-    if(SR){
-      rec = new SR();
-      rec.lang = 'hu-HU'; rec.continuous = true; rec.interimResults = false;
-      rec.onresult = async (ev)=>{
-        const last = ev.results[ev.results.length-1];
-        if(last?.isFinal){
-          const said = last[0].transcript.trim();
-          if(!said) return;
-          addMsg(said,'user'); inputEl.value = said; await sendNow();
-        }
-      };
-      rec.onerror = e => { addMsg("Felismerési hiba: "+(e.error||'ismeretlen'),'bot','err'); stopRec(); };
-      rec.onend   = ()=>{ if(listening){ try{ rec.start(); }catch{} } };
-    }else{
-      micFab.style.display='none';
-    }
-    function startRec(){ if(!rec) return; try{ rec.start(); listening=true; micFab.dataset.state='listening'; }catch{} }
-    function stopRec(){ if(!rec) return; try{ rec.stop(); }catch{} listening=false; micFab.removeAttribute('data-state'); }
-    micFab.addEventListener('click', ()=> listening ? stopRec() : startRec());
-    document.addEventListener('click', ()=>{}, {once:true}); // iOS TTS engedély
+    window.addEventListener('resize', ()=>{
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w,h);
+      camera.aspect = w/h; camera.updateProjectionMatrix();
+    });
+  }
+  init3D();
+
+  // ======= INFO =======
+  apiStatus.textContent = 'API: kész';
   </script>
-<div id="robot-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;"></div>
-<script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/js/loaders/GLTFLoader.js"></script>
-<script>
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  const renderer = new THREE.WebGLRenderer({ alpha: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.getElementById("robot-container").appendChild(renderer.domElement);
-
-  const light = new THREE.DirectionalLight(0xffffff, 1);
-  light.position.set(0, 1, 1).normalize();
-  scene.add(light);
-
-  const loader = new THREE.GLTFLoader();
-  loader.load('robot.glb', (gltf) => {
-    scene.add(gltf.scene);
-    gltf.scene.position.set(0, -1, 0);
-    gltf.scene.scale.set(2, 2, 2);
-    animate();
-  });
-
-  camera.position.z = 5;
-  function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-  }
-
-  window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-</script>
-<div id="robot-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;"></div>
-<script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/js/loaders/GLTFLoader.js"></script>
-<script>
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  const renderer = new THREE.WebGLRenderer({ alpha: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.getElementById("robot-container").appendChild(renderer.domElement);
-
-  const light = new THREE.DirectionalLight(0xffffff, 1);
-  light.position.set(0, 1, 1).normalize();
-  scene.add(light);
-
-  const loader = new THREE.GLTFLoader();
-  loader.load('robot.glb', (gltf) => {
-    scene.add(gltf.scene);
-    gltf.scene.position.set(0, -1, 0);
-    gltf.scene.scale.set(2, 2, 2);
-    animate();
-  });
-
-  camera.position.z = 5;
-  function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-  }
-
-  window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-</script>
 </body>
 </html>
