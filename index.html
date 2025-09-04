@@ -2,337 +2,200 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Tamás Mesterséges (AI)</title>
-  <link rel="icon" href="data:," />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tamás Mesterséges (AI) — Chat</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
   <style>
     :root{
-      --bg: #0f1115;
-      --panel: rgba(24,26,32,.75);
-      --panel-blur: blur(12px);
-      --accent: #f39c12;
-      --accent-2: #3aa9ff;
-      --text: #e8e8ea;
-      --muted: #a8adb7;
-      --bubble-user: linear-gradient(135deg,#ffb347,#ffcc33);
-      --bubble-bot:  linear-gradient(135deg,#2c3e50,#4b79a1);
-      --glass: rgba(255,255,255,.06);
-      --radius: 18px;
-      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --bg:#0e0f12;
+      --glass:#1a1d24cc;
+      --glass-strong:#1a1d24f2;
+      --text:#e8ebf1;
+      --muted:#9aa3b2;
+      --brand:#f4a62a;
+      --me:#2e7dd7;
+      --bot:#3a3f4a;
+      --ring:#2b303a;
+      --shadow: 0 12px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.03);
+      --radius:18px;
+      --radius-sm:12px;
+      --max: 1100px;
     }
-
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
-      margin:0;
-      font: 16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      color:var(--text);
-      background:
-        radial-gradient(1000px 500px at 20% -10%, #232838 0%, transparent 60%),
-        radial-gradient(1000px 500px at 120% 10%, #1b2230 0%, transparent 60%),
-        var(--bg);
-      display:flex;
-      flex-direction:column;
+      margin:0; background: radial-gradient(1200px 800px at 10% -10%, #1c2028 0, transparent 60%),
+                         radial-gradient(1000px 700px at 100% 0, #13161c 0, transparent 65%),
+                         var(--bg);
+      color:var(--text); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      display:flex; align-items:center; justify-content:center;
     }
-
-    /* Header */
+    .wrap{ width:100%; max-width:var(--max); padding:16px; }
     header{
-      position:sticky; top:0; z-index:10;
-      backdrop-filter: saturate(140%) blur(8px);
-      background: rgba(10,12,16,.55);
-      border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex; align-items:center; gap:14px; margin-bottom:14px;
     }
-    .bar{
-      max-width:1150px; margin:auto; padding:14px 18px;
-      display:flex; align-items:center; gap:12px;
-    }
-    .dot{width:10px;height:10px;border-radius:50%; background:var(--accent)}
-    .title{
-      font-weight:800; letter-spacing:.2px; font-size:18px;
-    }
-    .subtitle{color:var(--muted); font-size:13px}
-
-    /* Main layout */
-    .wrap{
-      max-width:1150px; margin:24px auto 18px auto;
-      padding:0 18px; width:100%;
-      display:grid; grid-template-columns: 1fr; gap:18px;
-    }
-
-    /* Card */
-    .card{
-      border-radius:var(--radius);
-      background:var(--panel);
-      backdrop-filter:var(--panel-blur);
+    .badge{
+      background:linear-gradient(180deg,#212632,#161a22); color:var(--text);
+      border:1px solid #2b3140; padding:10px 14px; border-radius:var(--radius);
       box-shadow:var(--shadow);
-      border:1px solid rgba(255,255,255,.08);
     }
+    .brand{ font-weight:700; font-size:20px; letter-spacing:.2px }
+    .sub{ color:var(--muted); font-size:14px }
 
-    /* Chat container (bigger + inner scroll) */
-    #chat{
-      display:flex; flex-direction:column;
-      height:min(78vh, 760px);
-      min-height:520px;
+    .chat{
+      background:var(--glass); border:1px solid var(--ring);
+      border-radius:var(--radius); box-shadow:var(--shadow);
+      display:flex; flex-direction:column; height: min(78vh, 820px);
+      position:relative; overflow:hidden;
     }
-    #chatHeader{
-      padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.07);
-      display:flex; align-items:center; gap:12px; justify-content:space-between;
+    .msgs{ padding:18px; overflow:auto; flex:1; scroll-behavior:smooth }
+    .msg{ max-width: 85%; padding:12px 14px; border-radius:var(--radius);
+          margin:8px 0; word-wrap:break-word; white-space:pre-wrap }
+    .msg.user{ background:linear-gradient(180deg,#2a74cf,#245da5); align-self:flex-end }
+    .msg.bot{ background:linear-gradient(180deg,#2a2f39,#222530); border:1px solid #333846 }
+    .msg.info{ background:#1f232c; color:var(--muted); border:1px dashed #3a4150 }
+    .row{
+      display:flex; gap:10px; align-items:center;
+      padding:12px; border-top:1px solid var(--ring); background:var(--glass-strong)
     }
-    #chatBody{
-      padding:16px; overflow-y:auto; flex:1;
-      scroll-behavior:smooth;
+    .input{
+      flex:1; background:#14171d; border:1px solid #2c3240; color:var(--text);
+      outline:none; border-radius:14px; padding:12px 14px; min-height:44px;
     }
-    #chatFooter{
-      padding:12px; border-top:1px solid rgba(255,255,255,.07);
-      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-    }
-
-    /* Bubbles */
-    .msg{max-width:80%; padding:10px 14px; border-radius:16px; margin:8px 0; color:#fff}
-    .user{margin-left:auto; background:var(--bubble-user); color:#231e0d}
-    .bot{margin-right:auto; background:var(--bubble-bot)}
-    .info{
-      margin: 8px auto; max-width:85%;
-      background:var(--glass); color:var(--muted); border:1px dashed rgba(255,255,255,.1)
-    }
-
-    /* Controls */
-    .pill{
-      background:rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.1);
-      color:var(--text);
-      padding:10px 12px; border-radius:999px;
-      display:flex; align-items:center; gap:8px;
-    }
-    .pill input{all:unset}
     .btn{
-      cursor:pointer; user-select:none;
-      background:var(--accent); color:#1c1300;
-      padding:10px 14px; border-radius:12px; border:none; font-weight:700;
-      box-shadow: 0 6px 18px rgba(243,156,18,.35);
+      background:linear-gradient(180deg,#f6b24a,#f19b12); color:#1a1205;
+      border:none; padding:12px 16px; border-radius:14px; font-weight:700; cursor:pointer;
+      box-shadow: 0 6px 20px rgba(244,166,42,.35);
     }
-    .btn.secondary{
-      background:#2f3849; color:#e2e7f0; box-shadow:none; border:1px solid rgba(255,255,255,.08)
+    .btn:disabled{ opacity:.6; cursor:not-allowed }
+    .pill{
+      position:absolute; right:12px; bottom:12px;
+      display:flex; align-items:center; gap:10px;
+      background:#151821cc; border:1px solid #2b3140;
+      padding:8px 10px; border-radius:999px; box-shadow:var(--shadow);
+      user-select:none
     }
-    .field{
-      flex:1; display:flex; align-items:center; gap:10px;
-      background:rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.1);
-      border-radius:12px; padding:8px 10px;
+    .icon-btn{
+      background:#0f1217; border:1px solid #2b3140; color:var(--text);
+      width:36px; height:36px; border-radius:999px; display:grid; place-items:center; cursor:pointer
     }
-    #text{all:unset; color:var(--text); width:100%}
-    .hint{color:var(--muted); font-size:12px}
-
-    /* Footer legal */
-    footer{
-      color:#b4b8c2; font-size:12px; text-align:center;
-      padding:16px 12px; opacity:.85;
-    }
-
-    /* Mobile tweaks */
-    @media (max-width:720px){
-      #chat{height: 75vh; min-height:480px}
-      .msg{max-width: 92%}
+    .hint{ color:var(--muted); font-size:12px; margin-left:8px }
+    footer{ margin-top:10px; color:var(--muted); font-size:12px; text-align:center }
+    @media (max-width: 680px){
+      .msg{ max-width: 92% }
+      .brand{ font-size:18px }
     }
   </style>
 </head>
 <body>
+  <div class="wrap">
+    <header>
+      <div class="badge">
+        <div class="brand">Tamás Mesterséges (AI)</div>
+        <div class="sub">Hobbi fejlesztés — barátságos magyar asszisztens</div>
+      </div>
+    </header>
 
-  <!-- Fejléc -->
-  <header>
-    <div class="bar">
-      <div class="dot" aria-hidden="true"></div>
-      <div class="title">Tamás Mesterséges (AI)</div>
-      <div class="subtitle">Magyar nyelvű, barátságos asszisztens</div>
-    </div>
-  </header>
+    <section class="chat" id="chat">
+      <div class="msgs" id="msgs"></div>
 
-  <main class="wrap">
-    <!-- CHAT -->
-    <section id="chat" class="card" aria-label="Beszélgetés">
-      <div id="chatHeader">
-        <div style="font-weight:700">Beszélgetés</div>
-        <div class="pill">
-          <label><input type="checkbox" id="ttsToggle" checked /> Hang (felolvasás)</label>
-          <span style="opacity:.35">•</span>
-          <button id="micBtn" class="btn secondary" type="button">🎤 Mikrofon indítása</button>
-        </div>
+      <div class="row">
+        <input id="text" class="input" placeholder="Írj ide…  Enter = küldés, Shift+Enter = új sor" />
+        <button id="send" class="btn">Küldés</button>
       </div>
 
-      <div id="chatBody" aria-live="polite"></div>
-
-      <div id="chatFooter">
-        <div class="field">
-          <input id="text" placeholder="Írj ide…  (Enter = küldés, Shift+Enter = új sor)" />
-        </div>
-        <button id="sendBtn" class="btn" type="button">Küldés</button>
-        <div class="hint">Tipp: kérdezd meg pl. „Milyen nap lesz holnap?”</div>
+      <!-- hang kapcsoló a jobb alsó sarokban -->
+      <div class="pill">
+        <button id="ttsBtn" class="icon-btn" title="Felolvasás ki/be">🔈</button>
+        <span class="hint" id="ttsHint">Felolvasás: kikapcsolva</span>
       </div>
     </section>
-  </main>
 
-  <footer>
-    Védett oldal – bármilyen engedély nélküli másolás <strong>jogsértés</strong>. © Tamás AI
-  </footer>
+    <footer>© Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.</footer>
+  </div>
 
-  <script>
-    // ====== Állapot ======
-    const chatBody = document.querySelector('#chatBody');
-    const input = document.querySelector('#text');
-    const sendBtn = document.querySelector('#sendBtn');
-    const ttsToggle = document.querySelector('#ttsToggle');
-    const micBtn = document.querySelector('#micBtn');
+<script>
+  // ===== UI elemek
+  const msgs = document.getElementById('msgs');
+  const text = document.getElementById('text');
+  const send = document.getElementById('send');
+  const ttsBtn = document.getElementById('ttsBtn');
+  const ttsHint = document.getElementById('ttsHint');
 
-    let recognizing = false;
-    let voiceOnly = false;   // ha igaz, a hangos mód NEM ír a chatbe
-    let rec;                 // SpeechRecognition
-    let lastBot = '';        // utolsó bot válasz (másoláshoz / felolvasáshoz)
+  // ===== állapot
+  let ttsOn = false;
 
-    // ====== Segédek ======
-    function addMsg(text, who='bot', cls=''){
-      const div = document.createElement('div');
-      div.className = `msg ${who} ${cls}`.trim();
-      div.textContent = text;
-      chatBody.appendChild(div);
-      chatBody.scrollTop = chatBody.scrollHeight;
-      return div;
+  // ===== segédek
+  function addMsg(t, who='bot', extraClass=''){
+    const b = document.createElement('div');
+    b.className = `msg ${who} ${extraClass}`.trim();
+    b.textContent = t;
+    msgs.appendChild(b);
+    msgs.scrollTop = msgs.scrollHeight;
+    return b;
     }
-    function addInfo(text){
-      return addMsg(text, '', 'info');
+  function addInfo(t){ return addMsg(t,'bot','info'); }
+
+  function speakHu(text){
+    try{
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'hu-HU';
+      u.rate = 1.0;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    }catch(_){}
+  }
+
+  function setTTS(on){
+    ttsOn = on;
+    ttsBtn.textContent = on ? '🔊' : '🔈';
+    ttsHint.textContent = 'Felolvasás: ' + (on ? 'bekapcsolva' : 'kikapcsolva');
+    if(!on){ try{ speechSynthesis.cancel(); }catch(_){ } }
+  }
+
+  // ===== backend hívás
+  async function ask(textIn){
+    // saját üzenet
+    addMsg(textIn, 'user');
+
+    const thinking = addInfo('…');
+    try{
+      const r = await fetch('/.netlify/functions/chat', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ message: textIn })
+      });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const data = await r.json();
+      const reply = String(data.reply ?? 'Értem. Miben segíthetek még?');
+
+      thinking.remove();
+      addMsg(reply, 'bot');
+      if(ttsOn) speakHu(reply);
+    }catch(e){
+      thinking.remove();
+      addMsg('Hiba: '+(e.message || e), 'bot', 'info');
     }
+  }
 
-    function speakHu(text){
-      if(!ttsToggle.checked) return;
-      try{
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'hu-HU';
-        u.rate = 1; u.pitch = 1;
-        speechSynthesis.cancel(); // előző megszakítása
-        speechSynthesis.speak(u);
-      }catch(_){}
+  // ===== események
+  send.addEventListener('click', ()=>{
+    const v = text.value.trim();
+    if(!v) return;
+    text.value = '';
+    ask(v);
+  });
+  text.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      send.click();
     }
+  });
+  ttsBtn.addEventListener('click', ()=> setTTS(!ttsOn));
 
-    // Dátumok – mai nap és következő 7 nap neve + dátuma
-    function dateHints(){
-      const now = new Date();
-      const days = ['vasárnap','hétfő','kedd','szerda','csütörtök','péntek','szombat'];
-      const pad = n => String(n).padStart(2,'0');
-      const today = `Ma ${now.getFullYear()}. ${pad(now.getMonth()+1)}. ${pad(now.getDate())}. (${days[now.getDay()]})`;
-      const next = Array.from({length:7}, (_,i)=>{
-        const d = new Date(now); d.setDate(d.getDate()+i+1);
-        return `${days[d.getDay()]} – ${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}.`;
-      }).join('  •  ');
-      return {today, next};
-    }
-
-    // ====== Kezdő üdvözlés ======
-    (function greet(){
-      const {today, next} = dateHints();
-      addMsg('Szia! Örülök, hogy itt vagy! Kérdezz bátran; segítek. 🙂','bot');
-      addInfo(`${today}`);
-      addInfo(`Következő napok: ${next}`);
-    })();
-
-    // ====== Küldés (gépelős mód) ======
-    sendBtn.addEventListener('click', ()=> sendText());
-    input.addEventListener('keydown', e=>{
-      if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendText(); }
-    });
-
-    async function sendText(text){
-      const msg = (text ?? input.value ?? '').trim();
-      if(!msg) return;
-      input.value='';
-
-      addMsg(msg,'user');
-      await askBackend(msg, {suppressChat:false});
-    }
-
-    // ====== Hangos mód (nem ír a chatbe) ======
-    micBtn.addEventListener('click', async ()=>{
-      if(recognizing){ stopRec(); return; }
-      startRec();
-    });
-
-    function startRec(){
-      if(!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)){
-        addInfo('A hangfelismerés nem támogatott ezen az eszközön / böngészőben.');
-        return;
-      }
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      rec = new SR();
-      rec.lang = 'hu-HU';
-      rec.continuous = true;
-      rec.interimResults = true;
-
-      voiceOnly = true;     // fontos: ne írjunk a chatbe hang módban
-      recognizing = true;
-      micBtn.textContent = '🔇 Leállítás';
-
-      let buffer = '';
-      rec.onresult = async (ev)=>{
-        for(let i=ev.resultIndex;i<ev.results.length;i++){
-          const r = ev.results[i];
-          if(r.isFinal){
-            const said = r[0].transcript.trim();
-            buffer = '';
-            if(said){
-              // NEM írunk felhasználói buborékot; közvetlenül kérdezünk:
-              await askBackend(said, {suppressChat:true});
-            }
-          }else{
-            // köztes eredmény: csak gyűjtjük, de nem jelenítjük meg
-            buffer = r[0].transcript;
-          }
-        }
-      };
-      rec.onerror = e=>{
-        addInfo('Felismerési hiba: '+ (e.error||'ismeretlen'));
-      };
-      rec.onend = ()=>{
-        recognizing=false; voiceOnly=false;
-        micBtn.textContent = '🎤 Mikrofon indítása';
-      };
-      try{ rec.start(); }catch(_){}
-    }
-    function stopRec(){ try{ rec && rec.stop(); }catch(_){} }
-
-    // ====== Backend hívás ======
-    async function askBackend(userText, opts={suppressChat:false}){
-      // Külön "gondolkodom" jelzés
-      const thinking = !opts.suppressChat ? addInfo('…') : null;
-
-      try{
-        const r = await fetch('/.netlify/functions/chat', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ message: userText })
-        });
-        if(!r.ok) throw new Error('HTTP '+r.status);
-
-        const data = await r.json();
-        const reply = String(data.reply ?? 'Értem. Miben segíthetek még?');
-
-        lastBot = reply;
-
-        // Ha voiceOnly (hang mód) vagy suppressChat, nem írunk buborékot,
-        // csak felolvassuk a választ:
-        if(opts.suppressChat || voiceOnly){
-          if(thinking) thinking.remove();
-          speakHu(reply);
-          return;
-        }
-
-        if(thinking) thinking.remove();
-        addMsg(reply,'bot');
-        if(ttsToggle.checked) speakHu(reply);
-
-      }catch(e){
-        if(thinking) thinking.remove();
-        addMsg('Hiba: '+(e.message||e),'bot','info');
-      }
-    }
-  </script>
+  // ===== üdvözlés (csak 1 sor, NINCS dátum)
+  addMsg('Szia! Itt vagyok neked, segítek mindenben. Írj bátran! 🙂', 'bot');
+  setTTS(false); // alapból kikapcsolva
+</script>
 </body>
 </html>
