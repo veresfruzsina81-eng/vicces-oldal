@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>HT Voice — Beszélgess hanggal</title>
+  <meta name="theme-color" content="#0a0b10" />
+  <style>
+    :root{
+      --bg:#0a0b10; --panel:#111426; --panel2:#0c0f1d;
+      --accent:#ff8a28; --accent2:#ffb166; --ok:#46d38d; --bad:#ff6b6b;
+      --text:#e8edf4; --muted:#a5afc0;
+    }
+    html,body{height:100%}
+    body{
+      margin:0; color:var(--text); background:
+        radial-gradient(1100px 600px at 10% -10%, #1b2540 0%, transparent 60%),
+        radial-gradient(1100px 600px at 90% 110%, #231a38 0%, transparent 60%),
+        linear-gradient(180deg, #0b0f1a, var(--bg));
+      font: 16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", sans-serif;
+      display:flex; align-items:center; justify-content:center; padding: clamp(12px,2vw,20px);
+    }
+    .card{
+      width:min(720px, 96vw); min-height: min(78svh, 680px);
+      background: linear-gradient(180deg, #ffffff14, #ffffff08);
+      border:1px solid #ffffff1a; border-radius:20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5); backdrop-filter: blur(14px);
+      display:grid; grid-template-rows: auto 1fr auto; overflow:hidden;
+    }
+    header{ padding:16px 16px 10px; border-bottom:1px solid #ffffff12; }
+    h1{ margin:0; font-size:clamp(22px,5vw,36px); font-weight:900; letter-spacing:.3px;
+        background: linear-gradient(90deg, var(--accent), var(--accent2));
+        -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .sub{ color:var(--muted); font-size:14px; margin-top:6px; }
+
+    .statusbar{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      padding:10px 16px; border-bottom:1px solid #ffffff0f; background: linear-gradient(180deg, #ffffff07, transparent);
+    }
+    .badge{ padding:6px 10px; border-radius:999px; font-size:13px; background:#0e1324; border:1px solid #ffffff1a; }
+    .ok{ border-color:#2a9e73; color:#c3f5df; }
+    .warn{ border-color:#eaa34f; color:#ffe3bf; }
+    .err{ border-color:#ff7070; color:#ffd9d9; }
+
+    .main{
+      padding:16px; display:grid; grid-template-columns: 1fr; gap:14px; overflow:auto;
+    }
+    .pane{
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      border:1px solid #ffffff10; border-radius:16px; padding:14px; min-height: 120px;
+      box-shadow: inset 0 1px 0 #ffffff0d;
+    }
+    .label{ font-size:13px; color:var(--muted); margin-bottom:6px; }
+    .content{
+      white-space: pre-wrap; word-break: break-word;
+      max-height: 26svh; overflow:auto; padding-right:6px;
+    }
+
+    .controls{
+      display:flex; align-items:center; justify-content:center; gap:12px;
+      padding:14px; border-top:1px solid #ffffff12; background: linear-gradient(180deg, transparent, #00000020);
+    }
+    .btn{
+      border:0; border-radius:16px; padding:16px 18px; font-weight:800; cursor:pointer;
+      background: linear-gradient(90deg, var(--accent), var(--accent2)); color:#1f1205;
+      box-shadow: 0 12px 30px rgba(255,138,40,.35), inset 0 1px 0 #fff6;
+      min-width: 160px; font-size:18px;
+    }
+    .btn.stop{ background: linear-gradient(90deg, #ff6b6b, #ff8a8a); color:#230000; }
+    .btn.ghost{ background:#0e1324; color:#e8edf4; border:1px solid #ffffff1a; min-width:120px; }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
+
+    .hint{ color:var(--muted); font-size:13px; text-align:center; padding:0 12px 12px; }
+    .small{ font-size:12px; color:#93a0b8; }
+
+    @media (max-width: 560px){
+      .btn{ padding:15px 16px; min-width: 140px; font-size:17px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <header>
+      <h1>HT Voice — Beszélgess hanggal</h1>
+      <div class="sub">Az oldalt létrehozta <b>H.T</b> — egyedi fejlesztéssel. Magyar hangfelismerés és felolvasás.</div>
+    </header>
+
+    <div class="statusbar">
+      <span id="micState" class="badge">🎙️ Mikrofon: készen</span>
+      <span id="ttsState" class="badge ok">🔊 Felolvasás: be</span>
+      <span id="autoState" class="badge">🔁 Auto-folytatás: ki</span>
+      <span id="supportState" class="badge warn">ℹ️ Ha nincs magyar STT a böngésződben, gépeld be a fő oldalon.</span>
+    </div>
+
+    <section class="main">
+      <div class="pane">
+        <div class="label">Utolsó kérdés (felismert szöveg)</div>
+        <div id="lastUser" class="content"></div>
+      </div>
+      <div class="pane">
+        <div class="label">Válasz</div>
+        <div id="lastAi" class="content"></div>
+      </div>
+      <div class="hint">Tipp: mondd például „Ki hozta létre az oldalt?”, „Mi az időjárás fogalma?”, „Írj egy viccet!”.</div>
+    </section>
+
+    <footer class="controls">
+      <div class="row">
+        <button id="micBtn" class="btn" type="button">🎤 Beszélj</button>
+        <button id="stopBtn" class="btn stop" type="button" disabled>⏹ Megállít</button>
+        <button id="toggleTTS" class="btn ghost" type="button">🔊 Felolvasás kikapcs</button>
+        <button id="toggleAuto" class="btn ghost" type="button">🔁 Auto-folytatás be</button>
+      </div>
+      <div class="small">A kérdésedet az API-nak küldjük, a választ magyarul mondjuk vissza.</div>
+    </footer>
+  </main>
+
+  <script>
+    // ===== UI elemek =====
+    const micBtn = document.getElementById('micBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const toggleTTSBtn = document.getElementById('toggleTTS');
+    const toggleAutoBtn = document.getElementById('toggleAuto');
+
+    const micState = document.getElementById('micState');
+    const ttsState = document.getElementById('ttsState');
+    const autoState = document.getElementById('autoState');
+
+    const lastUserEl = document.getElementById('lastUser');
+    const lastAiEl = document.getElementById('lastAi');
+
+    // ===== Állapot =====
+    let ttsOn = true;
+    let autoContinue = false;    // ha igaz: a válasz felolvasása után újraindítja a felvételt
+    let listening = false;
+    let recog = null;
+
+    // ===== TTS (magyar) =====
+    let huVoice = null;
+    function pickHuVoice(){
+      if(!('speechSynthesis' in window)) return null;
+      const voices = speechSynthesis.getVoices();
+      huVoice = voices.find(v=>/hu(-|_)HU/i.test(v.lang)) || voices.find(v=>/Hungarian/i.test(v.name)) || null;
+      return huVoice;
+    }
+    if('speechSynthesis' in window){
+      speechSynthesis.onvoiceschanged = pickHuVoice;
+      pickHuVoice();
+    }
+    function speak(text){
+      if(!ttsOn || !('speechSynthesis' in window)) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'hu-HU';
+      if(huVoice) u.voice = huVoice;
+      u.rate = 1; u.pitch = 1;
+      u.onend = ()=>{ if(autoContinue) startListening(); };
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    }
+
+    // ===== STT (magyar) – Web Speech API =====
+    function getRecognizer(){
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      return SR ? new SR() : null;
+    }
+    function attachRecog(){
+      recog = getRecognizer();
+      if(!recog){
+        document.getElementById('supportState').className = 'badge err';
+        document.getElementById('supportState').textContent = '❌ Ez a böngésző nem támogatja a magyar STT-t.';
+        micBtn.disabled = true;
+        return;
+      }
+      recog.lang = 'hu-HU';
+      recog.interimResults = true;
+      recog.continuous = false;
+
+      let finalText = '';
+      recog.onstart = ()=>{
+        listening = true;
+        micBtn.disabled = true;
+        stopBtn.disabled = false;
+        micState.textContent = '🎙️ Felvétel folyamatban… beszélj!';
+        micState.className = 'badge ok';
+        lastUserEl.textContent = '';
+      };
+      recog.onresult = (e)=>{
+        let tmp = '';
+        for(let i=e.resultIndex;i<e.results.length;i++){
+          const t = e.results[i][0].transcript;
+          if(e.results[i].isFinal) finalText += t;
+          else tmp += t;
+        }
+        lastUserEl.textContent = (finalText || tmp).trim();
+      };
+      recog.onerror = (e)=>{
+        listening = false;
+        micBtn.disabled = false;
+        stopBtn.disabled = true;
+        micState.textContent = '🎙️ Hiba a felismerésben: ' + (e.error||'ismeretlen');
+        micState.className = 'badge err';
+      };
+      recog.onend = ()=>{
+        listening = false;
+        micBtn.disabled = false;
+        stopBtn.disabled = true;
+        micState.textContent = '🎙️ Mikrofon: készen';
+        micState.className = 'badge';
+        const text = (lastUserEl.textContent||'').trim();
+        if(text) askAI(text);
+      };
+    }
+    attachRecog();
+
+    async function startListening(){
+      if(!recog) return;
+      try{
+        await navigator.mediaDevices.getUserMedia({audio:true});
+      }catch{ micState.textContent='🎙️ Engedélyezd a mikrofont a böngészőben'; micState.className='badge warn'; return; }
+      try{
+        recog.start();
+      }catch{}
+    }
+    function stopListening(){
+      if(recog && listening){ try{ recog.stop(); }catch{} }
+    }
+
+    // ===== OpenAI hívás Netlify funkción át =====
+    async function askAI(message){
+      lastAiEl.textContent = 'Gondolkodom…';
+      try{
+        const r = await fetch('/.netlify/functions/chat', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ message })
+        });
+        const data = await r.json();
+        if(!r.ok || data.error){
+          lastAiEl.textContent = 'Hiba: ' + (data.error || (r.status+' '+r.statusText));
+          return;
+        }
+        const reply = (data.reply||'Rendben.').trim();
+        lastAiEl.textContent = reply;
+        speak(reply);
+      }catch(e){
+        lastAiEl.textContent = 'Hálózati hiba: ' + e.message;
+      }
+    }
+
+    // ===== Gombok =====
+    micBtn.addEventListener('click', startListening);
+    stopBtn.addEventListener('click', stopListening);
+
+    toggleTTSBtn.addEventListener('click', ()=>{
+      ttsOn = !ttsOn;
+      ttsState.textContent = ttsOn ? '🔊 Felolvasás: be' : '🔇 Felolvasás: ki';
+      ttsState.className = 'badge ' + (ttsOn ? 'ok' : '');
+      toggleTTSBtn.textContent = ttsOn ? '🔊 Felolvasás kikapcs' : '🔊 Felolvasás bekapcs';
+      if(!ttsOn && 'speechSynthesis' in window) speechSynthesis.cancel();
+    });
+
+    toggleAutoBtn.addEventListener('click', ()=>{
+      autoContinue = !autoContinue;
+      autoState.textContent = '🔁 Auto-folytatás: ' + (autoContinue?'be':'ki');
+      toggleAutoBtn.textContent = autoContinue ? '🔁 Auto-folytatás ki' : '🔁 Auto-folytatás be';
+    });
+
+    // iOS/szűk kijelző fix: safe-area és görgetés
+    window.addEventListener('resize', ()=>{ /* no-op, de megakadályozza az ugrálást */ });
+  </script>
+</body>
+</html>
