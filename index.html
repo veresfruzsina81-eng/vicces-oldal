@@ -1,300 +1,234 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="hu">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tamás Mesterséges (AI)</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2242%22 fill=%22%23ffb44d%22/><text x=%2250%22 y=%2260%22 text-anchor=%22middle%22 font-size=%2248%22 font-family=%22Arial%22 fill=%22%23000%22>AI</text></svg>">
-
   <style>
     :root{
-      --bg: #0b0d12;
-      --text: #eaf0f7;
-      --muted: #a5afbf;
-      --brand: #ffb44d;
-      --brand-2: #ff8c3a;
-
-      /* Üveges kártyák – enyhe, átlátszó */
-      --glass-bg: rgba(16,18,24,0.45);
-      --glass-brd: rgba(255,255,255,0.20);
-      --glass-blur: 6px;
-      --radius: 18px;
-
-      /* Layout méretek */
-      --header-h: 88px;
-      --footer-h: 82px;
-      --content-w: min(900px, 92vw);
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      color:var(--text);
-      background: var(--bg) center/cover fixed no-repeat;
-      background-image: url('bg_tamas.jpg');
-      font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      --maxw: 980px;          /* chat max-szélesség */
+      --side-pad: 12px;       /* oldalsó belső margó mobilon */
+      --composer-h: 64px;     /* beviteli sáv kb. magassága */
+      --footer-h: 28px;       /* lábléc magassága */
     }
 
-    /* sötét/fényes váltás – marad */
-    .theme-toggle{
-      position:absolute; right:18px; top:18px; z-index:20;
-      padding:10px 14px; border-radius:14px; color:#111;
-      background:#fff; opacity:.92; border:1px solid #0003;
-      font-weight:600;
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: url("bg_tamas.jpg") no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
     }
 
-    /* Üveges fejléc */
-    header{
-      position:sticky; top:0; z-index:15;
-      display:flex; align-items:center; gap:18px;
-      width:100%; padding:14px 18px;
-    }
-    .header-card{
-      width:var(--content-w);
-      margin:0 auto; padding:18px 20px 16px;
-      background:var(--glass-bg);
-      border:1px solid var(--glass-brd);
-      border-radius:calc(var(--radius) + 6px);
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
-      box-shadow: 0 10px 30px rgba(0,0,0,.25);
-    }
-    h1{margin:0 0 6px; font-size:clamp(22px,4.5vw,34px)}
-    .sub{color:var(--muted); font-size:.96rem}
-
-    /* Tartalom – a header alatt hagyunk fix helyet */
-    main{
-      padding: calc(var(--header-h) - 18px) 0 0;
-      min-height: calc(100dvh - var(--footer-h));
-    }
-    .chat-wrap{
-      width:var(--content-w);
-      margin: 10px auto 110px;
-      display:flex; flex-direction:column; gap:14px;
-      padding: 0 8px;
+    header {
+      width: 100%;
+      max-width: var(--maxw);
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      padding: 12px;
+      backdrop-filter: blur(10px) saturate(120%);
+      background: rgba(20,20,22,0.45);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      border-radius: 0 0 16px 16px;
     }
 
-    /* Üzenet buborékok */
-    .msg{
-      max-width: 100%;
-      padding: 16px 18px;
-      border-radius: var(--radius);
-      background: var(--glass-bg);
-      border: 1px solid var(--glass-brd);
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
-      box-shadow: 0 8px 24px rgba(0,0,0,.22);
-      word-wrap:break-word;
-    }
-    .msg.bot{ align-self:flex-start }
-    .msg.user{
-      align-self:flex-end;
-      background: linear-gradient(180deg,var(--brand),var(--brand-2));
-      color:#1c1203; border:none; box-shadow: 0 8px 22px rgba(255,140,58,.35);
+    header h1 {
+      margin: 0;
+      font-size: 1.5em;
     }
 
-    /* Bot akciógombok – FELolvasás / Másolás – a bot üzenet alatt */
-    .actions{
-      display:flex; gap:12px; flex-wrap:wrap;
-      margin: -6px 0 4px; /* közelebb az üzenethez */
-    }
-    .chip{
-      display:inline-flex; align-items:center; gap:10px;
-      padding:10px 14px; border-radius: 14px;
-      background: var(--glass-bg);
-      border:1px solid var(--glass-brd);
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
-      color:var(--text); cursor:pointer; user-select:none;
-      box-shadow: 0 4px 14px rgba(0,0,0,.18);
-      font-weight:600;
-    }
-    .chip:active{ transform: translateY(1px) }
-
-    /* Javasolt kérdés chipek – maradnak, de nem lógnak rá semmire */
-    .suggest{
-      display:flex; flex-wrap:wrap; gap:12px;
-      width:var(--content-w); margin: 6px auto 0; padding:0 8px;
-    }
-    .sugg{ padding:10px 14px; border-radius: 999px;
-      background: rgba(255,255,255,.12); border:1px dashed rgba(255,255,255,.25);
-      backdrop-filter: blur(4px); color:#fff; cursor:pointer
+    header p {
+      margin: 4px 0 0;
+      font-size: 0.9em;
+      opacity: 0.85;
     }
 
-    /* Fix alsó sáv */
-    footer{
-      position:fixed; left:0; right:0; bottom:0; z-index:12;
-      padding:10px 10px 14px;
-      background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(8,10,14,.75) 32%, rgba(8,10,14,.95) 100%);
-    }
-    .inputbar{
-      width:var(--content-w); margin:0 auto;
-      display:flex; gap:10px; align-items:center;
-      background: var(--glass-bg);
-      border:1px solid var(--glass-brd);
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
-      padding:8px; border-radius: 999px;
-      box-shadow: 0 8px 28px rgba(0,0,0,.35);
-    }
-    .inputbar input{
-      flex:1; background: transparent; border:0; outline:0;
-      color:var(--text); padding:12px 14px; font-size:1rem;
-    }
-    button.send{
-      padding:12px 18px; border:0; border-radius: 16px;
-      background: linear-gradient(180deg,var(--brand),var(--brand-2));
-      color:#1c1203; font-weight:800; cursor:pointer;
-      box-shadow: 0 10px 22px rgba(255,140,58,.4);
+    #messages {
+      flex: 1;
+      width: 100%;
+      max-width: var(--maxw);
+      padding: 12px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      padding-bottom: calc(var(--composer-h) + var(--footer-h) + 28px);
     }
 
-    /* Copyright – fixen alul, a footer alatt látszik mobilon is */
-    .copyright{
-      position:fixed; left:0; right:0; bottom: calc(var(--footer-h) - 10px);
-      text-align:center; color:#e9edf5; opacity:.85;
-      text-shadow: 0 2px 10px rgba(0,0,0,.6);
-      font-size:.92rem; pointer-events:none;
+    .message {
+      margin: 10px 0;
+      padding: 12px 16px;
+      border-radius: 16px;
+      max-width: 80%;
+      word-wrap: break-word;
+      backdrop-filter: blur(10px) saturate(120%);
+      background: rgba(20,20,22,0.55);
+      border: 1px solid rgba(255,255,255,0.1);
     }
 
-    /* Reszponzív apróságok */
-    @media (max-width: 480px){
-      :root{ --header-h: 94px; }
-      h1{font-size:26px}
-      .chip{padding:9px 12px}
+    .user {
+      background: linear-gradient(135deg, #ff9800, #ffb74d);
+      color: #000;
+      margin-left: auto;
+    }
+
+    .bot {
+      color: #fff;
+      margin-right: auto;
+    }
+
+    .actions {
+      margin-top: 6px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .actions button {
+      padding: 4px 8px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.8em;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+
+    .composer {
+      position: fixed;
+      left: 50%;
+      bottom: calc(var(--footer-h) + 12px);
+      transform: translateX(-50%);
+      width: min(100% - (var(--side-pad) * 2), var(--maxw));
+      z-index: 20;
+      display: flex;
+      gap: 8px;
+      backdrop-filter: blur(10px) saturate(120%);
+      background: rgba(20,20,22,0.35);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 8px;
+    }
+
+    .composer input {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 12px;
+      outline: none;
+      font-size: 1em;
+    }
+
+    .composer button {
+      background: linear-gradient(135deg, #ff9800, #ffb74d);
+      border: none;
+      border-radius: 12px;
+      padding: 0 16px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .site-footer {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: var(--footer-h);
+      line-height: var(--footer-h);
+      text-align: center;
+      font-size: 12px;
+      color: rgba(255,255,255,0.8);
+      backdrop-filter: blur(6px);
+      background: rgba(0,0,0,0.25);
+      z-index: 10;
+    }
+
+    @media (max-width: 640px){
+      #messages {
+        padding-left: var(--side-pad);
+        padding-right: var(--side-pad);
+      }
     }
   </style>
 </head>
 <body>
-
-  <button class="theme-toggle" id="themeBtn">Light / Dark<br><small>(auto)</small></button>
-
   <header>
-    <div class="header-card">
-      <h1>Tamás Mesterséges (AI)</h1>
-      <div class="sub">Haladó fejlesztés — barátságos magyar asszisztens</div>
-    </div>
+    <h1>Tamás Mesterséges (AI)</h1>
+    <p>Haladó fejlesztés — barátságos magyar asszisztens</p>
   </header>
 
-  <main>
-    <div class="chat-wrap" id="chat">
-      <div class="msg bot">
-        Szia! Itt vagyok neked, segítek mindenben. Írj bátran! 😊
-      </div>
+  <div id="messages">
+    <div class="message bot">
+      Szia! Itt vagyok neked, segítek mindenben. Írj bátran! 🙂
       <div class="actions">
-        <div class="chip" id="read0">🔊 Felolvasás</div>
-        <div class="chip" id="copy0">📋 Másolás</div>
+        <button>🔊 Felolvasás</button>
+        <button>📋 Másolás</button>
       </div>
     </div>
+  </div>
 
-    <!-- javaslatok – maradnak, nem lógnak rá semmire -->
-    <div class="suggest" id="suggest">
-      <div class="sugg">Mesélj Horváth Tamásról röviden!</div>
-      <div class="sugg">Milyen modell vagy?</div>
-      <div class="sugg">Mi a mai dátum?</div>
-      <div class="sugg">Mit tudsz csinálni?</div>
-    </div>
-  </main>
+  <form class="composer" id="composerForm">
+    <input type="text" id="userInput" placeholder="Írj ide... Enter = küldés">
+    <button type="submit">Küldés</button>
+  </form>
 
-  <footer>
-    <div class="inputbar">
-      <input id="inp" placeholder="Írj ide…  Enter = küldés" autocomplete="off" />
-      <button class="send" id="sendBtn">Küldés</button>
-    </div>
+  <footer class="site-footer">
+    © Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.
   </footer>
 
-  <div class="copyright">© Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.</div>
+  <script>
+    const form = document.getElementById("composerForm");
+    const input = document.getElementById("userInput");
+    const messages = document.getElementById("messages");
 
-<script>
-(() => {
-  const chat   = document.getElementById('chat');
-  const inp    = document.getElementById('inp');
-  const send   = document.getElementById('sendBtn');
-  const sugg   = document.getElementById('suggest');
-  const themeBtn = document.getElementById('themeBtn');
+    function addMessage(text, sender="user"){
+      const div = document.createElement("div");
+      div.className = "message " + sender;
+      div.textContent = text;
 
-  // --- Light/Dark (auto) ---
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-  function applyTheme(){
-    const dark = localStorage.getItem('t_theme') ?? (prefersDark.matches ? 'dark' : 'light');
-    document.documentElement.classList.toggle('light', dark==='light');
-    themeBtn.innerHTML = (dark==='light' ? 'Dark' : 'Light') + ' / ' + (prefersDark.matches ? 'Dark' : 'Light') + '<br><small>(auto)</small>';
-  }
-  themeBtn.onclick = () => {
-    const cur = document.documentElement.classList.contains('light') ? 'light' : 'dark';
-    const next = cur==='light' ? 'dark':'light';
-    localStorage.setItem('t_theme', next);
-    applyTheme();
-  };
-  applyTheme();
+      if(sender === "bot"){
+        const actions = document.createElement("div");
+        actions.className = "actions";
 
-  function addMsg(text, who='user'){
-    const m = document.createElement('div');
-    m.className = 'msg ' + (who==='user' ? 'user' : 'bot');
-    m.textContent = text;
-    chat.appendChild(m);
+        const readBtn = document.createElement("button");
+        readBtn.textContent = "🔊 Felolvasás";
+        readBtn.onclick = () => {
+          const utter = new SpeechSynthesisUtterance(text);
+          utter.lang = "hu-HU";
+          speechSynthesis.speak(utter);
+        };
 
-    if (who==='bot'){
-      const act = document.createElement('div');
-      act.className = 'actions';
-      act.innerHTML = `
-        <div class="chip">🔊 Felolvasás</div>
-        <div class="chip">📋 Másolás</div>`;
-      const readBtn = act.children[0];
-      const copyBtn = act.children[1];
-      readBtn.onclick = () => speak(text);
-      copyBtn.onclick = async () => { try{ await navigator.clipboard.writeText(text); copyBtn.textContent='✅ Másolva'; setTimeout(()=>copyBtn.innerHTML='📋 Másolás',1400);}catch{} };
-      chat.appendChild(act);
+        const copyBtn = document.createElement("button");
+        copyBtn.textContent = "📋 Másolás";
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText(text);
+          alert("Másolva!");
+        };
+
+        actions.appendChild(readBtn);
+        actions.appendChild(copyBtn);
+        div.appendChild(actions);
+      }
+
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
     }
 
-    // extra alsó térköz, hogy a footer ne takarja
-    document.scrollingElement.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
-  }
+    form.addEventListener("submit", (e)=>{
+      e.preventDefault();
+      const text = input.value.trim();
+      if(!text) return;
+      addMessage(text,"user");
+      input.value = "";
 
-  function speak(t){
-    try{
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(t);
-      u.lang = 'hu-HU';
-      window.speechSynthesis.speak(u);
-    }catch{}
-  }
-
-  // Küldés
-  async function handleSend(text){
-    if(!text.trim()) return;
-    addMsg(text, 'user');
-    inp.value='';
-
-    // kérés Netlify felé
-    let reply = '';
-    try{
-      const r = await fetch('/.netlify/functions/chat', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ message: text })
-      });
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      const data = await r.json();
-      reply = (data && data.reply) ? data.reply : '';
-    }catch(e){
-      // barátságos fallback – NEM fagy le
-      reply = 'Bocsi, most épp nem érem el a szervert. Írd másként: mit szeretnél pontosan? 😊';
-    }
-    if(!reply) reply = 'Rendben! Hogyan folytassuk?';
-    addMsg(reply, 'bot');
-  }
-
-  send.onclick = () => handleSend(inp.value);
-  inp.addEventListener('keydown', (e)=>{
-    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); handleSend(inp.value); }
-  });
-
-  // javaslatokra katt
-  sugg.addEventListener('click', e=>{
-    const t = e.target.closest('.sugg'); if(!t) return;
-    handleSend(t.textContent.trim());
-  });
-})();
-</script>
+      // Bot válasz demo
+      setTimeout(()=>{
+        addMessage("Köszi az üzenetet! Még tanulok, de igyekszem segíteni. 🙂","bot");
+      },600);
+    });
+  </script>
 </body>
 </html>
