@@ -1,261 +1,256 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="hu">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>HT Chat — Kellemes beszélgetést!</title>
-  <link rel="icon" href="https://fav.farm/🔥" />
-  <style>
-    :root{
-      --bg1:#0f0f13; --bg2:#12151b; --txt:#e9edf1; --muted:#a9b1bb;
-      --brand:#ff7a1a; --brand-2:#ffb457; --glass:rgba(255,255,255,.06);
-      --ring:rgba(255,122,26,.35);
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; color:var(--txt); font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;
-      background: radial-gradient(1200px 600px at 10% 10%, #1f2430 0%, transparent 60%),
-                  radial-gradient(1200px 600px at 90% 90%, #1b2a3a 0%, transparent 60%),
-                  linear-gradient(135deg,var(--bg1),var(--bg2));
-      background-attachment: fixed;
-      overflow:hidden; /* teljes képernyős app-élmény */
-    }
-    /* finom zaj + fény */
-    body:before{
-      content:""; position:fixed; inset:-20%;
-      background:
-        radial-gradient(800px 400px at 70% -10%, rgba(255,122,26,.12), transparent 60%),
-        radial-gradient(800px 400px at -10% 80%, rgba(255,193,111,.10), transparent 60%);
-      filter: blur(20px);
-      z-index:-1; animation: float 16s ease-in-out infinite alternate;
-    }
-    @keyframes float{to{transform: translate3d(0,-20px,0) scale(1.02)}}
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HT Chat — Kellemes beszélgetést!</title>
+<style>
+  :root{
+    --bg1:#0f0f16;
+    --bg2:#1b1b2a;
+    --glass: rgba(255,255,255,.08);
+    --glass-strong: rgba(255,255,255,.12);
+    --text:#e9e9f2;
+    --muted:#b8b8c9;
+    --brand:#ff9933;
+    --brand-2:#ffb65c;
+    --ok:#46d38d;
+    --danger:#ff6b6b;
+  }
 
-    header{
-      padding:24px 20px 8px; text-align:center;
-    }
-    h1{
-      margin:0 0 6px; font-weight:800; letter-spacing:.4px;
-      text-shadow:0 2px 18px rgba(255,122,26,.25);
-      background: linear-gradient(180deg, var(--brand), var(--brand-2));
-      -webkit-background-clip:text; background-clip:text; color:transparent;
-      font-size:clamp(24px,3.8vw,40px);
-    }
-    .sub{
-      color:var(--muted); font-size:14px; opacity:.9;
-    }
+  /* háttér – lágy 3D hatás animált foltokkal */
+  body{
+    margin:0;
+    color:var(--text);
+    font:15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background:
+      radial-gradient(1200px 800px at 10% 10%, #22284a 0%, transparent 60%),
+      radial-gradient(900px 700px at 90% 20%, #2a1f32 0%, transparent 60%),
+      linear-gradient(160deg, var(--bg1), var(--bg2));
+    min-height:100svh;
+    overflow-y:auto;
+  }
+  .blob{
+    position:fixed; inset:auto;
+    filter: blur(60px); opacity:.35; z-index:0; pointer-events:none;
+    animation: float 22s ease-in-out infinite;
+  }
+  .blob.b1{ width:420px; height:420px; left:-120px; top:-120px; background: #6a4cff; }
+  .blob.b2{ width:360px; height:360px; right:-100px; top:20vh; background: #ff4c7e; animation-delay:-7s; }
+  .blob.b3{ width:380px; height:380px; left:10vw; bottom:-120px; background: #1cc8a0; animation-delay:-12s; }
+  @keyframes float{
+    0%,100%{ transform: translateY(0) rotate(0deg) scale(1); }
+    50%{ transform: translateY(-20px) rotate(10deg) scale(1.03); }
+  }
 
-    .wrap{
-      height: calc(100% - 92px);
-      padding: 0 18px 18px;
-      display:grid; grid-template-rows:auto 1fr auto;
-      gap:14px; max-width:980px; margin:0 auto;
-    }
+  header{
+    position:relative; z-index:1;
+    text-align:center; padding:28px 16px 10px;
+  }
+  .title{
+    font-size:clamp(26px, 4vw, 40px);
+    font-weight:900;
+    letter-spacing:.5px;
+    color:var(--brand);
+    text-shadow: 0 2px 0 rgba(0,0,0,.35);
+  }
+  .subtitle{
+    margin-top:6px; color:var(--muted); font-size:14px;
+  }
 
-    .tools{
-      display:flex; gap:10px; align-items:center; justify-content:flex-start;
-    }
-    .btn{
-      border:1px solid rgba(255,255,255,.12); background:var(--glass); color:var(--txt);
-      border-radius:999px; padding:10px 14px; font-weight:600; font-size:14px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 6px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.04);
-      transition:.2s transform, .2s box-shadow, .2s background;
-      cursor:pointer; user-select:none;
-    }
-    .btn:hover{ box-shadow:0 8px 28px rgba(0,0,0,.32), 0 0 0 3px var(--ring);}
-    .btn:disabled{ opacity:.5; cursor:not-allowed; box-shadow:none}
+  /* kártya (chat doboz) */
+  .card{
+    position:relative; z-index:1;
+    max-width:820px; margin:18px auto 40px; padding:0;
+    background: linear-gradient(180deg, var(--glass-strong), var(--glass));
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:20px; backdrop-filter: blur(16px);
+    box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
 
-    .switch{ display:flex; align-items:center; gap:10px; color:var(--muted); font-size:14px;}
-    .switch input{ width:42px; height:24px; appearance:none; background:#2a2f3a; border-radius:999px; position:relative; outline:none; cursor:pointer; transition:.2s background}
-    .switch input:checked{ background:#334050}
-    .switch input:before{
-      content:""; position:absolute; width:18px; height:18px; border-radius:50%;
-      top:3px; left:3px; background:#fff; transform:translateX(0); transition:.2s transform;
-      box-shadow:0 2px 8px rgba(0,0,0,.35);
-    }
-    .switch input:checked:before{ transform: translateX(18px); }
+  .toolbar{
+    display:flex; align-items:center; gap:14px;
+    padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .switch{
+    display:inline-flex; align-items:center; gap:10px; user-select:none; cursor:pointer;
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.08);
+    padding:8px 10px; border-radius:999px; font-size:13px; color:var(--text);
+  }
+  .switch input{ appearance:none; width:38px; height:22px; background:#3a3a4a; border-radius:999px; position:relative; outline:none; cursor:pointer; }
+  .switch input:before{
+    content:""; position:absolute; width:18px; height:18px; border-radius:50%;
+    background:#fff; top:2px; left:2px; transition:.18s ease;
+  }
+  .switch input:checked{ background:linear-gradient(90deg, var(--brand), var(--brand-2)); }
+  .switch input:checked:before{ left:18px; }
 
-    .chat{
-      position:relative;
-      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:18px;
-      box-shadow: 0 10px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05);
-      padding: 16px;
-      overflow: hidden;
-      display:flex; flex-direction:column;
-      min-height: 0; /* görgetéshez fontos */
-    }
-    #messages{
-      overflow:auto; flex:1 1 auto; padding-right:6px;
-      scroll-behavior:auto; /* manuális kontroll */
-    }
-    .msg{
-      max-width:min(680px, 92%);
-      margin: 6px 0; padding:12px 14px; border-radius:14px;
-      background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.09);
-      box-shadow: 0 4px 18px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.04);
-      backdrop-filter: blur(8px);
-    }
-    .msg.me{
-      margin-left:auto; background: rgba(255,122,26,.15);
-      border-color: rgba(255,122,26,.35);
-    }
-    .msg.error{
-      background: rgba(255, 75, 75,.15);
-      border-color: rgba(255, 75, 75,.35);
-      color:#ffd7d7;
-    }
-    .msg small{ color:var(--muted); display:block; margin-top:6px; font-size:12px }
+  .messages{
+    height:64svh; /* kompaktabb */
+    overflow-y:auto; padding:18px 16px 10px;
+    scroll-behavior:smooth;
+  }
 
-    .composer{
-      display:flex; gap:10px; align-items:flex-end; padding-top:4px;
-    }
-    textarea{
-      flex:1 1 auto; resize:none; min-height:44px; max-height:160px;
-      background: rgba(255,255,255,.06);
-      color:var(--txt);
-      border:1px solid rgba(255,255,255,.1); border-radius:14px;
-      padding:12px 14px; outline:none;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
-    }
-    textarea:focus{ box-shadow: 0 0 0 3px var(--ring), inset 0 1px 0 rgba(255,255,255,.05);}
-    .send{ background:linear-gradient(180deg,var(--brand),var(--brand-2)); color:#111; border:none; }
-  </style>
+  .row{ display:flex; margin:10px 0; gap:10px; }
+  .row.user{ justify-content:flex-end; }
+  .bubble{
+    max-width:min(76%, 560px);
+    background:#363649;
+    color:#f2f2f6;
+    padding:12px 14px; border-radius:16px;
+    box-shadow: 0 10px 20px rgba(0,0,0,.25);
+    border:1px solid rgba(255,255,255,.06);
+    animation: pop .16s ease-out both;
+    white-space:pre-wrap; word-break:break-word;
+  }
+  .row.user .bubble{
+    background: linear-gradient(180deg, var(--brand-2), var(--brand));
+    color:#1d1205; border-color:rgba(0,0,0,.08);
+  }
+  @keyframes pop{ from{ transform:scale(.98) translateY(2px); opacity:.0;} to{transform:scale(1) translateY(0); opacity:1;} }
+
+  .hint{ color:var(--muted); font-size:12px; margin-top:4px; }
+
+  .composer{
+    display:flex; gap:10px; padding:14px; border-top:1px solid rgba(255,255,255,.08);
+    position:sticky; bottom:0; background:linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.18));
+    backdrop-filter: blur(16px);
+  }
+  .composer input{
+    flex:1; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.06); color:var(--text); outline:none;
+  }
+  .composer button{
+    padding:12px 16px; border-radius:12px; border:none; cursor:pointer;
+    background:linear-gradient(90deg, var(--brand), var(--brand-2)); color:#1b1206; font-weight:700;
+    box-shadow: 0 8px 18px rgba(255,153,51,.25);
+  }
+  .btn-secondary{
+    background:#2e2e3f; color:#e7e7ef; font-weight:600; box-shadow:none;
+    border:1px solid rgba(255,255,255,.1);
+  }
+
+  .error{ background:#3a1f26; color:#ffd7d7; border-left:4px solid var(--danger); }
+</style>
 </head>
 <body>
+  <!-- animált “3D” háttérfoltok -->
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
   <header>
-    <h1>HT Chat — Kellemes beszélgetést! 🥳</h1>
-    <div class="sub">Az oldalt létre hozta <strong>H.T</strong> — egyedi fejlesztéssel.</div>
+    <div class="title">HT Chat — Kellemes beszélgetést! 🤝</div>
+    <div class="subtitle">Az oldalt létrehozta <b>H.T</b> — egyedi fejlesztéssel.</div>
   </header>
 
-  <main class="wrap">
-    <!-- eszköztár -->
-    <div class="tools">
-      <button id="copyLast" class="btn">Másolás (utolsó válasz)</button>
-      <label class="switch"><input id="ttsToggle" type="checkbox" /> Hang (felolvasás)</label>
+  <main class="card" role="region" aria-label="Csevegő kártya">
+    <div class="toolbar">
+      <label class="switch" title="Másolás az utolsó bot válaszra">
+        <input type="checkbox" id="copyToggle" />
+        <span>Másolás (utolsó válasz)</span>
+      </label>
+      <label class="switch" title="Felolvasás engedélyezése">
+        <input type="checkbox" id="speakToggle" />
+        <span>Hang (felolvasás)</span>
+      </label>
+      <div class="hint">Tipp: Enter = küldés, Shift+Enter = új sor</div>
     </div>
 
-    <!-- chat doboz -->
-    <section class="chat">
-      <div id="messages" aria-live="polite">
-        <div class="msg">Szia! Írj egy üzenetet, és válaszolok. 😊</div>
+    <div id="messages" class="messages" aria-live="polite">
+      <div class="row bot">
+        <div class="bubble">Szia! Írj egy üzenetet, és válaszolok. 🙂</div>
       </div>
+    </div>
 
-      <!-- szerző infó – fix válaszként is megjeleníthető -->
-      <div style="display:none" id="authorText">
-        Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!
-      </div>
-
-      <div class="composer">
-        <textarea id="input" placeholder="Írj ide…"></textarea>
-        <button id="sendBtn" class="btn send">Küldés</button>
-      </div>
-    </section>
+    <div class="composer">
+      <input id="userInput" type="text" placeholder="Írj ide…" autocomplete="off" />
+      <button id="sendBtn" onclick="sendMessage()">Küldés</button>
+      <button class="btn-secondary" id="stopBtn" onclick="stopSpeech()" title="Felolvasás megállítása">Megállít</button>
+    </div>
   </main>
 
-  <script>
-    const $msgs  = document.getElementById('messages');
-    const $input = document.getElementById('input');
-    const $send  = document.getElementById('sendBtn');
-    const $copy  = document.getElementById('copyLast');
-    const $tts   = document.getElementById('ttsToggle');
+<script>
+  const messagesEl = document.getElementById("messages");
+  const userInput   = document.getElementById("userInput");
+  const copyToggle  = document.getElementById("copyToggle");
+  const speakToggle = document.getElementById("speakToggle");
+  const sendBtn     = document.getElementById("sendBtn");
 
-    let lastReply = "";
+  function addMessage(text, who="bot", extraClass=""){
+    const row = document.createElement("div");
+    row.className = `row ${who}`;
+    const b = document.createElement("div");
+    b.className = `bubble ${extraClass}`;
+    b.textContent = text;
+    row.appendChild(b);
+    messagesEl.appendChild(row);
+    // gördüljön le a legvégére, de maradjon sima
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
 
-    function addMsg(text, who='bot'){
-      const el = document.createElement('div');
-      el.className = `msg ${who}`;
-      el.textContent = text;
+  async function sendMessage(){
+    const text = userInput.value.trim();
+    if(!text) return;
+    userInput.value = "";
+    addMessage(text, "user");
 
-      // csak akkor autogörget, ha közel voltál az aljához
-      const nearBottom = ($msgs.scrollHeight - $msgs.scrollTop - $msgs.clientHeight) < 120;
+    // lezárjuk a küldés gombot, míg válasz jön
+    sendBtn.disabled = true;
+    sendBtn.textContent = "Küldés…";
 
-      $msgs.appendChild(el);
-      if (nearBottom) $msgs.scrollTop = $msgs.scrollHeight;
-    }
-    function addError(text){
-      const el = document.createElement('div');
-      el.className = 'msg error';
-      el.textContent = text;
-      $msgs.appendChild(el);
-      $msgs.scrollTop = $msgs.scrollHeight;
-    }
+    try{
+      const r = await fetch("/.netlify/functions/chat", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ message: text })
+      });
+      const data = await r.json();
 
-    async function send(){
-      const text = ($input.value||"").trim();
-      if(!text) return;
+      if(!r.ok || data.error){
+        addMessage("Hiba: " + (data.error || r.status + " " + r.statusText), "bot", "error");
+      }else{
+        const reply = data.reply || "Bocs, most nem tudok válaszolni.";
+        addMessage(reply, "bot");
 
-      // UI lock
-      $send.disabled = true; $input.disabled = true;
-
-      addMsg(text,'me');
-      $input.value = "";
-
-      // gyűjtsünk rövid előzményt (max 10)
-      const nodes = Array.from($msgs.querySelectorAll('.msg'));
-      const last10 = nodes.slice(-10);
-      const messages = last10.map(n=>({
-        role: n.classList.contains('me') ? 'user' : 'assistant',
-        content: n.textContent
-      }));
-
-      // 25s timeout
-      const ctrl = new AbortController();
-      const to = setTimeout(()=>ctrl.abort(), 25000);
-
-      try{
-        const r = await fetch('/.netlify/functions/chat', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ messages }),
-          signal: ctrl.signal
-        });
-
-        if(!r.ok){
-          let msg = `HTTP ${r.status}`;
-          try { msg = await r.text(); } catch {}
-          addError(`Hiba: ${msg}`);
-          return;
+        // Másolás (utolsó válasz)
+        if(copyToggle.checked) {
+          try{ await navigator.clipboard.writeText(reply); }catch(e){}
         }
-        const data = await r.json();
-        const reply = (data.reply || "Rendben.").trim();
-        lastReply = reply;
-        addMsg(reply,'bot');
-
-        if($tts.checked && window.speechSynthesis){
-          const u = new SpeechSynthesisUtterance(reply);
-          u.lang = 'hu-HU';
-          window.speechSynthesis.cancel();
-          window.speechSynthesis.speak(u);
+        // Felolvasás
+        if(speakToggle.checked){
+          speak(reply);
         }
-      }catch(e){
-        addError(e.name === 'AbortError' ? "Időtúllépés – próbáld újra."
-                                         : `Hálózati hiba: ${e.message}`);
-      }finally{
-        clearTimeout(to);
-        $send.disabled = false; $input.disabled = false; $input.focus();
       }
+    }catch(e){
+      addMessage("Hiba: " + e.message, "bot", "error");
+    }finally{
+      sendBtn.disabled = false;
+      sendBtn.textContent = "Küldés";
+      userInput.focus();
     }
+  }
 
-    // események
-    $send.addEventListener('click', send);
-    $input.addEventListener('keydown', (e)=>{
-      if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }
-    });
+  function speak(text){
+    try{
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "hu-HU";
+      u.rate = 1;
+      u.pitch = 1;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  function stopSpeech(){ try{ window.speechSynthesis.cancel(); }catch(e){} }
 
-    $copy.addEventListener('click', async ()=>{
-      if(!lastReply) return;
-      try{
-        await navigator.clipboard.writeText(lastReply);
-        $copy.textContent = "Kimásolva!";
-      }catch{
-        $copy.textContent = "Másolási hiba";
-      }
-      setTimeout(()=>{ $copy.textContent = "Másolás (utolsó válasz)"; }, 1200);
-    });
-  </script>
+  // Enter = küldés, Shift+Enter = új sor
+  userInput.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter" && !e.shiftKey){
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+</script>
 </body>
 </html>
