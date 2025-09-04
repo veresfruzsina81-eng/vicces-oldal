@@ -1,160 +1,123 @@
-<!doctype html>
-<html lang="hu">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HT Chat — Kellemes beszélgetést!</title>
-  <style>
-    :root{
-      --bg:#0f0f13; --panel:#17171d; --card:#1e1e26;
-      --txt:#e8e8ee; --muted:#a5a5b8; --brand:#ff7a18; --brand2:#ffb703;
-      --ok:#3ddc84; --err:#ff445a;
-    }
-    html,body{height:100%}
-    body{
-      margin:0; background: radial-gradient(1200px 600px at 10% -10%, #2b2b36 0%, rgba(15,15,19,0) 60%),
-                      radial-gradient(1000px 600px at 110% 10%, #31243a 0%, rgba(15,15,19,0) 55%),
-                      var(--bg);
-      color:var(--txt); font: 16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      display:flex; align-items:center; justify-content:center; padding:24px;
-    }
-    .wrap{width:min(1100px, 100%);}
+// netlify/functions/chat.js
+exports.handler = async (event) => {
+  // --- CORS (ha más domainekről is hívod) ---
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
 
-    .title{
-      font-weight:800; letter-spacing:.3px; margin:0 0 6px;
-      font-size: clamp(22px, 3vw, 36px);
-      background: linear-gradient(90deg, var(--brand), var(--brand2));
-      -webkit-background-clip:text; background-clip:text; color:transparent;
-      display:flex; align-items:center; gap:10px;
-    }
-    .subtitle{margin:0 0 20px; color:var(--muted); font-size:.95rem}
-    .chat{
-      background: rgba(23,23,29,.65);
-      box-shadow: 0 12px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
-      backdrop-filter: blur(6px);
-      border: 1px solid rgba(255,255,255,.06);
-      border-radius: 16px; padding:18px;
-      min-height: 62vh; display:flex; flex-direction:column; gap:16px;
-    }
-    .row{display:flex; gap:10px}
-    .cell{max-width: 78%}
-    .msg{
-      background: var(--card); color:var(--txt);
-      border:1px solid rgba(255,255,255,.06);
-      border-radius: 14px; padding:12px 14px;
-      box-shadow: 0 4px 18px rgba(0,0,0,.25);
-    }
-    .me{margin-left:auto; background:linear-gradient(180deg,#2a2a34,#242430)}
-    .ai{margin-right:auto}
-    .hint{color:var(--muted); font-size:.8rem; margin-top:-6px}
+  // Preflight
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers: cors, body: "" };
+  }
 
-    .inputBar{
-      display:flex; gap:10px; align-items:center; margin-top:auto; padding-top:6px;
-    }
-    .inputBar input{
-      flex:1; height:46px; background:#16161c; border:1px solid rgba(255,255,255,.09);
-      border-radius:11px; color:var(--txt); padding:0 12px; outline:none;
-    }
-    .btn{
-      height:46px; min-width:110px; border:0; border-radius:11px; cursor:pointer;
-      font-weight:600; color:#111; background:linear-gradient(90deg,var(--brand),var(--brand2));
-      box-shadow:0 6px 20px rgba(255,122,24,.35);
-    }
-    .tools{display:flex; gap:8px; align-items:center; color:var(--muted); font-size:.9rem}
-    .tools button{
-      border:1px solid rgba(255,255,255,.1); background:#191920; color:var(--txt);
-      border-radius:10px; padding:8px 10px; cursor:pointer;
-    }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <h1 class="title">HT Chat — Kellemes beszélgetést! 🥳</h1>
-    <p class="subtitle">Az oldalt létre hozta <strong>H.T</strong> — egyedi fejlesztéssel.</p>
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, headers: cors, body: "Method Not Allowed" };
+  }
 
-    <div class="chat" id="chat">
-      <div class="row"><div class="cell ai msg">Szia! Írj egy üzenetet, és válaszolok. 😊</div></div>
-      <div class="tools">
-        <button id="copyBtn">Másolás</button>
-        <label><input type="checkbox" id="ttsToggle"> Hang (felolvasás)</label>
-      </div>
-
-      <div class="hint">Tipp: Enter = küldés, Shift+Enter = új sor</div>
-      <div class="inputBar">
-        <input id="inp" placeholder="Írj ide…" />
-        <button class="btn" id="send">Küldés</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const chat = document.getElementById('chat');
-    const inp  = document.getElementById('inp');
-    const send = document.getElementById('send');
-    const copyBtn = document.getElementById('copyBtn');
-    const ttsToggle = document.getElementById('ttsToggle');
-
-    const messages = [];
-
-    function addBubble(text, who="ai"){
-      const row = document.createElement('div');
-      row.className = 'row';
-      const cell = document.createElement('div');
-      cell.className = 'cell msg ' + (who==="me" ? "me" : "ai");
-      cell.textContent = text;
-      row.appendChild(cell);
-      chat.insertBefore(row, chat.querySelector('.hint'));
-      chat.scrollTop = chat.scrollHeight;
-      return cell;
+  try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return {
+        statusCode: 500,
+        headers: cors,
+        body: JSON.stringify({ error: "Missing OPENAI_API_KEY env var" }),
+      };
     }
 
-    function speak(text){
-      if (!ttsToggle.checked) return;
-      try {
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = "hu-HU";
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(u);
-      } catch(e) {}
+    // Bejövő üzenetek a front-endtől
+    const { messages = [] } = JSON.parse(event.body || "{}");
+
+    // Legutóbbi user-üzenet
+    const lastUser = [...messages].reverse().find(m => m.role === "user")?.content?.toLowerCase() || "";
+
+    // Gyors válasz: “Ki hozta létre az oldalt?”
+    const creatorTriggers = [
+      "ki hozta létre az oldalt",
+      "ki készítette az oldalt",
+      "ki a tulajdonos",
+      "ki csinálta az oldalt",
+      "tulajdonosa az oldalnak",
+      "ki hozta létre ezt az oldalt",
+      "ki az oldal készítője"
+    ];
+    if (creatorTriggers.some(t => lastUser.includes(t))) {
+      const reply = "Az oldalt létre hozta H.T — egyedi fejlesztéssel. 🎉";
+      return {
+        statusCode: 200,
+        headers: { ...cors, "Content-Type": "application/json" },
+        body: JSON.stringify({ reply }),
+      };
     }
 
-    async function ask(){
-      const text = inp.value.trim();
-      if (!text) return;
-      inp.value = "";
-      addBubble(text, "me");
-      messages.push({ role:"user", content:text });
-
-      try{
-        const r = await fetch('/.netlify/functions/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages })
-        });
-        const data = await r.json();
-        const reply = data?.reply || data?.error || "Hopp, valami hiba történt.";
-        addBubble(reply, "ai");
-        speak(reply);
-        messages.push({ role:"assistant", content:reply });
-      }catch(e){
-        const msg = "Hálózati hiba. Próbáld újra.";
-        addBubble(msg, "ai"); speak(msg);
-      }
+    // Gyors válasz: “Ki az a Horváth Tamás?”
+    const bioTriggers = [
+      "ki az a horváth tamás",
+      "mesélj horváth tamásról",
+      "mutasd be horváth tamást",
+      "ki horváth tamás",
+      "ki az horváth tamás"
+    ];
+    if (bioTriggers.some(t => lastUser.includes(t))) {
+      const reply =
+        "Horváth Tamás (Szabolcsbáka) az oldal tulajdonosa és készítője. " +
+        "Hobbi szinten webes projektekkel és mesterséges intelligenciával foglalkozik. " +
+        "Barátságos, magyar nyelvű AI-beszélgetést szeretne kínálni mindenkinek. 🙂";
+      return {
+        statusCode: 200,
+        headers: { ...cors, "Content-Type": "application/json" },
+        body: JSON.stringify({ reply }),
+      };
     }
 
-    send.onclick = ask;
-    inp.addEventListener('keydown', (e)=>{
-      if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); ask(); }
+    // System prompt – magyar, barátságos, rövid
+    const systemMsg = {
+      role: "system",
+      content:
+        "Magyarul válaszolj. Légy barátságos, tömör és hasznos. " +
+        "Ha az oldal készítőjéről kérdeznek, a válasz: 'Az oldalt létre hozta H.T — egyedi fejlesztéssel.'",
+    };
+
+    // OpenAI hívás (FIGYELEM: nincs temperature!)
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [systemMsg, ...messages],
+      }),
     });
 
-    copyBtn.onclick = () => {
-      const last = [...chat.querySelectorAll('.msg.ai')].pop();
-      if (!last) return;
-      navigator.clipboard.writeText(last.textContent)
-        .then(()=> copyBtn.textContent = "Kimásolva ✓")
-        .catch(()=> copyBtn.textContent = "Másolás hiba");
-      setTimeout(()=> copyBtn.textContent = "Másolás", 1500);
+    if (!r.ok) {
+      const errText = await r.text().catch(() => "");
+      return {
+        statusCode: r.status,
+        headers: cors,
+        body: JSON.stringify({
+          error: "OpenAI API error",
+          status: r.status,
+          details: errText,
+        }),
+      };
+    }
+
+    const data = await r.json();
+    const reply = data?.choices?.[0]?.message?.content?.trim() || "Rendben, miben segíthetek?";
+
+    return {
+      statusCode: 200,
+      headers: { ...cors, "Content-Type": "application/json" },
+      body: JSON.stringify({ reply }),
     };
-  </script>
-</body>
-</html>
+  } catch (e) {
+    return {
+      statusCode: 500,
+      headers: cors,
+      body: JSON.stringify({ error: e.message || "Szerver hiba" }),
+    };
+  }
+};
