@@ -1,336 +1,364 @@
 <!doctype html>
-<html lang="hu">
+<html lang="hu" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <title>Tamás Mesterséges (AI)</title>
-  <link rel="icon" href="data:," />
+  <meta name="description" content="Hobbi fejlesztés — barátságos magyar asszisztens." />
+  <meta property="og:title" content="Tamás Mesterséges (AI)" />
+  <meta property="og:description" content="Hobbi fejlesztés — barátságos magyar asszisztens." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/bg_tamas.jpg" />
+  <link rel="icon" href="/favicon.ico" />
+
   <style>
     :root{
-      --bg: #0f1115;
-      --card: #171a21cc;
-      --card-strong:#1c2130;
-      --text: #e7ebf3;
-      --muted:#9aa6bf;
-      --accent:#ffb74a;
-      --bubble-user:#f8a94a;
-      --bubble-bot:#2b3446;
-      --ring:#36435c99;
-      --shadow: 0 10px 30px rgba(0,0,0,.35);
-      --radius: 18px;
+      --bg: #0b0f14;
+      --panel:#0f1620cc;
+      --bubbleUser:#ffb84d;
+      --bubbleBot:#243447;
+      --bubbleInfo:#1b2838;
+      --text:#e8eef6;
+      --muted:#9fb0c3;
+      --accent:#6ea8fe;
+      --glow: 0 10px 30px rgba(110,168,254,.18);
+      --ring: 0 0 0 2px rgba(110,168,254,.35);
     }
+    [data-theme="light"]{
+      --bg:#f4f7fb;
+      --panel:#ffffffd9;
+      --bubbleUser:#ffd089;
+      --bubbleBot:#eaf0f7;
+      --bubbleInfo:#dde7f3;
+      --text:#0c1624;
+      --muted:#52657a;
+      --accent:#2b74ff;
+      --glow: 0 10px 26px rgba(43,116,255,.15);
+      --ring: 0 0 0 2px rgba(43,116,255,.25);
+    }
+
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
-      margin:0;
-      font: 16px/1.4 "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      color:var(--text);
-      background: var(--bg);
-      overflow:hidden;
+      margin:0; font:16px/1.55 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      color:var(--text); background:var(--bg);
+      overflow-y:auto;
+      background-image: radial-gradient(transparent, rgba(0,0,0,.35)), url('/bg_tamas.jpg');
+      background-size: cover; background-position: 50% 30%; background-attachment: fixed;
+      transition: background-color .3s ease;
     }
 
-    /* háttérkép – halvány + blur */
-    .bg{
-      position:fixed; inset:0;
-      background: center/cover no-repeat url("bg_tamas.jpg");
-      filter: blur(6px) brightness(.35);
-      transform: scale(1.06);
-      z-index:0;
+    .wrap{max-width:1000px; margin:0 auto; padding:18px; }
+    header{
+      position:sticky; top:0; z-index:10;
+      backdrop-filter: blur(10px);
+      background: linear-gradient(180deg, var(--panel), transparent);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .brand{
+      display:flex; align-items:center; gap:14px; padding:8px 10px 14px;
+    }
+    .brand .ttl{font-weight:800; font-size:24px; letter-spacing:.3px}
+    .brand .sub{color:var(--muted); font-size:13px; margin-top:2px}
+
+    .toolbar{margin-left:auto; display:flex; gap:10px}
+    .btn{
+      border:1px solid rgba(255,255,255,.12);
+      background:var(--panel); color:var(--text);
+      padding:8px 12px; border-radius:12px; cursor:pointer;
+      font-weight:600; font-size:13px;
+      box-shadow: var(--glow); transition:.2s transform, .2s background;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn-icon{width:40px; height:40px; display:grid; place-items:center; padding:0}
+
+    .card{
+      background:var(--panel);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:22px; padding:16px;
+      box-shadow: var(--glow);
     }
 
-    .page{
-      position:relative; z-index:1;
-      display:flex; flex-direction:column;
-      height:100%;
-      padding: clamp(12px, 2vw, 18px);
-      gap:12px;
-    }
-
-    /* fejléc */
-    .header{
-      background: linear-gradient(180deg, #1c2230cc, #171a21cc);
-      border:1px solid #2a3247;
-      border-radius: var(--radius);
-      padding: 14px 16px;
-      box-shadow: var(--shadow);
-    }
-    .title{
-      font-size: clamp(18px, 2.3vw, 26px);
-      font-weight: 800;
-      letter-spacing:.2px;
-    }
-    .subtitle{
-      margin-top:4px;
-      color: var(--muted);
-      font-size: .95rem;
-    }
-
-    /* chat kártya */
     .chat{
-      display:flex; flex-direction:column;
-      background: var(--card);
-      border:1px solid #27324b;
-      border-radius: calc(var(--radius) + 6px);
-      box-shadow: var(--shadow);
-      min-height: 0; /* fontos a scroll miatt */
-      height: 100%;
+      margin-top:14px; display:flex; gap:16px;
     }
-
-    /* görgethető üzenőfal */
-    .log{
-      overflow:auto;
-      padding: 18px;
-      gap: 14px;
-      display:flex; flex-direction:column;
+    .col{flex:1; min-width:0}
+    .chatlog{
+      height:62vh; min-height:420px; overflow:auto; padding:16px;
       scroll-behavior:smooth;
     }
-    .msg{
-      max-width: 780px;
-      width: fit-content;
-      border-radius: 18px;
-      padding: 12px 14px;
-      border:1px solid #2a344d;
-      box-shadow: 0 6px 16px rgba(0,0,0,.18);
-      backdrop-filter: saturate(110%);
+    @media (max-width:820px){
+      .chat{flex-direction:column}
+      .chatlog{height:58vh}
+    }
+
+    .row{display:flex; margin:12px 0}
+    .row.bot{justify-content:flex-start}
+    .row.user{justify-content:flex-end}
+    .bubble{
+      max-width:min(640px, 92%); padding:14px 16px; border-radius:18px;
+      border:1px solid rgba(255,255,255,.08);
       position:relative;
-      word-wrap: break-word;
-      white-space: pre-wrap;
+      word-wrap:break-word; white-space:pre-wrap;
     }
-    .msg.bot{
-      background: var(--bubble-bot);
-      color: var(--text);
-    }
-    .msg.user{
-      background: var(--bubble-user);
-      color: #2a1906;
-      margin-left:auto;
-      border-color: #ed9a39;
-    }
-    .row{ display:flex; align-items:center; gap:10px; }
+    .bot .bubble{background:var(--bubbleBot)}
+    .user .bubble{background:var(--bubbleUser); color:#1f1200}
+    .info .bubble{background:var(--bubbleInfo); color:var(--muted)}
+    .bubble.glow{ box-shadow: var(--glow) }
 
-    /* kis felolvasó ikon a bot alatt */
-    .tts{
-      display:inline-flex;
-      align-items:center; gap:6px;
-      font-size:.85rem; color: var(--muted);
-      cursor:pointer; user-select:none;
-      margin-top:6px;
-      opacity:.85;
-    }
-    .tts:hover{ opacity:1 }
-    .tts .dot{
-      width:10px; height:10px; border-radius:50%;
-      border:1px solid #8aa2d0; box-shadow: 0 0 8px #8aa2d066 inset;
-      display:inline-block; position:relative;
-    }
-    .tts.playing .dot{
-      background:#8aa2d0;
-      box-shadow: 0 0 0 3px #8aa2d02e;
-    }
+    /* typing indicator */
+    .typing{display:inline-flex; gap:6px; align-items:center}
+    .dot{width:6px; height:6px; border-radius:50%; background:#cfe0ff; opacity:.7;
+      animation:blink 1.2s infinite ease-in-out}
+    .dot:nth-child(2){animation-delay:.2s}
+    .dot:nth-child(3){animation-delay:.4s}
+    @keyframes blink{0%,80%,100%{transform:translateY(0);opacity:.35}40%{transform:translateY(-4px);opacity:1}}
 
-    /* input sáv */
-    .composer{
-      padding: 12px;
-      border-top:1px solid #27324b;
-      background: linear-gradient(180deg, #171a21ee, #141820ee);
-      border-radius: 0 0 calc(var(--radius)+6px) calc(var(--radius)+6px);
-    }
-    .bar{
-      display:flex; gap:10px; align-items:center;
-      background:#11151b; border:1px solid #26324a;
-      border-radius: 999px; padding: 8px 10px;
-      box-shadow: inset 0 0 0 2px transparent, var(--shadow);
-    }
-    textarea{
-      flex:1; min-height:44px; max-height:140px; resize: vertical;
-      border:none; outline:none; color:var(--text);
-      background:transparent; font:inherit;
-      padding: 8px 10px;
-    }
-    .hint{ color:var(--muted); font-size:.9rem; margin-left:10px }
+    .chips{display:flex; flex-wrap:wrap; gap:8px; margin:10px 6px 2px}
+    .chip{background:transparent; border:1px dashed rgba(255,255,255,.14); color:var(--muted);
+      padding:6px 10px; border-radius:999px; font-size:12px; cursor:pointer}
+    .chip:hover{border-style:solid; color:var(--text)}
+    .muted{color:var(--muted); font-size:12px}
 
-    .btn{
-      border:none; cursor:pointer;
-      background: linear-gradient(180deg,#ffbd63,#ff9b35);
-      color:#2a1b07; font-weight:700;
-      padding: 10px 16px; border-radius: 999px;
-      box-shadow: 0 6px 18px rgba(255,155,53,.28);
+    .composer{display:flex; align-items:center; gap:10px; padding:12px}
+    .input{
+      flex:1; display:flex; align-items:center; gap:10px; padding:10px 14px;
+      background:var(--panel); border:1px solid rgba(255,255,255,.12);
+      border-radius:16px; box-shadow: var(--glow);
     }
-    .btn:active{ transform: translateY(1px) }
+    .input input{
+      flex:1; background:transparent; border:0; outline:none; color:var(--text); font-size:15px;
+    }
+    .send{padding:10px 16px; border-radius:16px; background:linear-gradient(90deg, #ffb84d, #ffa53a);
+      color:#331d00; font-weight:800; border:0; cursor:pointer}
+    .send:active{transform:translateY(1px)}
 
-    /* lábléc */
-    .footer{
-      color:var(--muted);
-      font-size:.85rem; text-align:center;
-      padding-top:6px;
+    /* floating speak toggle (bottom-right inside input) */
+    .speak-toggle{
+      width:38px; height:38px; border-radius:50%;
+      display:grid; place-items:center; cursor:pointer;
+      border:1px solid rgba(255,255,255,.14); background:var(--panel);
+      box-shadow: var(--glow);
     }
+    .speak-toggle.on{outline: var(--ring)}
+    .speak-toggle svg{width:18px; height:18px; fill:var(--text)}
 
-    /* mobil finomhangolás */
-    @media (max-width: 680px){
-      .log{ padding:14px }
-      .msg{ max-width: 100% }
-      .subtitle{ font-size: .9rem }
-      .hint{ display:none }
-    }
-
-    /* finom scroll sáv */
-    .log::-webkit-scrollbar{width:10px}
-    .log::-webkit-scrollbar-thumb{
-      background: #2b354b; border-radius: 8px;
-      border:2px solid #161b24;
-    }
+    footer{color:var(--muted); font-size:12px; text-align:center; padding:26px 8px 34px}
   </style>
 </head>
+
 <body>
-  <div class="bg" aria-hidden="true"></div>
-
-  <div class="page">
-    <header class="header">
-      <div class="title">Tamás Mesterséges (AI)</div>
-      <div class="subtitle">Hobbi fejlesztés — barátságos magyar asszisztens</div>
-    </header>
-
-    <main class="chat">
-      <section id="log" class="log" aria-live="polite" aria-label="Beszélgetés"></section>
-
-      <div class="composer">
-        <div class="bar">
-          <textarea id="input" placeholder="Írj ide…  Enter = küldés, Shift+Enter = új sor"></textarea>
-          <button id="send" class="btn">Küldés</button>
-        </div>
-        <div class="hint">Tipp: kérdezhetsz bármit. A válaszok alatt kis 🔊 ikonról fel is olvastathatod.</div>
+  <header>
+    <div class="wrap brand">
+      <div>
+        <div class="ttl">Tamás Mesterséges (AI)</div>
+        <div class="sub">Hobbi fejlesztés — barátságos magyar asszisztens</div>
       </div>
-    </main>
+      <div class="toolbar">
+        <button class="btn" id="themeBtn" title="Téma váltás">Light / Dark</button>
+      </div>
+    </div>
+  </header>
 
-    <footer class="footer">© Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.</footer>
-  </div>
+  <main class="wrap">
+    <section class="card">
+      <div class="row bot info">
+        <div class="bubble glow" id="hello">Szia! Itt vagyok neked, segítek mindenben. Írj bátran! 😊</div>
+      </div>
+
+      <div class="chat">
+        <div class="col">
+          <div id="log" class="chatlog"></div>
+          <div class="chips" id="chips"></div>
+          <div class="composer">
+            <div class="input">
+              <input id="txt" autocomplete="off" placeholder="Írj ide…   Enter = küldés, Shift+Enter = új sor" />
+              <div class="speak-toggle" id="ttsBtn" title="Felolvasás ki/be">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2a3.5 3.5 0 0 0-2.5 1.03v-2.14A5.5 5.5 0 0 1 22 12a5.5 5.5 0 0 1-8 4.93v-2.14A3.5 3.5 0 0 0 16.5 12z"/></svg>
+              </div>
+            </div>
+            <button class="send" id="sendBtn">Küldés</button>
+          </div>
+          <div class="muted">Tipp: kérdezhetsz bármit. A felolvasást a kis 🔊 ikonról ki- és bekapcsolhatod.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    © Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.
+  </footer>
 
   <script>
-    // --- állapot
-    const $log = document.getElementById('log');
-    const $inp = document.getElementById('input');
-    const $send = document.getElementById('send');
-
-    let speakingUtter = null;
-
-    // --- segédek
-    const scrollToEnd = () => { $log.scrollTop = $log.scrollHeight; };
-
-    function addMsg(text, who){
-      const wrap = document.createElement('div');
-      wrap.className = 'msg ' + (who === 'user' ? 'user' : 'bot');
-
-      const p = document.createElement('div');
-      p.textContent = text;
-      wrap.appendChild(p);
-
-      // ha bot válasz: kis felolvasó ikon
-      if(who !== 'user'){
-        const tts = document.createElement('div');
-        tts.className = 'tts';
-        tts.innerHTML = `<span class="dot"></span> Felolvasás`;
-        tts.title = 'Felolvasás / Leállítás';
-        tts.addEventListener('click', () => speakText(tts, text));
-        wrap.appendChild(tts);
+    // ----- Parallax finom mozgatás -----
+    (()=>{
+      let px=50, py=30;
+      const lerp=(a,b,t)=>a+(b-a)*t;
+      function tick(){
+        document.body.style.backgroundPosition = `${px}% ${py}%`;
+        requestAnimationFrame(tick);
       }
+      tick();
+      window.addEventListener('mousemove',e=>{
+        const x=e.clientX/window.innerWidth;
+        const y=e.clientY/window.innerHeight;
+        px=lerp(px, 45+10*(x-.5), .15);
+        py=lerp(py, 28+6*(y-.5), .15);
+      });
+    })();
 
-      $log.appendChild(wrap);
-      scrollToEnd();
-      return wrap;
+    // ----- Téma kapcsoló -----
+    const themeBtn = document.getElementById('themeBtn');
+    themeBtn.addEventListener('click', ()=>{
+      const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = cur==='dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+    (()=>{
+      const saved = localStorage.getItem('theme');
+      if(saved) document.documentElement.setAttribute('data-theme', saved);
+    })();
+
+    // ----- Gyors kérdés chipek -----
+    const chipData = [
+      "Ki készítette ezt az oldalt?",
+      "Mesélj Horváth Tamásról röviden!",
+      "Milyen modell vagy?",
+      "Mi a mai dátum?",
+      "Mit tudsz csinálni?"
+    ];
+    const chips = document.getElementById('chips');
+    chipData.forEach(q=>{
+      const b=document.createElement('button'); b.className='chip'; b.textContent=q;
+      b.onclick=()=>{ txt.value=q; txt.focus(); };
+      chips.appendChild(b);
+    });
+
+    // ----- Chat funkciók -----
+    const log = document.getElementById('log');
+    const txt = document.getElementById('txt');
+    const sendBtn = document.getElementById('sendBtn');
+    const ttsBtn = document.getElementById('ttsBtn');
+
+    let speakOn = false;
+    ttsBtn.addEventListener('click', ()=>{
+      speakOn = !speakOn;
+      ttsBtn.classList.toggle('on', speakOn);
+    });
+
+    function addRow(kind, text){
+      const r=document.createElement('div');
+      r.className = `row ${kind}`;
+      const b=document.createElement('div');
+      b.className = 'bubble';
+      if(kind==='bot') b.classList.add('glow');
+      if(kind==='info') r.className='row bot info';
+      b.textContent = text;
+      r.appendChild(b);
+      log.appendChild(r);
+      log.scrollTop = log.scrollHeight;
+      return b; // visszaadjuk (pl. animáció törléshez)
     }
 
-    // --- felolvasás (TTS) magyarul
-    function speakText(ttsEl, text){
-      // ha épp beszélünk: állj meg
-      if(speakingUtter){
-        speechSynthesis.cancel();
-        speakingUtter = null;
-        if(ttsEl) ttsEl.classList.remove('playing');
+    function addTyping(){
+      const r=document.createElement('div'); r.className='row bot';
+      const b=document.createElement('div'); b.className='bubble glow';
+      const w=document.createElement('span'); w.className='typing';
+      w.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+      b.appendChild(w); r.appendChild(b); log.appendChild(r); log.scrollTop=log.scrollHeight;
+      return r;
+    }
+
+    function speakHu(text){
+      try{
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'hu-HU';
+        u.rate = 1; u.pitch=1;
+        window.speechSynthesis.speak(u);
+      }catch(e){}
+    }
+
+    // kezdeti fókusz
+    txt.focus();
+
+    async function ask(){
+      const text = (txt.value || '').trim();
+      if(!text) return;
+      addRow('user', text);
+      txt.value='';
+
+      // helyi, kézzel írt válaszok (rögzített)
+      const fixed = fixedAnswer(text);
+      if(fixed){
+        const b = addRow('bot', fixed);
+        if(speakOn) speakHu(b.textContent);
         return;
       }
-      const u = new SpeechSynthesisUtterance(text);
-      // magyar hang keresése
-      const chooseVoice = () => {
-        const voices = speechSynthesis.getVoices();
-        const hu = voices.find(v => /hu-|Hungarian/i.test(v.lang));
-        if(hu) u.voice = hu;
-      };
-      chooseVoice();
-      if(!u.voice){
-        // iOS/Chrome első híváskor később tölti be a hangokat
-        speechSynthesis.onvoiceschanged = chooseVoice;
-      }
-      u.lang = 'hu-HU';
-      u.rate = 1.02;
-      u.pitch = 1.0;
-      u.onend = () => { if(ttsEl) ttsEl.classList.remove('playing'); speakingUtter = null; };
-      u.onerror = () => { if(ttsEl) ttsEl.classList.remove('playing'); speakingUtter = null; };
-      speakingUtter = u;
-      if(ttsEl) ttsEl.classList.add('playing');
-      speechSynthesis.speak(u);
-    }
 
-    // --- fix, helyi válaszok (gyorsak)
-    function fixedAnswer(q){
-      const t = q.toLowerCase().trim();
-      if(!t) return null;
-
-      // modell/készítő kérdések
-      if(
-        t.includes('ki készítette') || t.includes('ki hozta létre') ||
-        t.includes('készítője') || t.includes('model') || t.includes('milyen modell')
-      ){
-        return "Én Tamás modellje vagyok. Horváth Tamás készített és fejlesztett, hogy barátságosan segítsek neked magyarul. 🙂";
-      }
-
-      // „mesélj Tamásról”
-      if(t.includes('mesélj') && t.includes('tamás')){
-        return "Tamás egy lelkes hobbifejlesztő, aki webes projektekkel kísérletezik és folyamatosan tanul. Ez az oldal is egy ilyen játékos projekt. 🚀";
-      }
-
-      return null;
-    }
-
-    // --- küldés logika
-    async function sendNow(){
-      const text = $inp.value.trim();
-      if(!text) return;
-
-      addMsg(text, 'user');
-      $inp.value = '';
-      $inp.focus();
-
-      // helyi válasz?
-      const fx = fixedAnswer(text);
-      if(fx){ addMsg(fx, 'bot'); return; }
-
-      // hálózati jelzés
-      const info = addMsg('…', 'bot');
-
+      const typing = addTyping();
       try{
         const r = await fetch('/.netlify/functions/chat', {
           method:'POST',
-          headers:{ 'Content-Type':'application/json' },
+          headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ message: text })
         });
-        if(!r.ok) throw new Error('HTTP ' + r.status);
+        typing.remove();
+
+        if(!r.ok) throw new Error(`HTTP ${r.status}`);
         const data = await r.json();
-        info.remove();
-        addMsg(String(data.reply || data || 'Rendben. Miben segíthetek még?'), 'bot');
+        const reply = String(data.reply ?? '').trim() || "Értem. Miben segíthetek még?";
+        const b = addRow('bot', reply);
+        if(speakOn) speakHu(b.textContent);
+
       }catch(e){
-        info.remove();
-        addMsg('Hiba: ' + (e.message || e), 'bot');
+        typing.remove();
+        addRow('bot', `Hiba: ${e.message || e}`);
       }
     }
 
-    // --- események
-    $send.addEventListener('click', sendNow);
-    $inp.addEventListener('keydown', (e)=>{
-      if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendNow(); }
+    sendBtn.addEventListener('click', ask);
+    txt.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ask(); }
     });
 
-    // --- nyitó üzenet (kérésed szerint)
-    addMsg("Szia! Itt vagyok neked, segítek mindenben. Írj bátran! 🙂", 'bot');
+    // ----- Rögzített, helyi válaszok testreszabása -----
+    function fixedAnswer(s){
+      const t = s.toLowerCase();
+      // 1) modell kiléte
+      if(/milyen modell|milyen ai|ki vagy te/.test(t)){
+        return "Tamás modellje vagyok: ő készített és fejleszt, hogy segítsek neked bármiben. 😊";
+      }
+      // 2) készítő
+      if(/ki (készítette|hozta létre)|készítő|tulaj|fejlesztő/.test(t)){
+        return "Az oldalt Horváth Tamás (Szabolcs bácska) készítette hobbi fejlesztésként. Folyamatosan csiszolja a funkciókat. 👨‍💻";
+      }
+      // 3) rövid bemutatás
+      if(/mesélj.*tamás|ki az a tamás/.test(t)){
+        return "Tamás lelkes hobbifejlesztő, aki szívesen kísérletezik webes projektekkel és AI-val. Jó szórakozást az oldalon! 🚀";
+      }
+      // 4) dátum/idő (helyi)
+      if(/mai (nap|dátum)|hányadika|milyen dátum/.test(t)){
+        const now = new Date();
+        const napok = ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"];
+        const d = now.toLocaleDateString('hu-HU');
+        return `Ma ${d}, ${napok[now.getDay()]}.`;
+      }
+      // 5) következő napok
+      if(/következő napok|holnap|héten/.test(t)){
+        const napok = ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"];
+        let out = [];
+        let d = new Date();
+        for(let i=1;i<=5;i++){
+          d = new Date(d.getTime()+86400000);
+          out.push(`${d.toLocaleDateString('hu-HU')} — ${napok[d.getDay()]}`);
+        }
+        return "Következő napok:\n" + out.join("\n");
+      }
+      return "";
+    }
   </script>
 </body>
 </html>
