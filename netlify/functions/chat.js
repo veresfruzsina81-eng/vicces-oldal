@@ -1,12 +1,9 @@
-// netlify/functions/chat.js
 exports.handler = async (event) => {
-  // --- CORS ---
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
   };
 
-  // Preflight
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: cors, body: "" };
   }
@@ -15,66 +12,51 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { message = "" } = JSON.parse(event.body || "{}");
-
+    const { message } = JSON.parse(event.body || "{}");
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return { statusCode: 500, headers: cors, body: "Missing OPENAI_API_KEY" };
+      return { statusCode: 500, headers: cors, body: "Missing API key" };
     }
 
-    // --- CSAK ILYEN KÉRDÉSEKNÉL válaszoljuk meg a tulaj/credits sort ---
-    const low = (message || "").toLowerCase();
-    const triggers = [
-      "ki hozta létre az oldalt",
-      "ki az oldal készítője",
-      "ki készítette az oldalt",
-      "ki csinálta az oldalt",
-      "tulajdonosa az oldalnak",
-      "ki a tulajdonos",
-    ];
-    if (triggers.some(t => low.includes(t))) {
-      const reply = "Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!";
+    // Ha a felhasználó rákérdez ki a készítő → fix válasz
+    const lower = (message || "").toLowerCase();
+    if (lower.includes("ki hozta létre") || lower.includes("ki készítette") || lower.includes("ki az oldal készítője")) {
       return {
         statusCode: 200,
-        headers: { ...cors, "Content-Type": "application/json" },
-        body: JSON.stringify({ reply }),
+        headers: cors,
+        body: JSON.stringify({
+          reply: "Az oldalt Horváth Tamás (Szabolcsbáka) készítette. 😊",
+        }),
       };
     }
 
-    // --- Normál OpenAI hívás (NINCS temperature / max_tokens, hogy ne legyen hiba) ---
-    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Minden más megy az OpenAI-hoz
+    const r = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "Magyarul válaszolj, barátságosan és tömören." },
-          { role: "user", content: message || "" }
-        ]
-      })
+        model: "gpt-4.1-mini",
+        input: message,
+        max_completion_tokens: 200,
+      }),
     });
 
-    if (!r.ok) {
-      const txt = await r.text().catch(()=> "");
-      return { statusCode: 502, headers: cors, body: "Upstream error: " + txt.slice(0,160) };
-    }
-
     const data = await r.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim() || "Rendben. Miben segíthetek még?";
-
+    const answer = data.output?.[0]?.content?.[0]?.text || "Értem. Miben segíthetek még?";
     return {
       statusCode: 200,
-      headers: { ...cors, "Content-Type": "application/json" },
-      body: JSON.stringify({ reply }),
+      headers: cors,
+      body: JSON.stringify({ reply: answer }),
     };
+
   } catch (e) {
     return {
       statusCode: 500,
       headers: cors,
-      body: "Szerver hiba: " + (e?.message || e),
+      body: JSON.stringify({ error: e.message || "Szerver hiba" }),
     };
   }
 };
