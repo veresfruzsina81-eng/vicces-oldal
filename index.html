@@ -26,6 +26,12 @@
 
     *{box-sizing:border-box}
     html,body{height:100%}
+    /* --- OLDAL FIX: nincs globális scroll --- */
+    html, body{
+      overflow: hidden;               /* fontos! */
+      overscroll-behavior: none;      /* mobil bounce tiltás */
+    }
+
     body{
       margin:0; font:16px/1.55 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
       color:var(--text); background:var(--bg);
@@ -49,7 +55,7 @@
     .btn{border:1px solid rgba(255,255,255,.12); background:var(--panel); color:var(--text);
       padding:6px 10px; border-radius:12px; cursor:pointer; font-weight:600; font-size:13px; box-shadow:var(--glow)}
 
-    /* --- Fix, feljebb húzott chatpanel --- */
+    /* --- Fix, feljebb húzott chatpanel (belefér a viewportba) --- */
     .card{
       background:rgba(0,0,0,.45);
       border:1px solid rgba(255,255,255,.08);
@@ -57,14 +63,18 @@
       box-shadow:var(--glow);
       display:flex; flex-direction:column;
 
-      margin:0 auto 10px;            /* feljebb húzva */
-      height:calc(100vh - 210px);     /* stabil magasság */
-      max-height:72vh;                /* mobilon se lógjon le */
+      margin:0 auto 10px;
+      height:calc(100vh - 210px);   /* úgy méretezve, hogy a fej + láb mellett pont beférjen */
+      max-height:72vh;              /* extra garancia */
     }
 
     .chat{flex:1; display:flex; flex-direction:column; min-height:0}
     .col{flex:1; display:flex; flex-direction:column; min-height:0}
-    .chatlog{flex:1; overflow-y:auto; padding:14px; scroll-behavior:smooth}
+    /* CSAK EZ SCROLLOZHAT */
+    .chatlog{
+      flex:1; overflow-y:auto; overscroll-behavior: contain;
+      padding:14px; scroll-behavior:smooth;
+    }
 
     .row{display:flex; margin:12px 0}
     .row.bot{justify-content:flex-start}
@@ -124,6 +134,7 @@
     footer{
       color:#f0f0f0; text-shadow:0 1px 2px rgba(0,0,0,.8);
       font-size:12px; text-align:center; padding:8px; background:rgba(0,0,0,.35);
+      /* footer is fixed area in layout; page still no scroll */
     }
 
     .fade-out{opacity:1; transition:opacity .5s ease}
@@ -148,7 +159,7 @@
     <section class="card">
       <div class="chat">
         <div class="col">
-          <!-- KEZDŐ ÜZENET a chatlog része -> görgethető és törlődik első küldéskor -->
+          <!-- Nyitó üzenet a chatlog része -->
           <div id="log" class="chatlog">
             <div class="row bot info">
               <div class="bubble glow" id="hello">Szia! Itt vagyok neked, segítek mindenben. Írj bátran! 😊</div>
@@ -176,6 +187,7 @@
   </footer>
 
   <script>
+    // Téma kapcsoló
     const themeBtn=document.getElementById('themeBtn');
     themeBtn.addEventListener('click',()=>{
       const cur=document.documentElement.getAttribute('data-theme')||'dark';
@@ -185,6 +197,7 @@
     });
     (()=>{const saved=localStorage.getItem('theme'); if(saved) document.documentElement.setAttribute('data-theme',saved);})();
 
+    // Elemszelektorok
     const log=document.getElementById('log');
     const txt=document.getElementById('txt');
     const sendBtn=document.getElementById('sendBtn');
@@ -213,13 +226,61 @@
 
     txt.focus();
 
+    // --- Csak a chatlog görgethető: billentyű + egér + touch ---
+    function redirectKeyScroll(e){
+      const tag=(document.activeElement?.tagName||'').toLowerCase();
+      if(tag==='input' || tag==='textarea') return; // írás közben hagyjuk
+
+      const keys=['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '];
+      if(!keys.includes(e.key)) return;
+
+      e.preventDefault();
+
+      const step = 48;
+      switch(e.key){
+        case 'ArrowUp':   log.scrollBy({top:-step, behavior:'smooth'}); break;
+        case 'ArrowDown': log.scrollBy({top: step, behavior:'smooth'}); break;
+        case 'PageUp':    log.scrollBy({top:-log.clientHeight, behavior:'smooth'}); break;
+        case 'PageDown':  log.scrollBy({top: log.clientHeight, behavior:'smooth'}); break;
+        case 'Home':      log.scrollTo({top:0, behavior:'smooth'}); break;
+        case 'End':       log.scrollTo({top:log.scrollHeight, behavior:'smooth'}); break;
+        case ' ':         log.scrollBy({top: log.clientHeight*0.9, behavior:'smooth'}); break;
+      }
+    }
+    window.addEventListener('keydown', redirectKeyScroll, {passive:false});
+
+    function redirectWheel(e){
+      // ha nem a chatlogban görget, irányítsuk át a chatlogra
+      if(!log.contains(e.target)){
+        e.preventDefault();
+        log.scrollBy({ top: e.deltaY, behavior:'auto' });
+      }
+    }
+    window.addEventListener('wheel', redirectWheel, {passive:false});
+
+    // Touch átirányítás (mobil)
+    let lastY=null;
+    window.addEventListener('touchstart', (e)=>{
+      if(!log.contains(e.target)){ lastY = e.touches[0].clientY; }
+    }, {passive:false});
+    window.addEventListener('touchmove', (e)=>{
+      if(!log.contains(e.target)){
+        e.preventDefault();
+        const y = e.touches[0].clientY;
+        if(lastY!=null){
+          log.scrollBy({ top: lastY - y, behavior: 'auto' });
+        }
+        lastY = y;
+      }
+    }, {passive:false});
+    window.addEventListener('touchend', ()=>{ lastY=null; }, {passive:true});
+
     async function ask(){
       const text=(txt.value||'').trim(); if(!text) return;
 
-      // >>> Nyitó üzenet eltávolítása az első küldéskor
+      // Nyitó üzenet eltávolítása az első küldéskor
       const hello = document.getElementById('hello');
       if (hello) (hello.closest('.row') || hello).remove();
-      // <<<
 
       addRow('user',text); txt.value='';
 
