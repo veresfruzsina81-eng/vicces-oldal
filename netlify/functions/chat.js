@@ -1,12 +1,10 @@
-// netlify/functions/chat.js
 exports.handler = async (event) => {
-  // CORS (későbbi bővítéshez jó, most is ártalmatlan)
+  // CORS beállítások
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
   };
 
-  // CORS preflight
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: cors, body: "" };
   }
@@ -16,32 +14,17 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { messages = [] } = JSON.parse(event.body || "{}");
+    const messages = JSON.parse(event.body || "{}").messages || [];
     const apiKey = process.env.OPENAI_API_KEY;
+
     if (!apiKey) {
       return { statusCode: 500, headers: cors, body: "Missing OPENAI_API_KEY env var" };
     }
 
-    // --- Külön logika: ki hozta létre / ki Horváth Tamás? ---
-    const lastUser = [...messages].reverse().find(m => m.role === "user")?.content?.toLowerCase() || "";
-    const creatorTriggers = [
-      "ki hozta létre az oldalt",
-      "ki készítette az oldalt",
-      "ki a tulajdonos",
-      "ki csinálta az oldalt",
-      "tulajdonosa az oldalnak",
-      "ki csinálta ezt az oldalt",
-      "ki hozta létre ezt az oldalt"
-    ];
-    const introTriggers = [
-      "ki az a horváth tamás",
-      "mesélj horváth tamásról",
-      "mutasd be horváth tamást",
-      "ki az horváth tamás"
-    ];
-
-    if (creatorTriggers.some(t => lastUser.includes(t))) {
-      const reply = "Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!";
+    // Speciális válasz, ha rákérdeznek a készítőre
+    const lastUser = [...messages].reverse().find(m => m.role === "user")?.content.toLowerCase() || "";
+    if (lastUser.includes("ki az a horváth tamás") || lastUser.includes("ki készítette az oldalt")) {
+      const reply = "Horváth Tamás (Szabolcsbáka) az oldal készítője és fejlesztője. Hobbi szinten foglalkozik webes projektekkel és mesterséges intelligenciával.";
       return {
         statusCode: 200,
         headers: { ...cors, "Content-Type": "application/json" },
@@ -49,55 +32,40 @@ exports.handler = async (event) => {
       };
     }
 
-    if (introTriggers.some(t => lastUser.includes(t))) {
-      const reply = "Horváth Tamás Szabolcsbákán élő hobbi fejlesztő. Webes projektekkel és mesterséges intelligenciával foglalkozik; ezt az oldalt is ő készítette, hogy barátságos, magyar nyelvű AI beszélgetést kínáljon.";
-      return {
-        statusCode: 200,
-        headers: { ...cors, "Content-Type": "application/json" },
-        body: JSON.stringify({ reply })
-      };
-    }
-
-    // --- Normál OpenAI hívás ---
+    // Alap system üzenet
     const systemMsg = {
       role: "system",
-      content:
-        "Magyarul válaszolj, barátságosan és tömören. Ha rákérdeznek az oldal készítőjére, a válasz: 'Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!'"
+      content: "Magyarul válaszolj, barátságosan és röviden. Ha rákérdeznek az oldal készítőjére, a válasz: Horváth Tamás (Szabolcsbáka)."
     };
 
+    // API hívás GPT-4o-mini modellel
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
+        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-5-mini",
+        model: "gpt-4o-mini",   // <<< Olcsó modell
         messages: [systemMsg, ...messages],
-        temperature: 0.6
-      })
+        temperature: 0.7,
+      }),
     });
 
     const data = await r.json();
-    if (!r.ok) {
-      return {
-        statusCode: 500,
-        headers: { ...cors, "Content-Type": "application/json" },
-        body: JSON.stringify({ error: data?.error?.message || "Szerver hiba" })
-      };
-    }
+    const reply = data.choices?.[0]?.message?.content || "Sajnálom, hiba történt.";
 
-    const reply = data?.choices?.[0]?.message?.content?.trim() || "Rendben, miben segíthetek?";
     return {
       statusCode: 200,
       headers: { ...cors, "Content-Type": "application/json" },
-      body: JSON.stringify({ reply })
+      body: JSON.stringify({ reply }),
     };
+
   } catch (e) {
     return {
       statusCode: 500,
       headers: cors,
-      body: JSON.stringify({ error: e?.message || "Szerver hiba" })
+      body: JSON.stringify({ error: e.message }),
     };
   }
 };
