@@ -49,7 +49,7 @@
     .btn{border:1px solid rgba(255,255,255,.12); background:var(--panel); color:var(--text);
       padding:6px 10px; border-radius:12px; cursor:pointer; font-weight:600; font-size:13px; box-shadow:var(--glow)}
 
-    /* --- Fix magasságú chat kártya, feljebb húzva --- */
+    /* --- Fix, feljebb húzott chatpanel --- */
     .card{
       background:rgba(0,0,0,.45);
       border:1px solid rgba(255,255,255,.08);
@@ -57,9 +57,9 @@
       box-shadow:var(--glow);
       display:flex; flex-direction:column;
 
-      height:calc(100vh - 180px);  /* fix/stabil magasság */
-      max-height:74vh;
-      margin:4px auto 12px;        /* feljebb húzva */
+      margin:0 auto 10px;            /* feljebb húzva */
+      height:calc(100vh - 210px);     /* stabil magasság */
+      max-height:72vh;                /* mobilon se lógjon le */
     }
 
     .chat{flex:1; display:flex; flex-direction:column; min-height:0}
@@ -148,7 +148,7 @@
     <section class="card">
       <div class="chat">
         <div class="col">
-          <!-- KEZDŐ ÜZENET most a chatlog része, görgethető -->
+          <!-- KEZDŐ ÜZENET a chatlog része -> görgethető és törlődik első küldéskor -->
           <div id="log" class="chatlog">
             <div class="row bot info">
               <div class="bubble glow" id="hello">Szia! Itt vagyok neked, segítek mindenben. Írj bátran! 😊</div>
@@ -215,6 +215,12 @@
 
     async function ask(){
       const text=(txt.value||'').trim(); if(!text) return;
+
+      // >>> Nyitó üzenet eltávolítása az első küldéskor
+      const hello = document.getElementById('hello');
+      if (hello) (hello.closest('.row') || hello).remove();
+      // <<<
+
       addRow('user',text); txt.value='';
 
       const typing=addTyping();
