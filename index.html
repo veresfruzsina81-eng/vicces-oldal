@@ -5,43 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>HT Chat — Kellemes beszélgetést!</title>
 <style>
-  :root{
-    --bg:#0c1116; --panel:#111827; --muted:#9aa4b2; --text:#e5e7eb;
-    --brand:#f59e0b; --border:#1f2937;
-  }
-  *{box-sizing:border-box}
-  body{margin:0; font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;
-       background:linear-gradient(180deg,#0b0f14,#0d131b 60%,#0b1220);
-       color:var(--text)}
+  :root{--bg:#0c1116;--panel:#111827;--muted:#9aa4b2;--text:#e5e7eb;--border:#1f2937}
+  *{box-sizing:border-box} body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial;
+  background:linear-gradient(180deg,#0b0f14,#0d131b 60%,#0b1220);color:var(--text)}
   .wrap{max-width:980px;margin:0 auto;padding:20px}
   header{margin-bottom:14px}
   .title{font-weight:800;letter-spacing:.3px;font-size:clamp(22px,4.5vw,30px);color:#fff}
   .subtitle{color:var(--muted);font-size:14px;margin-top:6px}
-  .panel{background:rgba(255,255,255,.03); border:1px solid var(--border);
-         border-radius:14px; box-shadow:0 8px 30px rgba(0,0,0,.35);}
-  .msgs{padding:16px; min-height:58vh; max-height:65vh; overflow:auto}
-  .bubble{max-width:80%;padding:12px 14px;border-radius:14px;margin:8px 0;
-          line-height:1.45;white-space:pre-wrap}
-  .me{background:#0e1a2a; border:1px solid #1b2634}
-  .ai{background:#162238; border:1px solid #22324d}
-  .inputbar{display:flex; gap:8px; padding:12px; border-top:1px solid var(--border);
-            background:rgba(0,0,0,.25); border-radius:0 0 14px 14px}
-  input,button,select{color:var(--text)}
-  input[type=text]{flex:1; padding:12px 14px; border-radius:10px;
-                   background:#0c1420; border:1px solid #203043; outline:none}
+  .panel{background:rgba(255,255,255,.03);border:1px solid var(--border);
+         border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+  .msgs{padding:16px;min-height:58vh;max-height:65vh;overflow:auto}
+  .bubble{max-width:80%;padding:12px 14px;border-radius:14px;margin:8px 0;line-height:1.45;white-space:pre-wrap}
+  .me{background:#0e1a2a;border:1px solid #1b2634}
+  .ai{background:#162238;border:1px solid #22324d}
+  .inputbar{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);
+            background:rgba(0,0,0,.25);border-radius:0 0 14px 14px}
+  input,button{color:var(--text)}
+  input[type=text]{flex:1;padding:12px 14px;border-radius:10px;background:#0c1420;border:1px solid #203043;outline:none}
   input[type=text]::placeholder{color:#6b7280}
-  .btn{padding:12px 14px; border-radius:10px; border:1px solid #2a3750;
-       background:linear-gradient(180deg,#1b2750,#182347); cursor:pointer}
+  .btn{padding:12px 14px;border-radius:10px;border:1px solid #2a3750;background:#182347;cursor:pointer}
   .btn:hover{filter:brightness(1.08)}
-  .toolbar{display:flex; gap:10px; align-items:center; padding:10px 12px;
-           border-top:1px solid var(--border); background:#0b1320}
-  .tag{display:inline-block; padding:6px 10px; border-radius:999px;
-       border:1px solid #2a3750; background:#0e1524; font-size:12px; color:var(--muted)}
+  .toolbar{display:flex;gap:12px;align-items:center;padding:10px 12px;border-top:1px solid var(--border);background:#0b1320}
   .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
-  .sw{width:42px;height:24px;border-radius:999px;background:#263246; position:relative;border:1px solid #31405c}
-  .knob{position:absolute; top:2px; left:2px; width:20px;height:20px;border-radius:50%; background:#9aa4b2; transition:.18s}
-  .on{background:linear-gradient(90deg,#7c3aed,#06b6d4)}
-  .on .knob{left:20px; background:#fff}
+  .sw{width:42px;height:24px;border-radius:999px;background:#263246;position:relative;border:1px solid #31405c}
+  .knob{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#9aa4b2;transition:.18s}
+  .on{background:linear-gradient(90deg,#7c3aed,#06b6d4)} .on .knob{left:20px;background:#fff}
+  .tag{color:var(--muted);font-size:12px}
 </style>
 </head>
 <body>
@@ -54,16 +43,14 @@
     <div class="panel">
       <div class="msgs" id="msgs"></div>
 
-      <!-- TTS eszköztár (csak ha támogatott) -->
+      <!-- Egyszerű TTS sáv (csak ha támogatott) -->
       <div class="toolbar" id="ttsBar" style="display:none">
         <span class="tag">🎧 Felolvasás</span>
         <label class="switch" id="ttsToggle">
           <div class="sw" id="sw"><div class="knob"></div></div>
-          <span>Be / Ki</span>
+          <span id="ttsState" class="tag">Ki</span>
         </label>
-        <select id="voiceSel" class="btn" title="Hangválasztás"></select>
         <button class="btn" id="stopBtn" title="Megállít">⏹ Megállít</button>
-        <span class="tag" id="ttsInfo" style="margin-left:auto">Ki</span>
       </div>
 
       <div class="inputbar">
@@ -74,107 +61,70 @@
   </div>
 
 <script>
-  // ======= UI elemek =======
+  // ===== UI =====
   const msgsEl = document.getElementById('msgs');
   const inpEl  = document.getElementById('inp');
   const sendEl = document.getElementById('send');
 
-  // TTS elemek
-  const ttsBar   = document.getElementById('ttsBar');
-  const ttsToggle= document.getElementById('ttsToggle');
-  const sw       = document.getElementById('sw');
-  const voiceSel = document.getElementById('voiceSel');
-  const stopBtn  = document.getElementById('stopBtn');
-  const ttsInfo  = document.getElementById('ttsInfo');
+  // ===== TTS (egyszerű) =====
+  const ttsBar = document.getElementById('ttsBar');
+  const ttsToggle = document.getElementById('ttsToggle');
+  const sw = document.getElementById('sw');
+  const ttsState = document.getElementById('ttsState');
+  const stopBtn = document.getElementById('stopBtn');
 
   let history = [];
   let ttsEnabled = false;
-  let voices = [];
 
   function addBubble(text, who='assistant'){
     const b = document.createElement('div');
     b.className = 'bubble ' + (who==='user' ? 'me' : 'ai');
-    b.textContent = text;
-    msgsEl.appendChild(b);
-    msgsEl.scrollTop = msgsEl.scrollHeight;
-    return b;
+    b.textContent = text; msgsEl.appendChild(b); msgsEl.scrollTop = msgsEl.scrollHeight; return b;
   }
 
-  // ======= Felolvasás kezelése =======
   const ttsSupported = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
-
-  function loadVoices(){
-    voices = speechSynthesis.getVoices();
-    voiceSel.innerHTML = '';
-    voices
-      .filter(v => v.lang.startsWith('hu') || v.lang.startsWith('en') || v.lang.startsWith('de'))
-      .forEach(v => {
-        const o = document.createElement('option');
-        o.value = v.name; o.textContent = `${v.name} (${v.lang})`;
-        voiceSel.appendChild(o);
-      });
-  }
-
   function setSwitch(on){
     ttsEnabled = !!on;
-    if(on){ sw.classList.add('on'); ttsInfo.textContent='Be'; }
-    else  { sw.classList.remove('on'); ttsInfo.textContent='Ki'; speechSynthesis.cancel(); }
-    localStorage.setItem('ttsEnabled',''+(on?1:0));
+    if(on){ sw.classList.add('on'); ttsState.textContent='Be'; }
+    else  { sw.classList.remove('on'); ttsState.textContent='Ki'; speechSynthesis.cancel(); }
+    localStorage.setItem('ttsEnabled', on ? '1' : '0');
   }
-
   function speak(text){
     if(!ttsEnabled || !ttsSupported) return;
     const u = new SpeechSynthesisUtterance(text);
-    const v = voices.find(v => v.name === voiceSel.value);
-    if(v) u.voice = v;
-    u.rate = 1.0; u.pitch = 1.0;
-    speechSynthesis.cancel();
-    speechSynthesis.speak(u);
+    u.rate = 1; u.pitch = 1;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
   }
-
   if(ttsSupported){
-    ttsBar.style.display = 'flex';
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+    ttsBar.style.display='flex';
     setSwitch(localStorage.getItem('ttsEnabled')==='1');
     ttsToggle.onclick = ()=> setSwitch(!ttsEnabled);
-    stopBtn.onclick   = ()=> speechSynthesis.cancel();
+    stopBtn.onclick = ()=> speechSynthesis.cancel();
   }
 
-  // ======= OpenAI hívás a Netlify functionön át =======
+  // ===== OpenAI hívás (Netlify function) =====
   async function askOpenAI(message){
     const system = "Magyarul válaszolj, barátságosan és tömören.";
     const body = { messages: [{role:'system',content:system}, ...history, {role:'user',content:message}] };
-
-    const r = await fetch('/.netlify/functions/chat', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body)
-    });
+    const r = await fetch('/.netlify/functions/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     if(!r.ok) throw new Error('Szerver hiba: '+r.status);
     const data = await r.json();
-    return (data && data.reply) ? data.reply : 'Hmm, most nem tudok válaszolni.';
+    return data?.reply || 'Most nem tudok válaszolni.';
   }
 
   async function send(){
-    const text = inpEl.value.trim();
-    if(!text) return;
-    addBubble(text,'user');
-    history.push({role:'user', content:text});
+    const text = inpEl.value.trim(); if(!text) return;
+    addBubble(text,'user'); history.push({role:'user',content:text});
     inpEl.value=''; inpEl.focus();
-
     const thinking = addBubble('Gondolkodom…','assistant');
     try{
       const reply = await askOpenAI(text);
-      thinking.textContent = reply;
-      history.push({role:'assistant', content:reply});
-      speak(reply); // csak ha be van kapcsolva és támogatott
+      thinking.textContent = reply; history.push({role:'assistant',content:reply});
+      speak(reply);
     }catch(e){
-      thinking.textContent = 'Hopp, valami hiba történt. Próbáld újra.';
-      console.error(e);
+      thinking.textContent = 'Hopp, hiba történt. Próbáld újra.'; console.error(e);
     }
   }
-
   sendEl.onclick = send;
   inpEl.addEventListener('keydown', e => { if(e.key==='Enter') send(); });
 
