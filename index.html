@@ -34,7 +34,7 @@
       display:flex; flex-direction:column;
     }
 
-    .wrap{max-width:1150px; width:96%; margin:0 auto; padding:18px}
+    .wrap{max-width:1150px; width:96%; margin:0 auto; padding:12px}
 
     header{
       position:sticky; top:0; z-index:10;
@@ -42,26 +42,29 @@
       background:var(--panel);
       border-bottom:1px solid rgba(255,255,255,.1);
     }
-    .brand{display:flex; align-items:center; gap:14px; padding:8px 10px 14px}
-    .brand .ttl{font-weight:800; font-size:26px; letter-spacing:.3px}
+    .brand{display:flex; align-items:center; gap:14px; padding:6px 10px 10px}
+    .brand .ttl{font-weight:800; font-size:24px; letter-spacing:.3px}
     .brand .sub{color:var(--muted); font-size:13px; margin-top:2px}
     .toolbar{margin-left:auto; display:flex; gap:10px}
     .btn{border:1px solid rgba(255,255,255,.12); background:var(--panel); color:var(--text);
-      padding:8px 12px; border-radius:12px; cursor:pointer; font-weight:600; font-size:13px; box-shadow:var(--glow)}
+      padding:6px 10px; border-radius:12px; cursor:pointer; font-weight:600; font-size:13px; box-shadow:var(--glow)}
 
+    /* --- Fix magasságú chat kártya --- */
     .card{
       background:rgba(0,0,0,.45);
       border:1px solid rgba(255,255,255,.08);
-      border-radius:22px; padding:18px;
+      border-radius:22px; padding:16px;
       box-shadow:var(--glow);
       display:flex; flex-direction:column;
-      height:74vh;
-      margin:12px auto 22px;
+
+      height:calc(100vh - 200px);  /* fix magasság */
+      max-height:74vh;
+      margin:10px auto;            /* feljebb húzva */
     }
 
     .chat{flex:1; display:flex; flex-direction:column; min-height:0}
     .col{flex:1; display:flex; flex-direction:column; min-height:0}
-    .chatlog{flex:1; overflow-y:auto; padding:16px; scroll-behavior:smooth}
+    .chatlog{flex:1; overflow-y:auto; padding:14px; scroll-behavior:smooth}
 
     .row{display:flex; margin:12px 0}
     .row.bot{justify-content:flex-start}
@@ -85,13 +88,12 @@
 
     .muted{color:var(--muted); font-size:12px}
 
-    /* --- Beviteli kapszula végleges --- */
-    .composer{padding:12px}
+    /* --- Beviteli kapszula --- */
+    .composer{padding:10px}
     .composerBar{
       position:relative;
       display:flex; align-items:center; gap:8px;
       width:100%; max-width:100%;
-      margin:0 auto;
       background:var(--panel);
       border:1px solid rgba(255,255,255,.12);
       border-radius:18px;
@@ -105,7 +107,7 @@
     }
 
     .icon-btn{
-      width:36px; height:36px; border-radius:10px;
+      width:34px; height:34px; border-radius:10px;
       display:grid; place-items:center; flex:0 0 auto;
       border:1px solid rgba(255,255,255,.14); background:rgba(0,0,0,.15); cursor:pointer;
     }
@@ -114,7 +116,7 @@
 
     .send{
       position:absolute; right:8px; top:50%; transform:translateY(-50%);
-      height:42px; padding:0 22px;
+      height:40px; padding:0 20px;
       border-radius:12px;
       background:linear-gradient(90deg,#ffb84d,#ffa53a);
       color:#331d00; font-weight:800; font-size:15px; border:0; cursor:pointer; box-shadow:var(--glow)
@@ -123,7 +125,7 @@
 
     footer{
       color:#f0f0f0; text-shadow:0 1px 2px rgba(0,0,0,.8);
-      font-size:12px; text-align:center; padding:10px 8px; background:rgba(0,0,0,.35);
+      font-size:12px; text-align:center; padding:8px; background:rgba(0,0,0,.35);
     }
 
     .fade-out{opacity:1; transition:opacity .5s ease}
