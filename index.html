@@ -72,12 +72,13 @@
     .btn:hover{transform:translateY(-1px)}
 
     .card{
-      background: rgba(0,0,0,0.45); /* sötét átlátszó háttér */
+      background: rgba(0,0,0,0.45);
       border:1px solid rgba(255,255,255,.08);
       border-radius:22px; padding:16px;
       box-shadow: var(--glow);
       display:flex; flex-direction:column;
-      height:65vh; /* KÉRÉS: alacsonyabb chat panel */
+      height:70vh; /* picit hosszabb lett, de nem ér a footerhez */
+      margin-bottom:20px;
     }
 
     .chat{flex:1; display:flex; flex-direction:column; min-height:0}
@@ -90,7 +91,7 @@
     .row.bot{justify-content:flex-start}
     .row.user{justify-content:flex-end}
     .bubble{
-      max-width:min(900px, 96%); /* kicsit szélesebb buborék */
+      max-width:min(900px, 96%);
       padding:14px 16px; border-radius:18px;
       border:1px solid rgba(255,255,255,.08);
       position:relative; word-wrap:break-word; white-space:pre-wrap;
@@ -110,18 +111,43 @@
 
     .muted{color:var(--muted); font-size:12px}
 
-    .composer{display:flex; align-items:center; gap:10px; padding:12px}
-    .input{
-      flex:1; display:flex; align-items:center; gap:10px; padding:10px 14px;
-      background:var(--panel); border:1px solid rgba(255,255,255,.12);
-      border-radius:16px; box-shadow: var(--glow);
+    /* Input + Küldés egy sorban */
+    .composer {
+      display: flex;
+      align-items: center;
+      padding: 12px;
     }
-    .input input{
-      flex:1; background:transparent; border:0; outline:none; color:var(--text); font-size:16px; /* 16px: mobilon ne zoomoljon */
+    .input {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 16px 0 0 16px;
+      box-shadow: var(--glow);
     }
-    .send{padding:10px 16px; border-radius:16px; background:linear-gradient(90deg, #ffb84d, #ffa53a);
-      color:#331d00; font-weight:800; border:0; cursor:pointer}
-    .send:active{transform:translateY(1px)}
+    .input input {
+      flex: 1;
+      background: transparent;
+      border: 0;
+      outline: none;
+      color: var(--text);
+      font-size: 16px;
+    }
+    .send {
+      padding: 14px 28px; /* hosszabb és picit magasabb */
+      border-radius: 0 16px 16px 0;
+      background: linear-gradient(90deg, #ffb84d, #ffa53a);
+      color: #331d00;
+      font-weight: 800;
+      font-size: 15px;
+      border: 0;
+      cursor: pointer;
+      box-shadow: var(--glow);
+    }
+    .send:active { transform: translateY(1px); }
 
     .speak-toggle{
       width:38px; height:38px; border-radius:50%;
@@ -256,7 +282,7 @@
       addRow('user', text);
       txt.value='';
 
-      const typing = addTyping(); // visszaad egy .row elemet
+      const typing = addTyping();
 
       try{
         const r = await fetch('/.netlify/functions/chat', {
@@ -265,7 +291,7 @@
           body: JSON.stringify({ message: text })
         });
 
-        // szépen halványítsuk el a "Gondolkodom…" buborékot
+        // fade out
         const bubble = typing.querySelector('.bubble');
         if (bubble) bubble.classList.add('hide');
         setTimeout(()=> typing.remove(), 500);
