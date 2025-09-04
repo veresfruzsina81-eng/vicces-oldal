@@ -1,88 +1,67 @@
 // netlify/functions/chat.js
-const ORIGIN = "*"; // ha akarod, szűkítsd a saját domainedre
-
 export async function handler(event) {
-  // CORS előkészítés
-  if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": ORIGIN,
-        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      },
-      body: "",
-    };
-  }
-
-  // egyszerű GET health-check
-  if (event.httpMethod === "GET") {
-    return {
-      statusCode: 200,
-      headers: { "Access-Control-Allow-Origin": ORIGIN, "Content-Type": "application/json" },
-      body: JSON.stringify({ ok: true, where: "netlify/functions/chat.js" }),
-    };
-  }
-
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, headers: { "Access-Control-Allow-Origin": ORIGIN }, body: "Use POST / GET / OPTIONS" };
+    return json(405, { error: "Use POST" });
+  }
+
+  const { OPENAI_API_KEY } = process.env;
+  if (!OPENAI_API_KEY) {
+    return json(503, { error: "Missing OPENAI_API_KEY on Netlify." });
   }
 
   try {
-    const { message = "" } = JSON.parse(event.body || "{}");
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return {
-        statusCode: 500,
-        headers: { "Access-Control-Allow-Origin": ORIGIN },
-        body: JSON.stringify({ reply: "Nincs OPENAI_API_KEY beállítva a Netlify-on." }),
-      };
-    }
+    const { message } = JSON.parse(event.body || "{}");
+    const now = new Date();
+    const today = now.toLocaleDateString("hu-HU", { year:"numeric", month:"2-digit", day:"2-digit", weekday:"long" });
 
-    const system = `
-Te Tamás barátságos, magyar asszisztense vagy. Légy tömör, segítőkész, hétköznapi nyelven válaszolj.
-Ha a készítődre kérdeznek: "Az oldalt Horváth Tamás (Szabolcsbáka) készítette."
-A modelledre: "Tamás modellje vagyok."
-Kerüld a felesleges bocsánatkérést; maradj barátságos és hasznos.
-`.trim();
+    const payload = {
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Barátságos magyar asszisztens vagy. Röviden, érthetően, segítőkészen válaszolj. " +
+            "Ne mondj semmit az OpenAI-ról; mondd azt: 'Tamás modellje vagyok, ő készített és fejlesztett.' " +
+            `A mai dátum: ${today}. Ha kérdezik, magyar formátumban add meg.`
+        },
+        { role: "user", content: message || "" }
+      ],
+      temperature: 0.6,
+      max_tokens: 400
+    };
 
-    // OpenAI Responses API
-    const r = await fetch("https://api.openai.com/v1/responses", {
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        input: [
-          { role: "system", content: system },
-          { role: "user", content: message }
-        ],
-        max_output_tokens: 700,
-        temperature: 0.6
-      })
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
     });
 
     if (!r.ok) {
-      const errText = await r.text();
-      return {
-        statusCode: r.status,
-        headers: { "Access-Control-Allow-Origin": ORIGIN, "Content-Type": "application/json" },
-        body: JSON.stringify({ reply: "Szerver hiba 😕", error: errText }),
-      };
+      const text = await r.text();
+      console.error("OpenAI error:", r.status, text);
+      return json(502, { reply: "Most nem érem el a modellt. Próbáld meg újra kicsit később. 🙂" });
     }
 
     const data = await r.json();
-    const reply = (data.output_text || "").trim() || "Rendben! Hogyan segíthetek még?";
+    const reply = data.choices?.[0]?.message?.content?.trim() || "Rendben. Miben segíthetek még?";
+    return json(200, { reply });
 
-    return {
-      statusCode: 200,
-      headers: { "Access-Control-Allow-Origin": ORIGIN, "Content-Type": "application/json" },
-      body: JSON.stringify({ reply })
-    };
   } catch (e) {
-    return {
-      statusCode: 200,
-      headers: { "Access-Control-Allow-Origin": ORIGIN },
-      body: JSON.stringify({ reply: "Hopp, most nem sikerült. Próbáld újra kérlek! 😊" }),
-    };
+    console.error(e);
+    return json(500, { reply: "Hopp, hiba történt. Írd le röviden, mire van szükséged, és segítek. 🙂" });
   }
+}
+
+function json(status, obj) {
+  return {
+    statusCode: status,
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*"
+    },
+    body: JSON.stringify(obj)
+  };
 }
