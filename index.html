@@ -14,16 +14,9 @@
 
   <style>
     :root{
-      --bg:#0b0f14;
-      --panel:#0f1620cc;
-      --bubbleUser:#ffb84d;
-      --bubbleBot:#243447;
-      --bubbleInfo:#1b2838;
-      --text:#e8eef6;
-      --muted:#9fb0c3;
-      --accent:#6ea8fe;
-      --glow:0 10px 30px rgba(110,168,254,.18);
-      --ring:0 0 0 2px rgba(110,168,254,.35);
+      --bg:#0b0f14; --panel:#0f1620cc; --bubbleUser:#ffb84d; --bubbleBot:#243447;
+      --bubbleInfo:#1b2838; --text:#e8eef6; --muted:#9fb0c3; --accent:#6ea8fe;
+      --glow:0 10px 30px rgba(110,168,254,.18); --ring:0 0 0 2px rgba(110,168,254,.35);
     }
     [data-theme="light"]{
       --bg:#f4f7fb; --panel:#ffffffd9; --bubbleUser:#ffd089; --bubbleBot:#eaf0f7;
@@ -41,8 +34,8 @@
       display:flex; flex-direction:column;
     }
 
-    /* Középre igazított, valamivel szélesebb tartalom */
-    .wrap{max-width:1100px; width:96%; margin:0 auto; padding:18px}
+    /* Középre igazított, kicsit szélesebb tartalom */
+    .wrap{max-width:1150px; width:96%; margin:0 auto; padding:18px}
 
     header{
       position:sticky; top:0; z-index:10;
@@ -57,15 +50,15 @@
     .btn{border:1px solid rgba(255,255,255,.12); background:var(--panel); color:var(--text);
       padding:8px 12px; border-radius:12px; cursor:pointer; font-weight:600; font-size:13px; box-shadow:var(--glow)}
 
-    /* Chat kártya – középen, picit nagyobb, sötét háttérrel */
+    /* Chat kártya – középen, kicsit nagyobb, sötét háttérrel */
     .card{
       background:rgba(0,0,0,.45);
       border:1px solid rgba(255,255,255,.08);
       border-radius:22px; padding:18px;
       box-shadow:var(--glow);
       display:flex; flex-direction:column;
-      height:72vh;           /* picivel magasabb, de nem ér a footerhez */
-      margin:12px auto 22px; /* középre húzva */
+      height:74vh;            /* picit nagyobb */
+      margin:12px auto 22px;  /* középre húzva */
     }
 
     .chat{flex:1; display:flex; flex-direction:column; min-height:0}
@@ -76,7 +69,7 @@
     .row.bot{justify-content:flex-start}
     .row.user{justify-content:flex-end}
     .bubble{
-      max-width:min(920px, 96%);
+      max-width:min(940px, 96%);
       padding:14px 16px; border-radius:18px;
       border:1px solid rgba(255,255,255,.08);
       position:relative; white-space:pre-wrap; word-wrap:break-word;
@@ -95,32 +88,39 @@
 
     .muted{color:var(--muted); font-size:12px}
 
-    /* --- ÚJ: Egységes kapszula, beépített Küldés gombbal a jobb szélen --- */
+    /* --- Beépített beviteli kapszula: a Küldés gomb BENN van jobbra --- */
     .composer{padding:12px}
     .composerBar{
+      position:relative;              /* <-- a gomb ehhez igazodik */
       display:flex; align-items:center; gap:10px;
+      width:100%;
       background:var(--panel);
       border:1px solid rgba(255,255,255,.12);
       border-radius:18px;
       box-shadow:var(--glow);
-      padding:10px 10px 10px 14px;
+      padding:10px 130px 10px 14px;   /* <-- helyet hagyunk a jobboldali gombnak */
+      overflow:hidden;                /* vizuálisan egy kapszula marad */
     }
     .composerBar input{
-      flex:1; background:transparent; border:0; outline:none; color:var(--text); font-size:16px; /* 16px: nincs mobil zoom */
+      flex:1; background:transparent; border:0; outline:none; color:var(--text); font-size:16px; /* 16px: ne zoomoljon mobilon */
+      min-width:0;
     }
     .icon-btn{
       width:40px; height:40px; border-radius:12px; display:grid; place-items:center;
-      border:1px solid rgba(255,255,255,.14); background:rgba(0,0,0,.15); cursor:pointer;
+      border:1px solid rgba(255,255,255,.14); background:rgba(0,0,0,.15); cursor:pointer; flex:0 0 auto;
     }
     .icon-btn.on{outline:var(--ring)}
     .icon-btn svg{width:18px; height:18px; fill:var(--text)}
+
+    /* A Küldés gomb tényleg a kapszulán BELÜL, jobbra fixen */
     .send{
-      padding:12px 28px;   /* picit hosszabb és magasabb */
-      border-radius:12px;  /* külön gomb, de a kapszulán belül */
+      position:absolute; right:8px; top:50%; transform:translateY(-50%);
+      height:44px; padding:0 28px;
+      border-radius:12px;
       background:linear-gradient(90deg,#ffb84d,#ffa53a);
       color:#331d00; font-weight:800; font-size:15px; border:0; cursor:pointer; box-shadow:var(--glow)
     }
-    .send:active{transform:translateY(1px)}
+    .send:active{transform:translateY(-50%) translateY(1px)}
 
     footer{
       color:#f0f0f0; text-shadow:0 1px 2px rgba(0,0,0,.8);
@@ -156,7 +156,7 @@
         <div class="col">
           <div id="log" class="chatlog"></div>
 
-          <!-- ÚJ: beépített sáv -->
+          <!-- Beépített kapszula -->
           <div class="composer">
             <div class="composerBar">
               <input id="txt" autocomplete="off" placeholder="Írj ide…   Enter = küldés, Shift+Enter = új sor" />
