@@ -1,206 +1,336 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="hu">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Tamás Mesterséges (AI)</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23f59e0b'/%3E%3Ctext x='50' y='58' font-size='46' text-anchor='middle' fill='black' font-family='Segoe UI,Roboto,Helvetica,Arial,sans-serif'%3ET%3C/text%3E%3C/svg%3E" />
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
-      background: url("bg_tamas.jpg") no-repeat center center fixed;
-      background-size: cover;
-      color: #fff;
+    :root{
+      --rad: 18px;
+      --pad: 16px;
+      --glass-bg: rgba(0,0,0,.28);    /* sötét üveg — háttér éles marad */
+      --glass-stroke: rgba(255,255,255,.14);
+      --user-bg: linear-gradient(180deg,#ffb648,#f59e0b);
+      --fg: #e8eef7;
+      --fg-dim: #c9d4e3;
+      --hint: #a6b3c3;
+      --chip: rgba(255,255,255,.16);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color:var(--fg);
+      background:#0b0f14;
+      overflow:hidden; /* saját scroll a chat-en belül */
     }
 
-    header {
-      background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      padding: 15px;
-      text-align: center;
+    /* Háttér — ÉLES marad, nem homályosítjuk */
+    .bg{
+      position:fixed; inset:0;
+      background:url('bg_tamas.jpg') center/cover no-repeat fixed;
+      filter:none;       /* fontos: nincs blur */
+      z-index:-2;
+    }
+    /* Finom sötétítési átmenet, hogy az írás olvasható maradjon */
+    .vignette{
+      position:fixed; inset:0;
+      background:radial-gradient(1200px 800px at 50% 20%, rgba(0,0,0,.08), transparent 40%),
+                 linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.55));
+      z-index:-1;
     }
 
-    header h1 {
-      margin: 0;
-      font-size: 22px;
+    header{
+      position:fixed; left:16px; right:16px; top:16px;
+      border-radius: 22px;
+      padding: 18px 20px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-stroke);
+      backdrop-filter: blur(8px) saturate(120%);
+      box-shadow: var(--shadow);
+      display:flex; align-items:center; gap:16px; justify-content:space-between;
+    }
+    .brand{
+      line-height:1.1;
+    }
+    .brand h1{
+      margin:0; font-size: clamp(22px,4.5vw,32px); font-weight:800;
+      letter-spacing:.2px;
+    }
+    .brand .sub{
+      margin-top:4px; color:var(--fg-dim); font-size:14px;
+    }
+    .mode{
+      font-size:12px; color:var(--hint);
+      background: var(--chip); padding:8px 10px; border-radius:12px;
+      border:1px solid var(--glass-stroke);
+      user-select:none;
     }
 
-    header p {
-      margin: 5px 0 0;
-      font-size: 14px;
-      color: #ccc;
+    .wrap{
+      position:fixed; left:16px; right:16px; top:calc(80px + 24px); bottom:16px;
+      display:grid; grid-template-rows: 1fr auto auto; gap:12px;
     }
 
-    .chat {
-      max-width: 700px;
-      margin: 20px auto;
-      padding: 15px;
-      height: 70vh;
-      overflow-y: auto;
-
-      background: rgba(0, 0, 0, 0.25);
-      backdrop-filter: blur(12px) saturate(150%);
-      -webkit-backdrop-filter: blur(12px) saturate(150%);
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Üzenetek panel (saját scroll) */
+    .panel{
+      overflow:auto;
+      padding: 12px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.28));
+      border:1px solid var(--glass-stroke);
+      backdrop-filter: blur(6px) saturate(120%);
+      box-shadow: var(--shadow);
+      scroll-behavior:smooth;
     }
 
-    .msg {
-      margin: 10px 0;
-      padding: 12px 15px;
-      border-radius: 12px;
-      max-width: 75%;
+    .msg{
+      max-width: min(780px, 92%);
+      margin: 14px 10px;
+      padding: var(--pad);
+      border-radius: var(--rad);
+      position:relative;
+    }
+    .msg.bot{
+      background: var(--glass-bg);
+      border:1px solid var(--glass-stroke);
+      backdrop-filter: blur(8px) saturate(125%);
+      color: var(--fg);
+    }
+    .msg.user{
+      margin-left:auto;
+      color:#1a1105;
+      background: var(--user-bg);
+      border:1px solid rgba(0,0,0,.08);
+      box-shadow: 0 6px 18px rgba(245,158,11,.35);
+    }
+    .tools{
+      display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;
+    }
+    .tool{
+      display:inline-flex; align-items:center; gap:8px;
+      background: var(--chip);
+      border:1px solid var(--glass-stroke);
+      color: var(--fg);
+      padding: 8px 10px; border-radius: 12px;
+      font-size: 13px; cursor:pointer; user-select:none;
+    }
+    .tool:active{ transform: translateY(1px); }
+
+    /* Ajánlott kérdés „chipek” alul (fix, 2 sorban törhet) */
+    .chips{
+      display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+      margin: -2px 2px 0 2px;
+    }
+    .chip{
+      background: var(--chip);
+      border:1px solid var(--glass-stroke);
+      color: var(--fg);
+      padding:8px 12px; border-radius:999px; font-size:13px; cursor:pointer;
     }
 
-    .bot {
-      background: rgba(0, 0, 0, 0.35);
-      backdrop-filter: blur(10px) saturate(160%);
-      -webkit-backdrop-filter: blur(10px) saturate(160%);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: #fff;
-      align-self: flex-start;
-    }
-
-    .user {
-      background: rgba(255, 166, 0, 0.85);
-      color: #000;
-      margin-left: auto;
-      text-align: right;
-    }
-
-    .tools {
-      font-size: 13px;
-      margin-top: 4px;
-    }
-
-    .tools button {
-      margin-right: 6px;
-      padding: 3px 8px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 12px;
-      opacity: 0.8;
-    }
-
-    .tools button:hover {
-      opacity: 1;
-    }
-
-    .input-area {
-      max-width: 700px;
-      margin: 0 auto;
-      display: flex;
+    /* Beviteli sor */
+    .composer{
+      display:flex; gap:10px; align-items:center;
+      background: var(--glass-bg);
+      border:1px solid var(--glass-stroke);
+      backdrop-filter: blur(8px) saturate(120%);
+      border-radius: 18px;
       padding: 10px;
     }
-
-    .input-area input {
-      flex: 1;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      outline: none;
+    .composer input{
+      flex:1; min-width:0; border:0; outline:0;
+      font-size:16px; padding:12px 14px; color:var(--fg);
+      background: rgba(255,255,255,.08);
+      border-radius:12px;
+    }
+    .btn{
+      border:0; outline:0; cursor:pointer;
+      color:#1a1105; font-weight:700; font-size:16px;
+      background: var(--user-bg);
+      border-radius:14px; padding:12px 18px;
+      box-shadow: 0 6px 18px rgba(245,158,11,.35);
+      white-space:nowrap;
     }
 
-    .input-area button {
-      margin-left: 10px;
-      padding: 10px 18px;
-      background: orange;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    footer {
-      text-align: center;
-      font-size: 12px;
-      margin: 10px 0;
-      color: #ccc;
+    /* Mobil: kicsit több kontraszt és térköz */
+    @media (max-width: 520px){
+      .wrap{ top: calc(72px + 20px); gap:10px; }
+      .msg{ max-width: 96%; }
+      .panel{ padding: 10px; }
+      .brand .sub{ font-size:13px; }
     }
   </style>
 </head>
 <body>
+  <div class="bg"></div>
+  <div class="vignette"></div>
+
   <header>
-    <h1>Tamás Mesterséges (AI)</h1>
-    <p>Haladó fejlesztés — barátságos magyar asszisztens</p>
+    <div class="brand">
+      <h1>Tamás Mesterséges (AI)</h1>
+      <div class="sub">Haladó fejlesztés — barátságos magyar asszisztens</div>
+    </div>
+    <div class="mode">Light / Dark (auto)</div>
   </header>
 
-  <main class="chat" id="chat">
-    <div class="msg bot">
-      Szia! Itt vagyok neked, segítek mindenben. Írj bátran! 😊
-      <div class="tools">
-        <button onclick="speak(this)">🔊 Felolvasás</button>
-        <button onclick="copyText(this)">📋 Másolás</button>
+  <main class="wrap">
+    <!-- üzenetek -->
+    <section id="panel" class="panel" aria-live="polite">
+      <div class="msg bot">
+        Szia! Itt vagyok neked, segítek mindenben. Írj bátran! 😊
+        <div class="tools">
+          <div class="tool" data-act="speak">🔊 Felolvasás</div>
+          <div class="tool" data-act="copy">📋 Másolás</div>
+        </div>
       </div>
+    </section>
+
+    <!-- ajánlott kérdések (KI KÉSZÍTETTE… eltávolítva, ahogy kérted) -->
+    <div class="chips" id="chips">
+      <div class="chip">Mesélj Horváth Tamásról röviden!</div>
+      <div class="chip">Milyen modell vagy?</div>
+      <div class="chip">Mi a mai dátum?</div>
+      <div class="chip">Mit tudsz csinálni?</div>
     </div>
+
+    <!-- beviteli sor -->
+    <form id="composer" class="composer">
+      <input id="text" autocomplete="off" placeholder="Írj ide…  Enter = küldés" />
+      <button class="btn" type="submit">Küldés</button>
+    </form>
   </main>
 
-  <div class="input-area">
-    <input type="text" id="userInput" placeholder="Írj ide... Enter = küldés">
-    <button onclick="sendMsg()">Küldés</button>
-  </div>
-
-  <footer>
-    © Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.
-  </footer>
-
   <script>
-    const chat = document.getElementById("chat");
-    const input = document.getElementById("userInput");
+    // ===== Segédhang (küldés „pling”) =====
+    const sendPing = new Audio(
+      "data:audio/wav;base64,UklGRoABAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYBAGZmZmZmAA=="
+    ); // rövid „tick” (nagyon pici beépített hang)
 
-    function addMsg(text, sender = "bot") {
-      const msg = document.createElement("div");
-      msg.classList.add("msg", sender);
-      msg.innerHTML = text;
+    // ===== Szöveg-beszéd (bot felolvasás) =====
+    function speakHu(t){
+      try{
+        const u = new SpeechSynthesisUtterance(t);
+        u.lang = 'hu-HU';
+        u.rate = 1.02;
+        speechSynthesis.cancel();
+        speechSynthesis.speak(u);
+      }catch{}
+    }
 
-      if (sender === "bot") {
-        const tools = document.createElement("div");
-        tools.classList.add("tools");
+    // ===== Üzenet DOM-hoz =====
+    const panel = document.getElementById('panel');
+    const composer = document.getElementById('composer');
+    const input = document.getElementById('text');
+    const chips = document.getElementById('chips');
+
+    function addMsg(text, who='bot'){
+      const div = document.createElement('div');
+      div.className = 'msg ' + (who === 'user' ? 'user':'bot');
+      div.innerHTML = sanitize(text);
+      panel.appendChild(div);
+
+      if(who==='bot'){
+        const tools = document.createElement('div');
+        tools.className = 'tools';
         tools.innerHTML = `
-          <button onclick="speak(this)">🔊 Felolvasás</button>
-          <button onclick="copyText(this)">📋 Másolás</button>
+          <div class="tool" data-act="speak">🔊 Felolvasás</div>
+          <div class="tool" data-act="copy">📋 Másolás</div>
         `;
-        msg.appendChild(tools);
+        div.appendChild(tools);
       }
-
-      chat.appendChild(msg);
-      chat.scrollTop = chat.scrollHeight;
+      panel.scrollTop = panel.scrollHeight;
+      return div;
     }
 
-    function sendMsg() {
-      const text = input.value.trim();
-      if (!text) return;
-      addMsg(text, "user");
+    // minimál sanitization (új sorok, linkek)
+    function sanitize(t=''){
+      return String(t)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\n/g,'<br/>')
+        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+    }
+
+    // ===== „Okosabb” kérdés booster (részletes, konkrét válaszokat kér)
+    const BOOST = "Kérlek, mindig magyarul, konkrétan és lényegre törően válaszolj, " +
+                  "gyakorlati példákkal és 3–6 mondatban. Kerüld a sablonos kitérőket.";
+
+    async function askAI(text){
+      // UI: gépelés-jelző
+      const info = addMsg("…", "bot");
+
+      try{
+        const r = await fetch("/.netlify/functions/chat",{
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({ message: `${BOOST}\n\nKérdés: ${text}` })
+        });
+        if(!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        const reply = (data.reply || "").trim() || "Rendben! Miben szeretnél még pontosabban segítséget?";
+        info.innerHTML = sanitize(reply);
+
+        // eszköz sor hozzá (felolvasás / másolás)
+        const tools = document.createElement('div');
+        tools.className = 'tools';
+        tools.innerHTML = `
+          <div class="tool" data-act="speak">🔊 Felolvasás</div>
+          <div class="tool" data-act="copy">📋 Másolás</div>
+        `;
+        info.appendChild(tools);
+        panel.scrollTop = panel.scrollHeight;
+
+      }catch(e){
+        info.innerHTML = `Hiba: ${sanitize(e.message || e)}`;
+      }
+    }
+
+    // ===== Események =====
+    composer.addEventListener('submit', (ev)=>{
+      ev.preventDefault();
+      const t = input.value.trim();
+      if(!t) return;
+      sendPing.currentTime = 0; sendPing.play().catch(()=>{});
+      addMsg(t, 'user');
       input.value = "";
+      panel.scrollTop = panel.scrollHeight;
+      askAI(t);
+    });
 
-      // válasz demo
-      setTimeout(() => {
-        addMsg("Érdekes, mesélj még erről! 🙂", "bot");
-      }, 1000);
-    }
+    // ajánló chipek
+    chips.addEventListener('click', (e)=>{
+      const c = e.target.closest('.chip'); if(!c) return;
+      input.value = c.textContent.trim();
+      input.focus();
+    });
 
-    input.addEventListener("keypress", e => {
-      if (e.key === "Enter") {
-        sendMsg();
+    // felolvasás / másolás gombok a panelen
+    panel.addEventListener('click', (e)=>{
+      const tool = e.target.closest('.tool'); if(!tool) return;
+      const act = tool.dataset.act;
+      const root = tool.closest('.msg'); if(!root) return;
+      const text = root.innerText.replace(/Felolvasás|Másolás/g,'').trim();
+
+      if(act==='copy'){
+        navigator.clipboard?.writeText(text).then(()=>{
+          tool.textContent = '✅ Másolva';
+          setTimeout(()=>tool.textContent='📋 Másolás',1200);
+        });
+      }else if(act==='speak'){
+        speakHu(text);
       }
     });
 
-    function speak(btn) {
-      const text = btn.parentElement.parentElement.innerText.replace("🔊 Felolvasás📋 Másolás", "");
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "hu-HU";
-      speechSynthesis.speak(utterance);
-    }
-
-    function copyText(btn) {
-      const text = btn.parentElement.parentElement.innerText.replace("🔊 Felolvasás📋 Másolás", "");
-      navigator.clipboard.writeText(text).then(() => {
-        alert("Szöveg másolva!");
-      });
-    }
+    // fókusz: Enter küld, Shift+Enter új sor
+    input.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter' && !e.shiftKey){
+        e.preventDefault();
+        composer.requestSubmit();
+      }
+    });
   </script>
 </body>
 </html>
