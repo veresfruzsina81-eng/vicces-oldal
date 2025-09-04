@@ -1,13 +1,16 @@
-// Netlify Function – OpenAI hívás + speciális válaszok H.T-ről
+// netlify/functions/chat.js
 exports.handler = async (event) => {
-  // CORS (ha később más domainről is hívnád)
+  // CORS (későbbi bővítéshez jó, most is ártalmatlan)
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
   };
+
+  // CORS preflight
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: cors, body: "" };
   }
+
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, headers: cors, body: "Method Not Allowed" };
   }
@@ -19,82 +22,81 @@ exports.handler = async (event) => {
       return { statusCode: 500, headers: cors, body: "Missing OPENAI_API_KEY env var" };
     }
 
-    // ---- Speciális triggerek (nem hív OpenAI-t, azonnal válaszol)
+    // --- Külön logika: ki hozta létre / ki Horváth Tamás? ---
     const lastUser = [...messages].reverse().find(m => m.role === "user")?.content?.toLowerCase() || "";
-
-    // 1) „Ki hozta létre az oldalt?” jellegű kérdések
     const creatorTriggers = [
       "ki hozta létre az oldalt",
       "ki készítette az oldalt",
       "ki a tulajdonos",
       "ki csinálta az oldalt",
       "tulajdonosa az oldalnak",
-      "kié ez az oldal",
-      "ki hozta létre ezt az oldalt",
+      "ki csinálta ezt az oldalt",
+      "ki hozta létre ezt az oldalt"
     ];
+    const introTriggers = [
+      "ki az a horváth tamás",
+      "mesélj horváth tamásról",
+      "mutasd be horváth tamást",
+      "ki az horváth tamás"
+    ];
+
     if (creatorTriggers.some(t => lastUser.includes(t))) {
       const reply = "Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!";
-      return { statusCode: 200, headers: { ...cors, "Content-Type":"application/json" }, body: JSON.stringify({ reply }) };
+      return {
+        statusCode: 200,
+        headers: { ...cors, "Content-Type": "application/json" },
+        body: JSON.stringify({ reply })
+      };
     }
 
-    // 2) „Ki az a Horváth Tamás?” / „Mutasd be H.T-t” jellegű kérdések
-    const htTriggers = [
-      "ki az a horváth tamás",
-      "mutasd be horváth tamást",
-      "mesélj horváth tamásról",
-      "ki az a h.t",
-      "mutasd be h.t",
-      "ki az a ht",
-      "ki az a horvath tamas",
-      "mutasson be horváth tamást",
-      "mutasson be h.t"
-    ];
-    if (htTriggers.some(t => lastUser.includes(t))) {
-      const reply =
-        "Horváth Tamás (Szabolcsbáka) az oldal tulajdonosa és fejlesztője. " +
-        "Hobbi szinten foglalkozik webes projektekkel és mesterséges intelligenciával. " +
-        "Ezt az oldalt is ő készítette, hogy barátságos, magyar nyelvű AI beszélgetést kínáljon.";
-      return { statusCode: 200, headers: { ...cors, "Content-Type":"application/json" }, body: JSON.stringify({ reply }) };
+    if (introTriggers.some(t => lastUser.includes(t))) {
+      const reply = "Horváth Tamás Szabolcsbákán élő hobbi fejlesztő. Webes projektekkel és mesterséges intelligenciával foglalkozik; ezt az oldalt is ő készítette, hogy barátságos, magyar nyelvű AI beszélgetést kínáljon.";
+      return {
+        statusCode: 200,
+        headers: { ...cors, "Content-Type": "application/json" },
+        body: JSON.stringify({ reply })
+      };
     }
 
-    // ---- Általános OpenAI hívás
+    // --- Normál OpenAI hívás ---
     const systemMsg = {
       role: "system",
       content:
-        "Magyarul válaszolj, barátságosan, tömören, lényegre törően. " +
-        "Ha rákérdeznek az oldal készítőjére, a válasz: 'Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!' " +
-        "Ha a felhasználó bemutatást kér Horváth Tamásról, adj rövid, udvarias bemutatást (az előző mondatban szereplő információkra támaszkodva, új adatot ne találj ki)."
+        "Magyarul válaszolj, barátságosan és tömören. Ha rákérdeznek az oldal készítőjére, a válasz: 'Az oldalt létrehozta Horváth Tamás (Szabolcsbáka). Kellemes beszélgetést!'"
     };
 
-    const out = await fetch("https://api.openai.com/v1/chat/completions", {
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Content-Type":"application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.7,
+        model: "gpt-5-mini",
         messages: [systemMsg, ...messages],
-      }),
+        temperature: 0.6
+      })
     });
 
-    if (!out.ok) {
-      const t = await out.text();
-      return { statusCode: out.status, headers: cors, body: t };
+    const data = await r.json();
+    if (!r.ok) {
+      return {
+        statusCode: 500,
+        headers: { ...cors, "Content-Type": "application/json" },
+        body: JSON.stringify({ error: data?.error?.message || "Szerver hiba" })
+      };
     }
 
-    const j = await out.json();
-    const reply = j.choices?.[0]?.message?.content?.trim() || "Rendben.";
+    const reply = data?.choices?.[0]?.message?.content?.trim() || "Rendben, miben segíthetek?";
     return {
       statusCode: 200,
-      headers: { ...cors, "Content-Type":"application/json" },
-      body: JSON.stringify({ reply }),
+      headers: { ...cors, "Content-Type": "application/json" },
+      body: JSON.stringify({ reply })
     };
-
   } catch (e) {
     return {
-      statusCode: 500, headers: cors,
+      statusCode: 500,
+      headers: cors,
       body: JSON.stringify({ error: e?.message || "Szerver hiba" })
     };
   }
