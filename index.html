@@ -1,234 +1,170 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="hu">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <!-- font-zoom elkerülése mobilon + background ugrálás csökkentése -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>Tamás Mesterséges (AI)</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+
   <style>
     :root{
-      --maxw: 980px;          /* chat max-szélesség */
-      --side-pad: 12px;       /* oldalsó belső margó mobilon */
-      --composer-h: 64px;     /* beviteli sáv kb. magassága */
-      --footer-h: 28px;       /* lábléc magassága */
+      --glass-bg: rgba(18, 22, 28, .58);
+      --glass-br: 28px;
+      --glass-bdr: 1px solid rgba(255,255,255,.08);
+      --text: #eaf0f7;
+      --muted: #b9c3cf;
+      --accent: #ffb23c;
+      --bubble-user-from:#ffb23c;
+      --bubble-user-to:#ffa21a;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --maxw: 980px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: url("bg_tamas.jpg") no-repeat center center fixed;
-      background-size: cover;
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
+    html,body{height:100%}
+    body{
+      margin:0;
+      color:var(--text);
+      font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+      -webkit-font-smoothing:antialiased;
+      -webkit-text-size-adjust:100%;
+      /* NEM használunk background-attachment: fixed-et közvetlenül, mert iOS ugráltat */
+      background:#0b1015;
+      overflow-x:hidden;
+      padding-bottom: var(--safe-bottom);
+      touch-action: manipulation; /* double-tap zoom minimalizálása */
     }
 
-    header {
-      width: 100%;
-      max-width: var(--maxw);
-      position: sticky;
-      top: 0;
-      z-index: 30;
-      padding: 12px;
+    /* Fix háttér külön rétegen – nem ugrál a vh/keyboard miatt */
+    body::before{
+      content:"";
+      position:fixed; inset:0; z-index:-1;
+      background: url("bg_tamas.jpg") center/cover no-repeat;
+      transform: translateZ(0); /* GPU hint */
+      will-change: transform;
+    }
+
+    .glass{
+      background:var(--glass-bg);
+      border:var(--glass-bdr);
+      border-radius:var(--glass-br);
+      box-shadow:var(--shadow);
       backdrop-filter: blur(10px) saturate(120%);
-      background: rgba(20,20,22,0.45);
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      border-radius: 0 0 16px 16px;
+      -webkit-backdrop-filter: blur(10px) saturate(120%);
     }
 
-    header h1 {
-      margin: 0;
-      font-size: 1.5em;
+    header.app{
+      position:sticky; top:0; z-index:10;
+      margin:16px auto 0; max-width:var(--maxw); padding:16px 20px;
+      padding-top: calc(16px + var(--safe-top));
     }
+    header .title{font-size:28px; font-weight:800; letter-spacing:.2px;}
+    header .subtitle{color:var(--muted); margin-top:6px}
 
-    header p {
-      margin: 4px 0 0;
-      font-size: 0.9em;
-      opacity: 0.85;
+    .wrap{max-width:var(--maxw); margin:0 auto; padding:16px}
+    .chat{
+      display:flex; flex-direction:column;
+      height:calc(100dvh - 220px);   /* stabilabb mobilon */
+      min-height:460px;
+      padding:16px;
     }
-
-    #messages {
-      flex: 1;
-      width: 100%;
-      max-width: var(--maxw);
-      padding: 12px;
-      box-sizing: border-box;
-      overflow-y: auto;
-      padding-bottom: calc(var(--composer-h) + var(--footer-h) + 28px);
+    .msgs{
+      flex:1;
+      overflow:auto; padding:4px 4px 12px;
+      scroll-behavior:smooth;
+      -webkit-overflow-scrolling: touch;
     }
-
-    .message {
-      margin: 10px 0;
-      padding: 12px 16px;
-      border-radius: 16px;
-      max-width: 80%;
+    .row{display:flex; margin:10px 0}
+    .msg{
+      position:relative;
+      max-width:min(720px, 90%);
+      padding:16px 18px;
+      border-radius:22px;
+      box-shadow:0 6px 18px rgba(0,0,0,.18);
+      text-shadow:0 1px 2px rgba(0,0,0,.35);
       word-wrap: break-word;
-      backdrop-filter: blur(10px) saturate(120%);
-      background: rgba(20,20,22,0.55);
-      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .bot{background:rgba(0,0,0,.55)}
+    .user{
+      margin-left:auto;
+      color:#222;
+      background:linear-gradient(180deg,var(--bubble-user-from),var(--bubble-user-to));
+    }
+    .msg-tools{
+      display:flex; gap:12px; margin:10px 0 0 6px; flex-wrap:wrap
+    }
+    .tool{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:10px 14px; border-radius:14px;
+      background:rgba(0,0,0,.5); color:#e9eef6; border:1px solid rgba(255,255,255,.08);
+      cursor:pointer; user-select:none
+    }
+    .tool:hover{background:rgba(0,0,0,.62)}
+    .tool svg{width:18px;height:18px;opacity:.9}
+
+    .composer{
+      position:sticky; bottom:0; left:0; right:0;
+      display:flex; gap:10px; align-items:center;
+      padding:12px; margin-top:12px;
+      background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.35) 60%);
+      border-radius:20px;
+    }
+    .composer .box{
+      flex:1; padding:12px 16px; border-radius:16px;
+      background:rgba(255,255,255,.92); color:#111;
+      border:1px solid rgba(0,0,0,.06);
+      font-size:17px; /* iOS ne zoomoljon fókuszkor */
+      line-height:1.35;
+    }
+    .send{
+      border:0; cursor:pointer; border-radius:16px; padding:12px 18px; font-weight:700;
+      background:linear-gradient(180deg,#ffbf56,#ffa21a); color:#1e1606; box-shadow:0 6px 18px rgba(0,0,0,.2);
+      font-size:17px; /* iOS ne zoomoljon gombnyomáskor sem */
+    }
+    .send:active{transform:translateY(1px)}
+
+    footer{
+      max-width:var(--maxw); margin:8px auto 20px;
+      text-align:center; color:var(--muted); text-shadow:0 1px 2px rgba(0,0,0,.5)
     }
 
-    .user {
-      background: linear-gradient(135deg, #ff9800, #ffb74d);
-      color: #000;
-      margin-left: auto;
-    }
-
-    .bot {
-      color: #fff;
-      margin-right: auto;
-    }
-
-    .actions {
-      margin-top: 6px;
-      display: flex;
-      gap: 8px;
-    }
-
-    .actions button {
-      padding: 4px 8px;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.8em;
-      cursor: pointer;
-      backdrop-filter: blur(6px);
-      background: rgba(255,255,255,0.2);
-      color: #fff;
-    }
-
-    .composer {
-      position: fixed;
-      left: 50%;
-      bottom: calc(var(--footer-h) + 12px);
-      transform: translateX(-50%);
-      width: min(100% - (var(--side-pad) * 2), var(--maxw));
-      z-index: 20;
-      display: flex;
-      gap: 8px;
-      backdrop-filter: blur(10px) saturate(120%);
-      background: rgba(20,20,22,0.35);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 8px;
-    }
-
-    .composer input {
-      flex: 1;
-      padding: 10px;
-      border: none;
-      border-radius: 12px;
-      outline: none;
-      font-size: 1em;
-    }
-
-    .composer button {
-      background: linear-gradient(135deg, #ff9800, #ffb74d);
-      border: none;
-      border-radius: 12px;
-      padding: 0 16px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .site-footer {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: var(--footer-h);
-      line-height: var(--footer-h);
-      text-align: center;
-      font-size: 12px;
-      color: rgba(255,255,255,0.8);
-      backdrop-filter: blur(6px);
-      background: rgba(0,0,0,0.25);
-      z-index: 10;
-    }
-
-    @media (max-width: 640px){
-      #messages {
-        padding-left: var(--side-pad);
-        padding-right: var(--side-pad);
+    @media (prefers-color-scheme: light){
+      :root{
+        --glass-bg: rgba(255,255,255,.55);
+        --text:#0e141b; --muted:#4a5a6a;
       }
+      .bot{background:rgba(255,255,255,.75); text-shadow:none}
+      .tool{background:rgba(255,255,255,.7); color:#0e141b; border-color:rgba(0,0,0,.06)}
+      header .subtitle{color:#5a6b79}
     }
+    ::selection{background:#ffe1a8;color:#1f1404}
   </style>
 </head>
 <body>
-  <header>
-    <h1>Tamás Mesterséges (AI)</h1>
-    <p>Haladó fejlesztés — barátságos magyar asszisztens</p>
+
+  <!-- FEJLÉC -->
+  <header class="app glass">
+    <div class="title">Tamás Mesterséges (AI)</div>
+    <div class="subtitle">Haladó fejlesztés — barátságos magyar asszisztens</div>
   </header>
 
-  <div id="messages">
-    <div class="message bot">
-      Szia! Itt vagyok neked, segítek mindenben. Írj bátran! 🙂
-      <div class="actions">
-        <button>🔊 Felolvasás</button>
-        <button>📋 Másolás</button>
-      </div>
-    </div>
-  </div>
+  <main class="wrap">
+    <!-- CHAT PANEL -->
+    <section class="chat glass" id="chatPanel" aria-label="Beszélgetés">
+      <div id="msgs" class="msgs" role="log" aria-live="polite"></div>
 
-  <form class="composer" id="composerForm">
-    <input type="text" id="userInput" placeholder="Írj ide... Enter = küldés">
-    <button type="submit">Küldés</button>
-  </form>
+      <form class="composer" id="composer" autocomplete="off">
+        <input id="input" class="box" type="text" placeholder="Írj ide…  Enter = küldés" />
+        <button id="send" class="send" type="submit">Küldés</button>
+      </form>
+    </section>
+  </main>
 
-  <footer class="site-footer">
-    © Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.
-  </footer>
+  <!-- LÁBLÉC -->
+  <footer>© Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.</footer>
 
-  <script>
-    const form = document.getElementById("composerForm");
-    const input = document.getElementById("userInput");
-    const messages = document.getElementById("messages");
-
-    function addMessage(text, sender="user"){
-      const div = document.createElement("div");
-      div.className = "message " + sender;
-      div.textContent = text;
-
-      if(sender === "bot"){
-        const actions = document.createElement("div");
-        actions.className = "actions";
-
-        const readBtn = document.createElement("button");
-        readBtn.textContent = "🔊 Felolvasás";
-        readBtn.onclick = () => {
-          const utter = new SpeechSynthesisUtterance(text);
-          utter.lang = "hu-HU";
-          speechSynthesis.speak(utter);
-        };
-
-        const copyBtn = document.createElement("button");
-        copyBtn.textContent = "📋 Másolás";
-        copyBtn.onclick = () => {
-          navigator.clipboard.writeText(text);
-          alert("Másolva!");
-        };
-
-        actions.appendChild(readBtn);
-        actions.appendChild(copyBtn);
-        div.appendChild(actions);
-      }
-
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    form.addEventListener("submit", (e)=>{
-      e.preventDefault();
-      const text = input.value.trim();
-      if(!text) return;
-      addMessage(text,"user");
-      input.value = "";
-
-      // Bot válasz demo
-      setTimeout(()=>{
-        addMessage("Köszi az üzenetet! Még tanulok, de igyekszem segíteni. 🙂","bot");
-      },600);
-    });
-  </script>
+  <script src="chat.js"></script>
 </body>
 </html>
