@@ -1,118 +1,157 @@
 // netlify/functions/chat.js
-// Teljesen javított Netlify Function a chathez (OpenAI Chat Completions)
+// Chat (GPT-4-Turbo) + STT (Whisper) egyben, készítőre vonatkozó kérdésekre stabil, részletes válasz.
+// Netlify env: OPENAI_API_KEY
 
 exports.handler = async (event) => {
-  // --- CORS (ha később más domainekről is hívnád) ---
-  const cors = {
+  const CORS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 
-  // Preflight
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers: cors, body: "" };
-  }
-
-  // Csak POST
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, headers: cors, body: "Method Not Allowed" };
-  }
+  if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers: CORS, body: "" };
+  if (event.httpMethod !== "POST") return { statusCode: 405, headers: CORS, body: "Method Not Allowed" };
 
   try {
-    // --- Bejövő adatok ---
-    const { message = "" } = JSON.parse(event.body || "{}");
-
-    // --- API kulcs ---
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return {
-        statusCode: 500,
-        headers: cors,
-        body: JSON.stringify({ error: "Hiányzó OPENAI_API_KEY env var" }),
-      };
-    }
+    if (!apiKey) return err(500, "Hiányzik az OPENAI_API_KEY.");
 
-    // --- Külön logika: ha rákérdeznek a készítőre, válasz azonnal (nem hívunk API-t) ---
-    const text = (message || "").toLowerCase();
-    const creatorTriggers = [
-      "ki készítette az oldalt",
-      "ki hozta létre az oldalt",
-      "ki az oldal készítője",
-      "ki a tulajdonos",
-      "ki csinálta az oldalt",
-      "készítő",
-      "tulajdonos",
+    // ---- Kérés beolvasás
+    let body = {};
+    try { body = JSON.parse(event.body || "{}"); }
+    catch { return err(400, "Érvénytelen JSON"); }
+
+    // ---- Különkezelés: készítőre kérdezés
+    const lastUserText = (
+      (Array.isArray(body.messages) && [...body.messages].reverse().find(m => m.role === "user")?.content) ||
+      body.message || ""
+    ).toString().trim();
+
+    const low = lastUserText.toLowerCase();
+    const CREATOR_TRIGGERS = [
+      "ki hozta létre az oldalt", "ki készítette az oldalt", "ki az oldal készítője",
+      "ki a tulajdonos", "ki csinálta az oldalt", "készítő", "tulajdonos",
+      "ki az a horváth tamás", "mesélj a készítőről", "mesélj róla", "ki csinálta ezt az oldalt"
     ];
-    const askedCreator = creatorTriggers.some(t => text.includes(t));
-    if (askedCreator) {
-      const reply =
-        "Az oldalt Horváth Tamás (Szabolcsbáka) hozta létre, egyedi fejlesztéssel. Kellemes beszélgetést! 🎉";
-      return {
-        statusCode: 200,
-        headers: { ...cors, "Content-Type": "application/json" },
-        body: JSON.stringify({ reply }),
-      };
+
+    if (lastUserText && CREATOR_TRIGGERS.some(t => low.includes(t))) {
+      return ok({
+        reply: creatorResponse({ detailed: /mesélj|mutass be|bemutatás/.test(low) })
+      });
     }
 
-    // --- Rendszerüzenet (viselkedés) ---
-    const systemMsg = {
-      role: "system",
-      content:
-        "Magyarul válaszolj, barátságosan és tömören. Ne ismételgesd ugyanazt a mondatot. " +
-        "Ha nem egyértelmű a kérdés, tegyél fel rövid visszakérdést.",
-    };
+    // ---- Ha HANG jött (iOS/Android fallback – Whisper STT)
+    if (body.audio_b64) {
+      const heard = await transcribeWhisper({
+        apiKey, audio_b64: body.audio_b64, mime: body.mime || "audio/webm"
+      });
+      const history = Array.isArray(body.history) ? body.history : [];
 
-    // --- OpenAI hívás (chat.completions) ---
-    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        // Olyan modellt használj, ami biztosan támogatja a chat.completions-t.
-        // Ha neked más modell van beállítva, azt írd ide.
-        model: "gpt-4o-mini",
-        messages: [
-          systemMsg,
-          { role: "user", content: message || "" }
-        ],
-        // FONTOS: ne 'max_tokens'-t használj (nem támogatott) hanem ezt:
-        max_completion_tokens: 300
-        // 'temperature'-t szándékosan NEM küldünk, hogy ne legyen kompatibilitási hiba.
-      }),
+      // Ha a hallott szöveg is a készítőről kérdez, azonnal adjuk a fix bemutatót
+      if ((heard || "").toLowerCase() && CREATOR_TRIGGERS.some(t => (heard || "").toLowerCase().includes(t))) {
+        return ok({ stt: heard, reply: creatorResponse({ detailed: /mesélj|mutass be|bemutatás/.test((heard||"").toLowerCase()) }) });
+      }
+
+      const reply = await chatTurbo({
+        apiKey,
+        messages: composeMessages(history, heard),
+        // Mindig Turbo:
+        model: "gpt-4-turbo"
+      });
+      return ok({ stt: heard, reply });
+    }
+
+    // ---- Szöveges chat
+    const messages = Array.isArray(body.messages)
+      ? body.messages
+      : (lastUserText ? [{ role: "user", content: lastUserText }] : []);
+
+    const reply = await chatTurbo({
+      apiKey,
+      messages: composeMessages(messages),
+      model: "gpt-4-turbo"
     });
 
-    if (!resp.ok) {
-      // próbáljuk kiolvasni a hiba-JSON-t
-      let info = "";
-      try { info = await resp.text(); } catch {}
-      return {
-        statusCode: 502,
-        headers: cors,
-        body: JSON.stringify({
-          error: "Upstream hiba az OpenAI felől (chat.completions).",
-          status: resp.status,
-          info,
-        }),
-      };
-    }
+    return ok({ reply });
 
-    const data = await resp.json();
-    const reply =
-      data?.choices?.[0]?.message?.content?.toString().trim() ||
-      "Rendben, miben segíthetek még?";
-
-    return {
-      statusCode: 200,
-      headers: { ...cors, "Content-Type": "application/json" },
-      body: JSON.stringify({ reply }),
-    };
   } catch (e) {
-    return {
-      statusCode: 500,
-      headers: cors,
-      body: JSON.stringify({ error: e?.message || "Szerver hiba" }),
-    };
+    return err(500, e?.message || "Ismeretlen szerver hiba");
   }
+
+  // ---- Segédfüggvények
+  function ok(obj){ return { statusCode: 200, headers: { ...CORS, "Content-Type": "application/json" }, body: JSON.stringify(obj) }; }
+  function err(code, msg){ return { statusCode: code, headers: { ...CORS, "Content-Type": "application/json" }, body: JSON.stringify({ error: msg }) }; }
 };
+
+// ---- Üzenet-összeállítás: mindig magyar rendszerprompt + kontextus
+function composeMessages(historyOrMessages = [], lastUserUtterance = "") {
+  const systemMsg = {
+    role: "system",
+    content:
+      "Te egy segítő, barátságos magyar asszisztens vagy. Mindig magyarul válaszolj, " +
+      "természetesen és érthetően. Ha a felhasználó kéri, adj példát, hasonlatot, " +
+      "de ne beszélj üresen és ne ismételgesd ugyanazt."
+  };
+
+  const base = Array.isArray(historyOrMessages) ? historyOrMessages : [];
+  const msgs = [systemMsg, ...base];
+
+  if (lastUserUtterance) msgs.push({ role: "user", content: lastUserUtterance });
+  return msgs;
+}
+
+// ---- Stabil bemutatkozó válasz a készítőre
+function creatorResponse({ detailed = true } = {}) {
+  if (!detailed) {
+    return "Az oldalt Horváth Tamás (Szabolcsbáka) készítette. 😊";
+  }
+  return (
+    "Az oldalt Horváth Tamás készítette (Szabolcsbáka). 💡 H.T hobbiprogramozó, " +
+    "aki saját kedvére és gyakorlásként fejleszt webes projekteket. Főleg egyszerű, " +
+    "kreatív ötletekből indul ki, majd lépésről lépésre bővíti őket: dizájn, funkciók, " +
+    "és közben folyamatosan fejleszti a tudását (HTML/CSS/JS, API-k, hosztolás). " +
+    "Célja, hogy minél jobb, átláthatóbb és élvezetesebb élményt adjon — ezért is frissítgeti " +
+    "és csiszolja az oldalt. Ha bármi ötleted van, szívesen fogadja! 🚀"
+  );
+}
+
+// ---- OpenAI: Whisper STT
+async function transcribeWhisper({ apiKey, audio_b64, mime }) {
+  const bin = Buffer.from(audio_b64, "base64");
+  const blob = new Blob([bin], { type: mime || "audio/webm" });
+  const fd = new FormData();
+  fd.append("file", blob, "audio.webm");
+  fd.append("model", "whisper-1");
+  fd.append("language", "hu");
+
+  const r = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${apiKey}` },
+    body: fd
+  });
+  const data = await r.json();
+  if (!r.ok) {
+    const msg = data?.error?.message || `Whisper hiba (HTTP ${r.status})`;
+    throw new Error(msg);
+  }
+  return (data.text || "").toString();
+}
+
+// ---- OpenAI: Chat (Turbo)
+async function chatTurbo({ apiKey, messages, model = "gpt-4-turbo" }) {
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      messages,
+      max_completion_tokens: 600
+    })
+  });
+  const data = await r.json();
+  if (!r.ok) {
+    const msg = data?.error?.message || `OpenAI hiba (HTTP ${r.status})`;
+    throw new Error(msg);
+  }
+  return (data?.choices?.[0]?.message?.content || "").toString().trim();
+}
