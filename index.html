@@ -290,7 +290,7 @@ async function sendMessage() {
     body: JSON.stringify({ message: userMessage })
   });
 
-  const data = await res.json();fetch("./.netlify/functions/chat", { ... })
+  const data = await res.json();
   document.getElementById("output").innerText = data.reply;
 }
 </script>
