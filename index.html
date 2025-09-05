@@ -252,5 +252,34 @@
       showError(msg + ' @ ' + (line||'?') + ':' + (col||'?'));
     };
   </script>
+    <script>
+      // GPT-5 + Bing okos keresés
+      async function askSmartAI(question) {
+        try {
+          const response = await fetch("/.netlify/functions/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: question })
+          });
+          const data = await response.json();
+
+          // Ha van forrás (pl. Bing, Wikipédia, hírportál), jelenítse meg
+          let answer = data.reply || "Sajnálom, nincs válasz.";
+          if (data.sources) {
+            answer += "<br><small>Forrás: " + data.sources.join(", ") + "</small>";
+          }
+
+          // Írd ki a chat ablakba
+          const chatBox = document.querySelector("#chat");
+          const msg = document.createElement("div");
+          msg.className = "bot";
+          msg.innerHTML = answer;
+          chatBox.appendChild(msg);
+        } catch (err) {
+          console.error("Hiba:", err);
+        }
+      }
+    </script>
+
 </body>
 </html>
