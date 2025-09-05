@@ -2,39 +2,50 @@
 <html lang="hu" data-theme="dark">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- zoom letiltása, hogy ne „ugorjon” mobilon csippentésre -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Tamás Mesterséges (AI)</title>
   <style>
+    /* -------- Globál fixek -------- */
+    html, body {
+      height: 100%;
+      overflow: hidden;              /* csak a chat belseje görget */
+      overscroll-behavior: none;     /* ne pattogjon a lap tetején/alján */
+      -webkit-text-size-adjust: 100%;
+    }
+
     body {
       margin:0;
       font-family:sans-serif;
       color:#e8eef6;
-      height:100vh;
+      height: 100svh;                /* mobil-barát viewport magasság */
       display:flex;
       flex-direction:column;
       align-items:center;
       justify-content:center;
-      overflow:hidden; /* fix oldal, ne lehessen nagyítani vagy fel-le mozgatni */
+      position: relative;
+      touch-action: manipulation;     /* véletlen gesztus zoomok csökkentése */
+    }
 
-      background:#0b0f14;
-      background-image: radial-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)), url('/bg_tamas.jpg');
-      background-size: cover;
-      background-position: 50% 30%;
-      background-attachment: fixed;
+    /* Háttér KÉP fixen, stabilan — nem background-attachment: fixed! */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+        radial-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)),
+        url('/bg_tamas.jpg') center 30% / cover no-repeat;
+      will-change: transform;
     }
 
     header {
       text-align:center;
       margin-bottom:10px;
+      pointer-events: none;   /* ne fogja meg a gesztusokat */
     }
-    header .ttl {
-      font-size:18px;
-      font-weight:700;
-    }
-    header .sub {
-      font-size:12px;
-      color:#9fb0c3;
-    }
+    header .ttl { font-size:18px; font-weight:700; }
+    header .sub { font-size:12px; color:#9fb0c3; }
 
     .card {
       background:rgba(0,0,0,.35);
@@ -43,12 +54,16 @@
       flex-direction:column;
       width:95%;
       max-width:900px;
-      height:78vh; /* csökkentve, hogy a footer ne lógjon bele */
+      height:78svh;           /* kicsit alacsonyabb, hogy a footer is kiférjen */
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      backdrop-filter: blur(2px);
     }
 
     .chatlog {
       flex:1;
-      overflow-y:auto;
+      overflow-y:auto;                  /* EGYEDÜL ez görgethető */
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
       padding:12px;
     }
 
@@ -63,6 +78,8 @@
       max-width:75%;
       white-space:pre-wrap;
       word-wrap:break-word;
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow: 0 6px 18px rgba(0,0,0,.18);
     }
     .bot .bubble { background:#243447; color:#fff; }
     .user .bubble { background:#ffb84d; color:#000; }
@@ -106,6 +123,7 @@
       color:#9fb0c3;
       text-align:center;
       margin-top:8px;
+      pointer-events: none; /* ne vegyen el fókuszt görgetésnél */
     }
   </style>
 </head>
@@ -147,7 +165,8 @@ function addRow(kind,content,isHtml=false){
   const r=document.createElement('div');r.className='row '+kind;
   const b=document.createElement('div');b.className='bubble';
   if(isHtml){b.innerHTML=content}else{b.textContent=content}
-  r.appendChild(b);log.appendChild(r);log.scrollTop=log.scrollHeight;
+  r.appendChild(b);log.appendChild(r);
+  log.scrollTop=log.scrollHeight;
 }
 
 async function fileToCompressedDataURL(file,maxW=1280,quality=0.85){
