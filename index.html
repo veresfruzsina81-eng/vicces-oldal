@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        content="width=device-width, initial-scale=1, maximum=1, user-scalable=no" />
   <title>Tamás Mesterséges (AIPro)</title>
   <link rel="icon" href="/favicon.ico" />
   <style>
@@ -177,27 +177,46 @@
       return r;
     }
 
-    // ======= Források render (opcionális, csak ha a szerver adja) =======
+    // ======= Források render (opcionális, ha a szerver NEM fűzi a szövegbe) =======
     function renderSources(sources){
       try{
         if(!Array.isArray(sources) || !sources.length) return "";
-        // domain deduplikáció
         const seen = new Set();
         const lines = [];
         for(const s of sources){
-          const link = s.link || "";
+          const link = s.link || s.url || "";
           let dom = s.source || "";
           if(!dom && link){
             try{ dom = new URL(link).hostname.replace(/^www\./,""); }catch{}
           }
-          if(!dom || seen.has(dom)) continue;
+          if(!link || !dom || seen.has(dom)) continue;
           seen.add(dom);
           const title = (s.title || dom).replace(/[<>&]/g,"");
           lines.push(`• <a href="${link}" target="_blank" rel="noopener">${title}</a> — ${dom}`);
-          if(lines.length >= 5) break;
+          if(lines.length >= 6) break;
         }
         return lines.length ? `<br><br><b>Források:</b><br>${lines.join("<br>")}` : "";
       }catch{ return ""; }
+    }
+
+    // ======= Robusztus válasz-kiválasztó =======
+    function pickAnswer(d){
+      const candidates = [d?.answer, d?.reply, d?.content, d?.message];
+      for(const c of candidates){
+        if(typeof c === 'string' && c.trim()) return c.trim();
+      }
+      return "";
+    }
+    function pickSourcesBlock(d, answerText){
+      // ha a válasz már tartalmaz "Források:"-at, ne fűzzünk még egyszer
+      if (typeof answerText === 'string' && /Források:/i.test(answerText)) return "";
+      const arrays = [d?.sources, d?.results, d?.items];
+      for(const arr of arrays){
+        if(Array.isArray(arr) && arr.length){
+          return renderSources(arr);
+        }
+      }
+      return "";
     }
 
     // ======= Kép tömörítés =======
@@ -231,56 +250,61 @@
       return resp.json();
     }
 
-    // ======= Küldés (globális, inline is hívható) =======
+    // ======= Küldés =======
     async function sendNow(){
       try{
         const message = (txt?.value || '').trim();
         if(!message){ txt.placeholder = "Írj valamit előbb 🙂"; txt?.focus(); return; }
         addRow('user', message);
         txt.value='';
-        const think = addRow('bot','<i>Gondolkodom…</i>');
+        const thinking = addRow('bot','<i>Gondolkodom…</i>');
+
         const data = await callServer(message, null);
-        think.remove();
+        thinking.remove();
 
-        let replyHtml = (data.reply||'').trim() || 'Rendben. 🙂';
-        // ha kaptunk forrásokat, fűzzük a végére
-        replyHtml += renderSources(data.sources);
+        // Válasz és források robusztusan
+        let answer = pickAnswer(data);
+        let sourcesHtml = pickSourcesBlock(data, answer);
 
-        addRow('bot', replyHtml);
+        // Ha még mindig üres, barátságos fallback
+        if(!answer){
+          answer = "Sajnálom, most nem találtam elég információt. Próbáljuk pontosabban megfogalmazni?";
+        }
+
+        addRow('bot', answer + sourcesHtml);
       }catch(e){
         showError(e);
         addRow('bot','Hiba történt. (Lehet, hogy a Netlify-függvény nem érhető el.)');
       }
     }
-    window.sendNow = sendNow; // biztos, hogy lássa az inline
+    window.sendNow = sendNow;
 
-    // ======= Kép kezelése (globális, inline is hívható) =======
+    // ======= Kép kezelése =======
     async function handleImage(inputEl){
       const file = inputEl?.files && inputEl.files[0];
       if(!file) return;
       try{
         const b64 = await compressToDataURL(file);
         addRow('user', `<img src="${b64}" alt="Feltöltött kép">`);
-        const think = addRow('bot','<i>Gondolkodom…</i>');
+        const thinking = addRow('bot','<i>Gondolkodom…</i>');
         const data = await callServer('', b64);
-        think.remove();
+        thinking.remove();
 
-        let replyHtml = (data.reply||'').trim() || 'Szép kép! 🙂';
-        replyHtml += renderSources(data.sources);
+        let answer = pickAnswer(data) || 'Szép kép! 🙂';
+        let sourcesHtml = pickSourcesBlock(data, answer);
 
-        addRow('bot', replyHtml);
+        addRow('bot', answer + sourcesHtml);
       }catch(e){
         showError(e);
         addRow('bot','Nem sikerült feldolgozni a képet. Lehet túl nagy a fájl? 📷');
       }finally{
-        // reset
         if(inputEl) inputEl.value = '';
       }
     }
     window.handleImage = handleImage;
 
-    // ======= Extra biztosíték: ha bármi JS hiba lenne, jelezd a képernyőn =======
-    window.onerror = function(msg, src, line, col, err){
+    // ======= Extra biztosíték =======
+    window.onerror = function(msg, src, line, col){
       showError(msg + ' @ ' + (line||'?') + ':' + (col||'?'));
     };
   </script>
