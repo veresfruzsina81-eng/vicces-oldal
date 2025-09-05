@@ -177,6 +177,29 @@
       return r;
     }
 
+    // ======= Források render (opcionális, csak ha a szerver adja) =======
+    function renderSources(sources){
+      try{
+        if(!Array.isArray(sources) || !sources.length) return "";
+        // domain deduplikáció
+        const seen = new Set();
+        const lines = [];
+        for(const s of sources){
+          const link = s.link || "";
+          let dom = s.source || "";
+          if(!dom && link){
+            try{ dom = new URL(link).hostname.replace(/^www\./,""); }catch{}
+          }
+          if(!dom || seen.has(dom)) continue;
+          seen.add(dom);
+          const title = (s.title || dom).replace(/[<>&]/g,"");
+          lines.push(`• <a href="${link}" target="_blank" rel="noopener">${title}</a> — ${dom}`);
+          if(lines.length >= 5) break;
+        }
+        return lines.length ? `<br><br><b>Források:</b><br>${lines.join("<br>")}` : "";
+      }catch{ return ""; }
+    }
+
     // ======= Kép tömörítés =======
     async function compressToDataURL(file, maxW=1280, quality=0.85){
       const fr = new FileReader();
@@ -218,7 +241,12 @@
         const think = addRow('bot','<i>Gondolkodom…</i>');
         const data = await callServer(message, null);
         think.remove();
-        addRow('bot', (data.reply||'').trim() || 'Rendben. 🙂');
+
+        let replyHtml = (data.reply||'').trim() || 'Rendben. 🙂';
+        // ha kaptunk forrásokat, fűzzük a végére
+        replyHtml += renderSources(data.sources);
+
+        addRow('bot', replyHtml);
       }catch(e){
         showError(e);
         addRow('bot','Hiba történt. (Lehet, hogy a Netlify-függvény nem érhető el.)');
@@ -236,7 +264,11 @@
         const think = addRow('bot','<i>Gondolkodom…</i>');
         const data = await callServer('', b64);
         think.remove();
-        addRow('bot', (data.reply||'').trim() || 'Szép kép! 🙂');
+
+        let replyHtml = (data.reply||'').trim() || 'Szép kép! 🙂';
+        replyHtml += renderSources(data.sources);
+
+        addRow('bot', replyHtml);
       }catch(e){
         showError(e);
         addRow('bot','Nem sikerült feldolgozni a képet. Lehet túl nagy a fájl? 📷');
@@ -252,51 +284,5 @@
       showError(msg + ' @ ' + (line||'?') + ':' + (col||'?'));
     };
   </script>
-    <script>
-      // GPT-5 + Bing okos keresés
-      async function askSmartAI(question) {
-        try {
-          const response = await fetch("/.netlify/functions/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: question })
-          });
-          const data = await response.json();
-
-          // Ha van forrás (pl. Bing, Wikipédia, hírportál), jelenítse meg
-          let answer = data.reply || "Sajnálom, nincs válasz.";
-          if (data.sources) {
-            answer += "<br><small>Forrás: " + data.sources.join(", ") + "</small>";
-          }
-
-          // Írd ki a chat ablakba
-          const chatBox = document.querySelector("#chat");
-          const msg = document.createElement("div");
-          msg.className = "bot";
-          msg.innerHTML = answer;
-          chatBox.appendChild(msg);
-        } catch (err) {
-          console.error("Hiba:", err);
-        }
-      }
-    </script>
-<script>
-async function sendMessage() {
-  const userMessage = document.getElementById("input").value;
-
-  const res = await 
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: userMessage })
-  });
-
-  const data = await res.json();
-  document.getElementById("output").innerText = data.reply;
-}
-</script>
-
-<input id="input" placeholder="Írd be a kérdésed..." />
-<button onclick="sendMessage()">Küldés</button>
-<div id="output"></div>
 </body>
 </html>
