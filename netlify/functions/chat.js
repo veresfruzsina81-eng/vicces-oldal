@@ -1,163 +1,177 @@
 // netlify/functions/chat.js
-// Teljes chat backend: OKOS mód + Google-keresés + források
-// Env: OPENAI_API_KEY, GOOGLE_API_KEY, GOOGLE_CX
+// Teljes chat backend: OpenAI + Google-keresés (Programozható Keresőmotor)
+// Bemenet: POST { message: "felhasználói kérdés" }
+// Kimenet: { reply: "...", sources: [{title, link}] }
 
-import fetch from "node-fetch";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// Ha szeretnél később modellt váltani, add meg env-ben: OPENAI_MODEL
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini"; // biztonságos alapértelmezés
 
-/** Heurisztika: mikor kell netes keresés */
-function needsSearch(q) {
+// Egyszerű magyar detektálás, hogy kell-e friss webes infó:
+function needsWebSearch(q) {
   if (!q) return false;
   const s = q.toLowerCase();
 
-  // erős triggerek
-  const hard = [
-    "árfolyam", "mikor lesz", "időpont", "helyszín",
-    "jegyár", "ár", "hány", "mennyi", "legutóbbi",
-    "legfrissebb", "breaking", "friss hír", "élő",
-    "live score", "eredmény", "kik a résztvevők",
-    "résztvevők", "schedule", "menetrend"
+  // Kifejezetten “aktuális” kulcsszavak
+  const hotWords = [
+    "most", "ma", "majd", "aktuális", "friss", "éppen",
+    "árfolyam", "időjárás", "forint", "euró", "usd", "btc",
+    "hírek", "hír", "mai", "holnap", "mikor lesz", "következő meccs",
+    "menetrend", "élő", "live", "eredmény", "verseny", "program", "esemény"
   ];
-  if (hard.some(k => s.includes(k))) return true;
+  if (hotWords.some(w => s.includes(w))) return true;
 
-  // általános "keresés" minták
-  if (/\b(keres|keress|keresés|googl(e|izz)|nézd meg|kutass)\b/.test(s)) return true;
-
-  // ha konkrét évszám, dátum, ma/holnap/stb.
-  if (/\b(202\d|202\d|ma|holnap|jövő hét|jövő hónap)\b/.test(s)) return true;
-
-  // ha tipikusan változó tényleges adatot kér
-  if (/\b(árfolyam|időjárás|árak|táblázat|statisztika|nyitvatartás)\b/.test(s)) return true;
+  // “Keress”, “nézz utána” jellegű kérés
+  if (/(keres(s|) |nézz|kutass|google|bing|forrás)/i.test(s)) return true;
 
   return false;
 }
 
-/** Biztonságos domain listázás a forrásokhoz */
-function extractDomains(items = []) {
-  const domains = [];
-  for (const it of items.slice(0, 5)) {
+// Szépítés: forrás-lista -> "Forrás: domain1, domain2"
+function sourcesFooter(items = []) {
+  if (!items.length) return "";
+  const domains = [...new Set(items.map(it => {
     try {
-      const u = new URL(it.link || it.url || "");
-      const host = u.hostname.replace(/^www\./, "");
-      if (host && !domains.includes(host)) domains.push(host);
-    } catch (_) {}
-  }
-  return domains;
+      const u = new URL(it.link);
+      return u.hostname.replace(/^www\./, "");
+    } catch {
+      return it.link;
+    }
+  }))];
+  return `\n\nForrás: ${domains.join(", ")}`;
 }
 
-/** Meghívjuk a saját google functiont */
-async function runGoogle(query, hostHeader) {
-  // saját domain (Netlify prod): pl. tamas-ai.netlify.app
-  const host = (process.env.URL || "").replace(/^https?:\/\//, "") || hostHeader || "";
-  const base = host ? `https://${host}` : "";
-  const url = `${base}/.netlify/functions/google?q=${encodeURIComponent(query)}`;
-
-  const resp = await fetch(url);
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`Google function hiba: ${resp.status} ${text}`);
+// A saját Google-funkció meghívása (a Netlifyon futó google.js)
+async function googleSearch(query) {
+  // URL-encoding fontos!
+  const url = `/.netlify/functions/google?q=${encodeURIComponent(query)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Google függvény hiba: ${res.status} ${txt}`);
   }
-  return resp.json(); // { items: [...] }
+  const data = await res.json();
+  // Elvárt forma: { results: [{title, link, snippet, source}] }
+  return (data && Array.isArray(data.results)) ? data.results : [];
 }
 
-/** OpenAI összefoglalás / válaszkészítés */
-async function runOpenAI({ prompt, maxTokens = 700 }) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("Hiányzik az OPENAI_API_KEY környezeti változó.");
-
-  const body = {
-    model: "gpt-4o-mini", // stabil, gyors, olcsó
-    messages: [
-      {
-        role: "system",
-        content:
-          "Te egy magyar nyelvű asszisztens vagy. Légy pontos, tömör és tényszerű. Ha vannak források, a végén írj 'Források: domain1, domain2 (Google)'. Ne találj ki dolgokat."
+exports.handler = async (event) => {
+  // CORS – ha kell a böngészőből közvetlen hívni
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
       },
-      { role: "user", content: prompt }
-    ],
-    temperature: 0.2,
-    max_tokens: maxTokens
-  };
-
-  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`OpenAI hiba: ${resp.status} ${text}`);
+      body: "",
+    };
   }
 
-  const data = await resp.json();
-  return data.choices?.[0]?.message?.content?.trim() || "Nem sikerült választ generálni.";
-}
-
-export const handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") {
-      return { statusCode: 405, body: JSON.stringify({ error: "Csak POST engedélyezett." }) };
+      return {
+        statusCode: 405,
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ error: "Csak POST engedélyezett." }),
+      };
     }
 
-    const { message = "" } = JSON.parse(event.body || "{}");
-    if (!message) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Hiányzik az üzenet (message)." }) };
+    if (!OPENAI_API_KEY) {
+      return {
+        statusCode: 500,
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ error: "Hiányzik az OPENAI_API_KEY környezeti változó." }),
+      };
     }
 
-    const doSearch = needsSearch(message);
-    let reply = "";
-    let sourcesNote = "";
-    let items = [];
+    const { message } = JSON.parse(event.body || "{}");
+    if (!message || typeof message !== "string") {
+      return {
+        statusCode: 400,
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ error: "Hiányzik a 'message' mező a törzsben." }),
+      };
+    }
 
-    if (doSearch) {
-      // 1) Google találatok
-      const googleData = await runGoogle(message, event.headers?.host);
-      items = googleData?.items || [];
-
-      // készítsünk összefoglaló promptot
-      const domains = extractDomains(items);
-      const snippets = items.slice(0, 6).map((it, i) => {
-        const title = it.title || it.name || "";
-        const snippet = it.snippet || it.summary || it.snippetHtml || "";
-        const link = it.link || it.url || "";
-        return `#${i + 1} Cím: ${title}\nKivonat: ${snippet}\nLink: ${link}`;
-      }).join("\n\n");
-
-      const prompt =
-        `Feladat: foglald össze és válaszold meg a felhasználó kérdését a lenti friss találatok alapján. ` +
-        `Légy rövid, konkrét, dátumozz, és ha kell, adj felsorolást. Ha nem elég megbízható a forrás, jelezd.\n\n` +
-        `Kérdés: ${message}\n\n` +
-        `Találatok:\n${snippets}\n\n` +
-        `Ha válaszolsz, a végére tedd: Források: ${domains.join(", ")} (Google)`;
-
-      reply = await runOpenAI({ prompt });
-      if (!reply.includes("Források:") && domains.length) {
-        sourcesNote = `\n\nForrások: ${domains.join(", ")} (Google)`;
+    // Döntés: kell-e webkeresés?
+    let searchResults = [];
+    if (needsWebSearch(message)) {
+      try {
+        searchResults = await googleSearch(message);
+      } catch (e) {
+        // Ha a keresés elhasal, attól még válaszoljon a modell
+        searchResults = [];
       }
-    } else {
-      // 2) Sima GPT válasz (nincs netes keresés)
-      const prompt =
-        `Válaszolj magyarul tömören és hasznosan. Ha a kérdés friss adatot igényelne, ` +
-        `jelezd udvariasan, hogy „Ha szeretnéd, meg tudom keresni a neten is – csak írd: keress rá.”\n\n` +
-        `Kérdés: ${message}`;
-      reply = await runOpenAI({ prompt, maxTokens: 500 });
     }
+
+    // Kontextus a modellnek – magyar, okos, nem mellébeszélős stílus:
+    const systemPrompt = `
+Te egy magyar nyelvű, tömör és pontos AI asszisztens vagy.
+- Soha ne találj ki adatot.
+- Ha tartalmazok forrásokat (domain/link), akkor támaszkodj rájuk a tényekhez.
+- Adj rövid, lényegre törő választ, utána külön sorban írj "Forrás:"-t a domainekkel, ha vannak.
+- Ha nincs friss forrás, akkor halkan jelezd, hogy általános tudás alapján válaszolsz.
+- Stílus: segítőkész, de nem mellébeszélős.
+`.trim();
+
+    // A forrásokból “kivonat” a modellnek (max 3-5 link)
+    const contextFromWeb = searchResults.slice(0, 5).map((r, i) => {
+      const safeTitle = (r.title || "").slice(0, 180);
+      const safeSnippet = (r.snippet || "").slice(0, 400);
+      const safeLink = (r.link || "").slice(0, 500);
+      return `[#${i + 1}] ${safeTitle}\n${safeSnippet}\nLink: ${safeLink}`;
+    }).join("\n\n");
+
+    const messages = [
+      { role: "system", content: systemPrompt },
+      ...(contextFromWeb
+        ? [{ role: "system", content: `Friss webes kontextus:\n\n${contextFromWeb}` }]
+        : []),
+      { role: "user", content: message }
+    ];
+
+    // OpenAI Chat Completions hívás
+    const oaRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages,
+        temperature: 0.3,
+      })
+    });
+
+    if (!oaRes.ok) {
+      const txt = await oaRes.text().catch(() => "");
+      throw new Error(`OpenAI hiba: ${oaRes.status} ${txt}`);
+    }
+
+    const oaJson = await oaRes.json();
+    const reply = (oaJson.choices && oaJson.choices[0]?.message?.content) || "Sajnálom, nem tudok most válaszolni.";
+
+    const body = {
+      reply: reply + sourcesFooter(searchResults.slice(0, 5)),
+      sources: searchResults.slice(0, 5), // ha a frontenden listázni szeretnéd
+    };
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        reply: (reply || "Nem találtam elég információt.") + (sourcesNote || ""),
-        sources: extractDomains(items)
-      })
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: JSON.stringify(body),
     };
-
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message })
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ error: err.message || String(err) }),
     };
   }
 };
