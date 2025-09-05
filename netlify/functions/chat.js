@@ -24,7 +24,7 @@ function needsSearch(q) {
 }
 
 // --- GPT-5 hívás (általános válasz vagy összefoglaló generálás)
-async function askOpenAI({ system, user, temperature = 0.3 }) {
+async function askOpenAI({ system, user, temperature = 0 }) {
   const resp = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
