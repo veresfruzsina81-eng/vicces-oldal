@@ -1,7 +1,13 @@
 // netlify/functions/google.js
-const fetch = require("node-fetch");
+
+// Megjegyzés: Node 18+ környezetben a fetch globális, nem kell a 'node-fetch' csomag.
 
 exports.handler = async (event) => {
+  // CORS preflight
+  if (event.httpMethod === "OPTIONS") {
+    return reply(204, null, cors());
+  }
+
   try {
     const { GOOGLE_API_KEY, GOOGLE_CX } = process.env;
     if (!GOOGLE_API_KEY || !GOOGLE_CX) {
@@ -9,31 +15,37 @@ exports.handler = async (event) => {
     }
 
     const q = (event.queryStringParameters && event.queryStringParameters.q || "").trim();
-    if (!q) return reply(400, { error: "Hiányzik a keresési lekérdezés (query)." });
+    if (!q) return reply(400, { error: "Hiányzik a keresési lekérdezés (q)." });
 
-    const params = new URLSearchParams({
-      key: GOOGLE_API_KEY,
-      cx: GOOGLE_CX,
-      q,
-      num: "5",
-      safe: "off",
-      lr: "lang_hu",
-      gl: "hu",
-    });
+    // Google Custom Search API — HU fókusz
+    const url = new URL("https://www.googleapis.com/customsearch/v1");
+    url.searchParams.set("key", GOOGLE_API_KEY);
+    url.searchParams.set("cx",  GOOGLE_CX);
+    url.searchParams.set("q",   q);
+    url.searchParams.set("num", "8");         // több jelölt a jobb összefoglaláshoz
+    url.searchParams.set("safe","active");    // biztonságos találatok
+    url.searchParams.set("hl",  "hu");        // felület nyelv
+    url.searchParams.set("gl",  "hu");        // geolokáció
+    url.searchParams.set("lr",  "lang_hu");   // magyar nyelvű találatok preferálása
 
-    const r = await fetch(`https://www.googleapis.com/customsearch/v1?${params.toString()}`);
+    const r = await fetch(url, { headers: { "Accept": "application/json" } });
     if (!r.ok) {
       const t = await r.text();
       return reply(r.status, { error: "Google API hiba", detail: t });
     }
 
-    const json = await r.json();
-    const items = (json.items || []).map(it => ({
-      title: it.title,
-      snippet: it.snippet,
-      link: it.link,
-      source: (new URL(it.link)).hostname.replace(/^www\./, "")
-    }));
+    const data = await r.json();
+    const items = (data.items || []).map(it => {
+      const link = it.link || "";
+      let source = "";
+      try { source = new URL(link).hostname.replace(/^www\./, ""); } catch {}
+      return {
+        title: it.title || "",
+        snippet: it.snippet || "",
+        link,
+        source
+      };
+    });
 
     return reply(200, { results: items, source: "Google" });
   } catch (e) {
@@ -41,10 +53,22 @@ exports.handler = async (event) => {
   }
 };
 
-function reply(code, body) {
+function cors() {
   return {
-    statusCode: code,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-    body: JSON.stringify(body),
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type"
+  };
+}
+
+function reply(statusCode, body, extraHeaders = {}) {
+  return {
+    statusCode,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      ...cors(),
+      ...extraHeaders
+    },
+    body: body == null ? "" : JSON.stringify(body)
   };
 }
