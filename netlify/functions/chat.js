@@ -1,17 +1,15 @@
 // netlify/functions/chat.js
-// TELJES KÉSZ FÁJL – csak bemásolod és kész.
+// TELJES JAVÍTOTT VERZIÓ – GPT-5 + Google keresés
 
-// Node fetch az API hívásokhoz
 import fetch from "node-fetch";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-// --- Egyszerű detektor: kell-e webes keresés ehhez a kérdéshez?
+// --- Egyszerű detektor: kell-e webes keresés?
 function needsSearch(q) {
   if (!q) return false;
   const s = q.toLowerCase();
 
-  // kulcsszavak: árfolyam, időjárás, menetrend, „mikor lesz”, „legfrissebb”, stb.
   const needles = [
     "árfolyam", "időjárás", "holnap", "ma", "most", "élő",
     "legfrissebb", "aktuális", "mai", "mikor lesz", "következő meccs",
@@ -23,7 +21,7 @@ function needsSearch(q) {
   return needles.some(k => s.includes(k));
 }
 
-// --- GPT-5 hívás (általános válasz vagy összefoglaló generálás)
+// --- OpenAI hívás (GPT-5)
 async function askOpenAI({ system, user, temperature = 0 }) {
   const resp = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -33,7 +31,7 @@ async function askOpenAI({ system, user, temperature = 0 }) {
     },
     body: JSON.stringify({
       model: "gpt-5",
-      temperature,
+      temperature: temperature,   // <-- mindig ponttal!
       messages: [
         { role: "system", content: system },
         { role: "user", content: user }
@@ -47,8 +45,7 @@ async function askOpenAI({ system, user, temperature = 0 }) {
   }
 
   const data = await resp.json();
-  const reply = data?.choices?.[0]?.message?.content?.trim() || "Sajnálom, most nem tudtam választ adni.";
-  return reply;
+  return data?.choices?.[0]?.message?.content?.trim() || "Sajnálom, most nem tudtam választ adni.";
 }
 
 // --- Google keresés a saját Netlify functionön át
@@ -59,15 +56,12 @@ async function googleSearch(query) {
     const txt = await resp.text().catch(() => "");
     throw new Error(`Google function hiba: ${resp.status} ${txt}`);
   }
-  const data = await resp.json();
-  // elvárt forma: { results: [ { title, snippet, link, source }, ... ] }
-  return data;
+  return await resp.json();
 }
 
 // --- Netlify handler
 export const handler = async (event) => {
   try {
-    // CORS preflight
     if (event.httpMethod === "OPTIONS") {
       return {
         statusCode: 200,
@@ -98,21 +92,19 @@ export const handler = async (event) => {
 
     const doSearch = needsSearch(message);
 
-    // Ha friss/aktuális dolognak tűnik → Google + összefoglaló
+    // --- Ha friss infó kell → Google + GPT-5 összefoglaló
     if (doSearch) {
       try {
         const searchData = await googleSearch(message);
 
-        // Elkészítjük az összefoglalót GPT-5-tel
         const system =
-          "Te egy magyar AI asszisztens vagy. Válaszolj tömören, világosan. A kapott keresési találatok alapján adj hasznos, ellenőrizhető választ. A végére tegyél 'Források:' listát, felsorolva a releváns linkeket (max. 5).";
+          "Te egy magyar AI asszisztens vagy. A kapott keresési találatok alapján adj pontos, rövid összefoglalót. A végére tegyél 'Források:' listát max. 5 linkkel.";
         const user =
           `Felhasználói kérdés: "${message}"\n\n` +
-          `Itt vannak a Google-tól kapott találatok JSON-ként:\n` +
-          JSON.stringify(searchData?.results ?? [], null, 2) +
-          `\n\nKészíts összefoglalót (magyarul), és a végén adj 'Források:' felsorolást a linkekkel.`;
+          `Google találatok:\n` +
+          JSON.stringify(searchData?.results ?? [], null, 2);
 
-        const summary = await askOpenAI({ system, user, temperature: 0.3 });
+        const summary = await askOpenAI({ system, user, temperature: 0.2 });
 
         return {
           statusCode: 200,
@@ -123,10 +115,11 @@ export const handler = async (event) => {
           })
         };
       } catch (err) {
-        // Ha a Google hívás elszáll, még mindig válaszolunk GPT-5-tel
+        // Ha Google nem megy → fallback OpenAI
         const fallback = await askOpenAI({
           system: "Te egy magyar AI asszisztens vagy. Válaszolj világosan, hasznosan.",
-          user: `Kérdés: ${message}\n\nMegjegyzés: a webes keresés most hibára futott, ezért csak általános tudásból válaszolj.`
+          user: `Kérdés: ${message}\n\nMegjegyzés: a webes keresés hibára futott, csak általános tudásból válaszolj.`,
+          temperature: 0.3
         });
 
         return {
@@ -140,9 +133,9 @@ export const handler = async (event) => {
       }
     }
 
-    // Egyébként: tisztán GPT-5
+    // --- Egyébként: tisztán GPT-5
     const system =
-      "Te egy magyar AI asszisztens vagy. Légy barátságos, tömör és lényegre törő. Ha a kérés aktuális, valós idejű adatokat igényelne, javasold, hogy írja: 'keresd meg' vagy 'googlizd meg', és akkor webes keresést végzel.";
+      "Te egy magyar AI asszisztens vagy. Légy barátságos, tömör és lényegre törő.";
     const answer = await askOpenAI({ system, user: message, temperature: 0.5 });
 
     return {
