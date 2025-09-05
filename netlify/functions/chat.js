@@ -1,5 +1,5 @@
 // netlify/functions/chat.js
-// Böngészős, forrás-alapú válaszoló – HU híroldal preferencia, dátum/idézet, deduplikált "Források"
+// Stabil böngészős válaszoló – agresszív URL-szűrés, HU híroldal preferencia, 1× Források
 
 import OpenAI from "openai";
 import cheerio from "cheerio";
@@ -15,26 +15,31 @@ export async function handler(event) {
     const question = (message || "").trim();
     if (!question) return json({ error: "Üres üzenet." }, 400);
 
-    // 1) Keresési terv (HU kifejezések + szinonimák)
     const plan = buildQueryPlan(question);
 
-    // 2) Google keresés(ek) -> egyesítés, domain-súlyozás, dedup
-    const rawResults = [];
-    for (const q of plan.queries) rawResults.push(...await googleSearch(q, plan.numPerQuery));
-    const ranked = rankAndFilter(rawResults, plan.maxKeep);
+    // 1) Keresés(ek)
+    let raw = [];
+    for (const q of plan.queries) {
+      const items = await googleSearch(q, plan.numPerQuery);
+      raw.push(...items);
+    }
 
-    // 3) Oldalak letöltése + főszöveg, meta, dátum (párhuzamosan)
+    // 2) Globális, agresszív URL-szűrés (még egyszer!)
+    raw = raw.filter(it => isValidHttpUrl(it?.link));
+
+    // 3) Rangsorolás + dedup
+    const ranked = rankAndFilter(raw, plan.maxKeep);
+
+    // 4) Oldalak letöltése — CSAK biztos http(s) linkek
     const pages = await fetchAndExtract(ranked.slice(0, plan.fetchLimit));
 
-    // 4) Grounded válasz az összegyűjtött szövegekből (nincs hallu)
     const today = new Date().toISOString().slice(0, 10);
 
     const sys =
       "Te Tamás barátságos magyar asszisztensed vagy. " +
       "KIZÁRÓLAG a megadott források tartalmából dolgozz; ne találj ki új tényeket. " +
       "Ha a források nem tartalmazzák a választ, mondd ki, hogy jelenleg nem publikus / nem található. " +
-      "Adj magyarul tömör, de informatív választ. NE írj külön 'Források' blokkot – azt a rendszer teszi hozzá. " +
-      "Ha több forrás eltér, jelezd röviden az ellentmondást.";
+      "Adj magyarul tömör, de informatív választ. NE írj külön 'Források' blokkot – azt a rendszer teszi hozzá.";
 
     const user = buildGroundedPrompt({ question, today, pages, intent: plan.intent });
 
@@ -51,25 +56,20 @@ export async function handler(event) {
       completion.choices?.[0]?.message?.content?.trim() ||
       "Sajnálom, most nem találtam megbízható információt a megadott forrásokban.";
 
-    // 5) Egyszeri, deduplikált „Források” blokk (domain szerint)
     const sourcesBlock = renderSources(ranked);
 
     return json({
       ok: true,
       question,
       answer: modelAnswer + sourcesBlock,
-      meta: {
-        searchResults: ranked.length,
-        fetchedPages: pages.length,
-        intent: plan.intent
-      }
+      meta: { searchResults: ranked.length, fetchedPages: pages.length, intent: plan.intent }
     });
   } catch (err) {
     return json({ error: err.message || String(err) }, 500);
   }
 }
 
-/* ===================== Helpers ===================== */
+/* ================= Helpers ================= */
 
 function cors() {
   return {
@@ -87,7 +87,16 @@ function json(body, statusCode = 200) {
 }
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
 
-/* -------- Keresési terv -------- */
+/* ---- URL validátor (mindenhol ezt használjuk) ---- */
+function isValidHttpUrl(u) {
+  if (typeof u !== "string") return false;
+  try {
+    const x = new URL(u);
+    return x.protocol === "http:" || x.protocol === "https:";
+  } catch { return false; }
+}
+
+/* ---- Keresési terv ---- */
 function buildQueryPlan(question) {
   const q = question.toLowerCase();
   const queries = [question];
@@ -101,20 +110,14 @@ function buildQueryPlan(question) {
   if (/\bárfolyam|eur(huf|huf)|euró árfolyam\b/i.test(q)) intent = "fx";
   if (/\bidőjárás|meteo|előrejelzés\b/i.test(q)) intent = "weather";
 
-  return {
-    intent,
-    queries: [...new Set(queries)],
-    numPerQuery: 8,
-    maxKeep: 18,
-    fetchLimit: 6
-  };
+  return { intent, queries: [...new Set(queries)], numPerQuery: 8, maxKeep: 18, fetchLimit: 6 };
 }
 
-/* -------- Domain-súlyozás -------- */
+/* ---- Domain-súlyozás ---- */
 const DOMAIN_SCORE = {
-  "rtl.hu": 10, "24.hu": 9, "index.hu": 9, "telex.hu": 9, "blikk.hu": 7, "origo.hu": 7,
-  "hvg.hu": 9, "sportal.hu": 7, "nemzetisport.hu": 8, "nso.hu": 8, "port.hu": 7,
-  "nlc.hu": 7, "femina.hu": 6, "life.hu": 6, "portfolio.hu": 9
+  "rtl.hu": 10, "24.hu": 9, "index.hu": 9, "telex.hu": 9, "hvg.hu": 9,
+  "nemzetisport.hu": 8, "nso.hu": 8, "portfolio.hu": 9, "sportal.hu": 7,
+  "blikk.hu": 7, "origo.hu": 7, "port.hu": 7, "nlc.hu": 7, "femina.hu": 6, "life.hu": 6
 };
 
 function rankAndFilter(items, maxKeep = 18) {
@@ -122,8 +125,8 @@ function rankAndFilter(items, maxKeep = 18) {
   const scored = [];
 
   for (const it of items || []) {
-    const link = it.link || it.url;
-    if (!link) continue;
+    const link = it?.link;
+    if (!isValidHttpUrl(link)) continue;           // << még egy védelem
     if (seenLink.has(link)) continue;
     seenLink.add(link);
 
@@ -137,11 +140,7 @@ function rankAndFilter(items, maxKeep = 18) {
   return scored.slice(0, maxKeep);
 }
 
-/* -------- Google keresés (link-szűrés!) -------- */
-function isValidHttpUrl(u) {
-  return typeof u === "string" && /^https?:\/\//i.test(u);
-}
-
+/* ---- Google keresés: csak http(s) linkek jöhetnek vissza ---- */
 async function googleSearch(q, num = 8) {
   const key = process.env.GOOGLE_API_KEY;
   const cx = process.env.GOOGLE_CX;
@@ -159,41 +158,35 @@ async function googleSearch(q, num = 8) {
   const res = await fetch(url);
   if (!res.ok) return [];
   const data = await res.json();
-  const items = (data.items || [])
-    .map(it => ({
-      title: it.title,
-      snippet: it.snippet,
-      link: it.link
-    }))
-    .filter(it => isValidHttpUrl(it.link)); // <<< csak http/https linkek maradnak
-  return items;
+  return (data.items || [])
+    .map(it => ({ title: it.title, snippet: it.snippet, link: it.link }))
+    .filter(it => isValidHttpUrl(it.link));
 }
 
-/* -------- Letöltés + kinyerés (guard-al) -------- */
+/* ---- Letöltés + kinyerés (szintén védelem) ---- */
 async function fetchAndExtract(results) {
   const limit = pLimit(3);
-  const tasks = results.map(r =>
-    limit(async () => {
-      try {
-        // Guard: csak valódi http(s) URL-ek
-        if (!r.link || !/^https?:\/\//i.test(r.link)) return null;
+  const tasks = results.map(r => limit(async () => {
+    try {
+      if (!isValidHttpUrl(r.link)) return null;   // << itt is védjük
 
-        const res = await fetch(r.link, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (compatible; TamasAI/1.0)",
-            "Accept-Language": "hu-HU,hu;q=0.9"
-          },
-          redirect: "follow"
-        });
-        const ct = res.headers.get("content-type") || "";
-        if (!ct.includes("text/html")) return null;
-        const html = await res.text();
-        const meta = extractMeta(html);
-        const text = extractMainText(html);
-        return { ...r, text: truncate(text, 7000), ...meta };
-      } catch { return null; }
-    })
-  );
+      const res = await fetch(r.link, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; TamasAI/1.0)",
+          "Accept-Language": "hu-HU,hu;q=0.9"
+        },
+        redirect: "follow"
+      });
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("text/html")) return null;
+      const html = await res.text();
+      const meta = extractMeta(html);
+      const text = extractMainText(html);
+      return { ...r, text: truncate(text, 7000), ...meta };
+    } catch {
+      return null;
+    }
+  }));
   return (await Promise.all(tasks)).filter(Boolean);
 }
 
@@ -202,19 +195,20 @@ function extractMeta(html) {
   const title =
     $("meta[property='og:title']").attr("content") ||
     $("meta[name='twitter:title']").attr("content") ||
-    $("title").text() ||
-    "";
+    $("title").text() || "";
   const description =
     $("meta[name='description']").attr("content") ||
-    $("meta[property='og:description']").attr("content") ||
-    "";
+    $("meta[property='og:description']").attr("content") || "";
   const published =
     $("meta[property='article:published_time']").attr("content") ||
     $("meta[name='article:published_time']").attr("content") ||
     $("time[datetime]").attr("datetime") ||
-    $("meta[itemprop='datePublished']").attr("content") ||
-    "";
-  return { metaTitle: (title || "").trim(), metaDescription: (description || "").trim(), publishedAt: (published || "").trim() };
+    $("meta[itemprop='datePublished']").attr("content") || "";
+  return {
+    metaTitle: title.trim(),
+    metaDescription: description.trim(),
+    publishedAt: published.trim()
+  };
 }
 
 function extractMainText(html) {
@@ -229,19 +223,16 @@ function extractMainText(html) {
 }
 const truncate = (s, n) => (s && s.length > n ? s.slice(0, n) + "…" : s);
 
-/* -------- Prompt-építés + Forrásblokk -------- */
+/* ---- Prompt + Forrásblokk ---- */
 function buildGroundedPrompt({ question, today, pages, intent }) {
-  const blocks = pages.map((p, i) => {
-    const head = `### Forrás ${i + 1}
+  const blocks = pages.map((p, i) => `### Forrás ${i + 1}
 Cím: ${p.metaTitle || p.title || ""}
 Dátum: ${p.publishedAt || "ismeretlen"}
 Link: ${p.link}
 Rövid leírás: ${p.metaDescription || p.snippet || ""}
 Részlet a cikkből:
 ${(p.text || "").slice(0, 1200)}
-`;
-    return head;
-  }).join("\n");
+`).join("\n");
 
   let extra = "";
   if (intent === "starbox") {
@@ -273,7 +264,9 @@ function renderSources(results, limit = 5) {
 function uniqueByDomain(list, limit = 5) {
   const map = new Map();
   for (const r of list || []) {
-    const h = host(r.link || "");
+    const lk = r?.link;
+    if (!isValidHttpUrl(lk)) continue;           // << még itt is szűrjük
+    const h = host(lk);
     if (!h) continue;
     if (!map.has(h)) map.set(h, r);
     if (map.size >= limit) break;
