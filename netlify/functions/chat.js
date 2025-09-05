@@ -1,128 +1,68 @@
 // netlify/functions/chat.js
-// Csak OpenAI + ingyenes DuckDuckGo/Wikipedia keresés
-// ENV: OPENAI_API_KEY (kötelező)
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-// ---------- Ingyenes web-keresés ----------
-async function smartWebSearch(query) {
-  // DuckDuckGo
+export async function handler(event) {
   try {
-    const r = await fetch(
-      `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`
-    );
-    const j = await r.json();
-    const chunks = [];
-    if (j.AbstractText) chunks.push(j.AbstractText);
-    if (Array.isArray(j.RelatedTopics)) {
-      for (const t of j.RelatedTopics.slice(0, 3)) {
-        if (t && typeof t.Text === "string") chunks.push(t.Text);
-      }
-    }
-    if (chunks.length) {
-      return { text: chunks.join("\n\n"), source: "DuckDuckGo" };
-    }
-  } catch (_) {}
+    const { message = "" } = JSON.parse(event.body || "{}");
 
-  // Wikipédia fallback
-  try {
-    const r = await fetch(
-      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`
-    );
-    if (r.ok) {
-      const j = await r.json();
-      if (j.extract) return { text: j.extract, source: "Wikipedia" };
-    }
-  } catch (_) {}
-
-  return { text: null, source: null };
-}
-
-// ---------- OpenAI hívás ----------
-async function askOpenAI({ userQuestion, webContext }) {
-  if (!OPENAI_API_KEY) {
-    throw new Error("Hiányzik az OPENAI_API_KEY környezeti változó.");
-  }
-
-  const messages = [
-    {
-      role: "system",
-      content: `Te egy barátságos magyar asszisztens vagy. Válaszaid legyenek rövidek, pontosak, és használd a Web-kivonatot, ha van.`,
-    },
-    {
-      role: "user",
-      content: `Kérdés: ${userQuestion}\n\nWeb-kivonat:\n${webContext || "—"}`,
-    },
-  ];
-
-  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o", // fix modell, nem kell env változó
-      messages,
-      temperature: 0.3,
-    }),
-  });
-
-  if (!resp.ok) {
-    const t = await resp.text().catch(() => "");
-    throw new Error(`OpenAI hiba: ${resp.status} ${t}`);
-  }
-
-  const data = await resp.json();
-  return (
-    data?.choices?.[0]?.message?.content?.trim() ||
-    "Sajnálom, most nem tudok választ adni."
-  );
-}
-
-// ---------- Netlify handler ----------
-exports.handler = async (event) => {
-  try {
-    if (event.httpMethod === "OPTIONS") {
-      return { statusCode: 200, headers: { "Access-Control-Allow-Origin": "*" }, body: "" };
-    }
-    if (event.httpMethod !== "POST") {
-      return { statusCode: 405, headers: { "Access-Control-Allow-Origin": "*" }, body: "Csak POST." };
-    }
-
-    const body = JSON.parse(event.body || "{}");
-    const userQuestion = (body.message || "").toString().trim();
-
-    if (!userQuestion) {
+    if (!message) {
       return {
         statusCode: 400,
-        headers: { "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify({ error: "Hiányzik a 'message' mező." }),
+        body: JSON.stringify({ error: "Hiányzik az üzenet." }),
       };
     }
 
-    // Web keresés
-    const web = await smartWebSearch(userQuestion);
-    const webContext = web.text || "";
+    // Ha a felhasználó friss adatot kér (pl. "árfolyam", "mikor", "legújabb")
+    let googleResults = null;
+    if (/árfolyam|mai|legújabb|mikor|hírek|aktuális/i.test(message)) {
+      const googleResponse = await fetch(`${process.env.URL}/.netlify/functions/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: message }),
+      });
 
-    // OpenAI válasz
-    const answer = await askOpenAI({ userQuestion, webContext });
+      if (googleResponse.ok) {
+        const data = await googleResponse.json();
+        googleResults = data.results
+          .slice(0, 3) // csak az első 3 találat
+          .map(r => `🔹 ${r.title} – ${r.link}`)
+          .join("\n");
+      }
+    }
 
-    // Forrás hozzáadása
-    const withSource = answer + (web.source ? `\n\nForrás: ${web.source}` : "");
-
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({ reply: withSource }),
-    };
-  } catch (err) {
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+    // GPT-5 API hívás (OpenAI)
+    const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
       body: JSON.stringify({
-        reply: "Hiba történt: " + (err && err.message ? err.message : "ismeretlen hiba"),
+        model: "gpt-5", // GPT-5 modell
+        messages: [
+          { role: "system", content: "Te Tamás barátságos, magyar asszisztensed vagy. Légy tömör, segítőkész, hétköznapi nyelven válaszolj." },
+          { role: "user", content: message },
+          ...(googleResults ? [{ role: "system", content: `Friss adatok a Google keresésből:\n${googleResults}` }] : []),
+        ],
       }),
+    });
+
+    if (!aiResponse.ok) {
+      return {
+        statusCode: aiResponse.status,
+        body: JSON.stringify({ error: "OpenAI API hiba", detail: await aiResponse.text() }),
+      };
+    }
+
+    const aiData = await aiResponse.json();
+    const reply = aiData.choices?.[0]?.message?.content || "Nem találtam választ.";
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ reply }),
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Chat hiba", detail: error.message }),
     };
   }
-};
+}
