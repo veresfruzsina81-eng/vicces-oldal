@@ -24,6 +24,7 @@
       background: radial-gradient(rgba(0,0,0,.58), rgba(0,0,0,.58)),
                   url("/bg_tamas.jpg") center 30% / cover no-repeat;
     }
+
     header{ text-align:center; margin:8px 0 6px; }
     header .ttl{ font-weight:800; font-size:20px; letter-spacing:.3px; }
     header .sub{ color:var(--muted); font-size:12px; margin-top:2px; }
@@ -39,10 +40,12 @@
       -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
       scroll-behavior:smooth;
     }
-    .row{display:flex; margin:10px 0}
-    .row.bot{justify-content:flex-start}
-    .row.user{justify-content:flex-end}
-    .row.info{justify-content:center}
+
+    .row{display:flex; flex-direction:column; gap:6px; margin:10px 0}
+    .row.bot{align-items:flex-start}
+    .row.user{align-items:flex-end}
+    .row.info{align-items:center}
+
     .bubble{
       max-width:min(640px,92%); padding:14px 16px; border-radius:18px;
       border:1px solid rgba(255,255,255,.08);
@@ -52,25 +55,45 @@
     .bot .bubble{background:var(--bubbleBot)}
     .user .bubble{background:var(--bubbleUser); color:#1f1200}
     .info .bubble{background:var(--bubbleInfo); color:var(--muted)}
+
     .chatlog img{ max-width:55%; border-radius:12px; display:block; margin:8px auto; }
 
-    .composer{display:flex; align-items:center; gap:10px; padding:10px; background:rgba(0,0,0,.5)}
+    /* kis hang ikon a bot válasz alatt */
+    .tts-btn{
+      border:0; background:none; cursor:pointer;
+      font-size:18px; margin:4px 0 0 6px; color:var(--muted);
+    }
+
+    .composer{
+      display:flex; align-items:center; gap:10px;
+      padding:10px; background:rgba(0,0,0,.5);
+      flex-wrap:nowrap;
+    }
     .input{
-      flex:1; display:flex; align-items:center; gap:10px;
+      flex:1 1 auto; display:flex; align-items:center; gap:10px;
       padding:10px 14px; background:#0f1620bf;
       border:1px solid rgba(255,255,255,.12); border-radius:14px;
+      min-width:0;
     }
-    .input input{ flex:1; border:0; outline:none; background:transparent; color:var(--text); font-size:15px }
-    .icon-btn{
+    .input input{
+      flex:1 1 auto; border:0; outline:none; background:transparent;
+      color:var(--text); font-size:15px; min-width:0;
+    }
+    .icon-btn,
+    label.icon-btn{
       min-width:40px; height:40px; border:0; border-radius:10px;
       background:#11182780; color:var(--text); cursor:pointer;
+      display:inline-grid; place-items:center; padding:0 10px;
     }
     .send{
+      flex:0 0 auto;
       border:0; cursor:pointer; font-weight:800; color:#331d00;
       background:linear-gradient(90deg,#ffb84d,#ffa53a);
       padding:10px 16px; border-radius:14px; white-space:nowrap;
     }
-    footer{ margin-top:8px; font-size:12px; color:var(--muted); text-align:center; user-select:none; pointer-events:none }
+
+    footer{ margin-top:8px; font-size:12px; color:var(--muted); text-align:center;
+            user-select:none; pointer-events:none }
   </style>
 </head>
 <body>
@@ -88,10 +111,10 @@
 
     <div class="composer">
       <div class="input">
-        <input id="txt" autocomplete="off" placeholder="Írj ide…   Enter = küldés, Shift+Enter = új sor" />
-        <input id="imgInput" type="file" accept="image/*" style="display:none" />
-        <button class="icon-btn" id="uploadBtn" title="Kép feltöltés">📷</button>
-        <button class="icon-btn" id="ttsBtn" title="Felolvasás">🔊</button>
+        <input id="txt" autocomplete="off"
+               placeholder="Írj ide…   Enter = küldés, Shift+Enter = új sor" />
+        <input id="imgInput" type="file" accept="image/*" style="display:none">
+        <label for="imgInput" class="icon-btn" title="Kép feltöltés">📷</label>
       </div>
       <button class="send" id="sendBtn">Küldés</button>
     </div>
@@ -103,14 +126,34 @@
     const log = document.getElementById('log');
     const txt = document.getElementById('txt');
     const sendBtn = document.getElementById('sendBtn');
-    const uploadBtn = document.getElementById('uploadBtn');
     const imgInput = document.getElementById('imgInput');
+
+    function speakHu(text){
+      try{
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'hu-HU'; u.rate = 1; u.pitch = 1;
+        speechSynthesis.speak(u);
+      }catch(e){}
+    }
 
     function addRow(kind, html){
       const r=document.createElement('div'); r.className='row '+kind;
       const b=document.createElement('div'); b.className='bubble';
       b.innerHTML=html; r.appendChild(b); log.appendChild(r);
-      log.scrollTop=log.scrollHeight; return r;
+
+      // ha bot válasz, tegyünk alá egy kis hang ikont
+      if(kind === 'bot'){
+        const tts = document.createElement('button');
+        tts.className = 'tts-btn';
+        tts.textContent = '🔊';
+        tts.title = 'Felolvasás';
+        tts.addEventListener('click', ()=> speakHu(b.textContent));
+        r.appendChild(tts);
+      }
+
+      log.scrollTop=log.scrollHeight;
+      return r;
     }
 
     async function compressToDataURL(file, maxW=1280, quality=0.85){
@@ -127,10 +170,9 @@
       return canvas.toDataURL('image/jpeg', quality);
     }
 
-    async function sendToServer(message, imageBase64){
+    async function callServer(message, imageBase64){
       const r = await fetch('/.netlify/functions/chat',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
+        method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ message, image: imageBase64 })
       });
       if(!r.ok) throw new Error('HTTP '+r.status);
@@ -144,7 +186,7 @@
       txt.value='';
       const think = addRow('bot','<i>Gondolkodom…</i>');
       try{
-        const data = await sendToServer(message, null);
+        const data = await callServer(message, null);
         think.remove();
         addRow('bot', (data.reply||'').trim() || 'Rendben. 🙂');
       }catch(e){
@@ -153,31 +195,25 @@
       }
     }
 
-    // ---- gombok
     sendBtn.addEventListener('click', ()=>ask());
     txt.addEventListener('keydown', e=>{
       if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ask(); }
     });
 
-    // ---- kép feltöltés teljes folyamat
-    uploadBtn.addEventListener('click', ()=> imgInput.click());
     imgInput.addEventListener('change', async ()=>{
       const file = imgInput.files && imgInput.files[0];
       if(!file) return;
       try{
         const b64 = await compressToDataURL(file);
-        // előnézet a saját buborékban
         addRow('user', `<img src="${b64}" alt="Feltöltött kép">`);
-        // „Gondolkodom” jelző
         const think = addRow('bot','<i>Gondolkodom…</i>');
-        // elküldés a szervernek (kép + opcionális üzenet)
-        const data = await sendToServer('', b64);
+        const data = await callServer('', b64);
         think.remove();
         addRow('bot', (data.reply||'').trim() || 'Szép kép! 🙂');
       }catch(e){
         addRow('bot','Nem sikerült feldolgozni a képet. Próbáld meg kisebb fájllal. 📷');
       }finally{
-        imgInput.value = ''; // reset
+        imgInput.value = '';
       }
     });
   </script>
