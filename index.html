@@ -280,5 +280,23 @@
         }
       }
     </script>
+<script>
+async function sendMessage() {
+  const userMessage = document.getElementById("input").value;
+
+  const res = await fetch("/.netlify/functions/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: userMessage })
+  });
+
+  const data = await res.json();
+  document.getElementById("output").innerText = data.reply;
+}
+</script>
+
+<input id="input" placeholder="Írd be a kérdésed..." />
+<button onclick="sendMessage()">Küldés</button>
+<div id="output"></div>
 </body>
 </html>
