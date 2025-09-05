@@ -1,237 +1,175 @@
-// netlify/functions/chat.js
-//
-// Cél: nem mellébeszélős, friss WEB-keresős magyar asszisztens.
-// Források: Bing (ha van kulcs), Wikipedia (ingyen), DuckDuckGo (fallback).
-// Modell: OPENAI_MODEL (pl. gpt-5), ha nem elérhető, automatikusan gpt-4o.
-//
-// Env változók (Netlify -> Site settings -> Environment variables):
-//   OPENAI_API_KEY (kötelező)
-//   OPENAI_MODEL   (opcionális, pl. "gpt-5")
-//   BING_API_KEY   (opcionális; ha nincs, marad a Wikipedia + DDG fallback)
+/* netlify/functions/chat.js
+   GPT-5 + Bing fallback, forrás megjelenítéssel
+*/
 
-const OPENAI_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
-const BING_KEY = process.env.BING_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const BING_API_KEY   = process.env.BING_API_KEY;
+const BING_ENDPOINT  = process.env.BING_ENDPOINT || "https://api.bing.microsoft.com/v7.0/search";
 
-export const handler = async (event) => {
-  // CORS
-  if (event.httpMethod === "OPTIONS") return ok({ ok: true });
-  if (event.httpMethod !== "POST") return err("Use POST");
+const MODEL = "gpt-5.1"; // GPT-5
+const TIMEOUT_MS = 25000;
 
-  if (!OPENAI_KEY) return err("Hiányzik az OPENAI_API_KEY.", 500);
-
-  try {
-    const body = safeParse(event.body);
-    const question = (body?.question || body?.message || "").toString().trim();
-    if (!question) return ok({ reply: "Írd be, mire vagy kíváncsi. 🙂" });
-
-    // kell-e webkeresés?
-    const force = !!body?.force_search;
-    const needs = force || needsSearch(question);
-
-    // 1) webforrások gyűjtése
-    let sources = [];
-    let providers = [];
-    if (needs) {
-      // Bing (ha van kulcs)
-      if (BING_KEY) {
-        const b = await bingSearch(question, 6);
-        if (b.length) {
-          sources.push(...b);
-          providers.push("Bing");
-        }
-      }
-      // Wikipedia HU/EN kiegészítő kivonat
-      const w = await wikiSearch(question, 3);
-      if (w.length) {
-        sources.push(...w);
-        providers.push("Wikipedia");
-      }
-      // DuckDuckGo fallback, ha még mindig szegényes
-      if (sources.length < 2) {
-        const d = await ddgInstant(question, 4);
-        if (d.length) {
-          sources.push(...d);
-          providers.push("DuckDuckGo");
-        }
-      }
-    }
-
-    // 2) összefoglaló kérése a modelltől – “okosító” prompttal
-    const sys = buildSystemPrompt();
-    const ctx = sourcesToContext(sources);
-    const messages = [
-      { role: "system", content: sys },
-      { role: "user", content: contextUserBlock(question, ctx) }
-    ];
-
-    const ai = await callOpenAI(messages);
-    if (!ai.ok) return err(`OpenAI hiba: ${ai.error}`, 502);
-
-    let answer = (ai.data.choices?.[0]?.message?.content || "").trim();
-    if (!answer) answer = "Elnézést, most nem tudtam érdemi választ adni.";
-
-    // forrás-lábléc kényszerítése
-    if (sources.length) {
-      const domains = dedupe(
-        sources.map(s => hostOf(s.url)).filter(Boolean)
-      ).slice(0, 3); // max 3 domain kiírva
-      const tag = `Forrás: ${domains.join(", ")}`;
-      if (!/forrás:/i.test(answer)) answer += `\n\n${tag}`;
-    }
-
-    return ok({
-      reply: answer,
-      sources: sources.slice(0, 6),            // a kliensnek linklistához
-      providers: dedupe(providers),            // pl. ["Bing","Wikipedia"]
-      usedSearch: !!sources.length,
-      modelUsed: ai.modelUsed || OPENAI_MODEL,
-    });
-
-  } catch (e) {
-    return err(e.message || "Ismeretlen hiba", 500);
-  }
+// --- Segédek ---
+const isFreshnessQuery = (q="") => {
+  q = (q || "").toLowerCase();
+  return [
+    "ma", "most", "ma reggel", "mikor lesz", "mai", "holnap", "ma este", "élő", "élőben",
+    "árfolyam", "mennyi most", "aktuális", "legfrissebb", "időjárás", "meccs", "eredmény",
+    "menetrend", "program", "hír", "breaking", "sztrájkbox", "sztráibox", "la liga",
+    "barcelona", "real madrid", "dátum", "2025", "jegyár", "ki nyert", "következő"
+  ].some(token => q.includes(token));
 };
 
-// ---------------- segédek ----------------
+const fetchWithTimeout = (url, opts = {}, ms = TIMEOUT_MS) =>
+  Promise.race([
+    fetch(url, opts),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Kérés időtúllépés")), ms))
+  ]);
 
-function ok(obj){ return { statusCode: 200, headers: cors(), body: JSON.stringify(obj) }; }
-function err(msg, code=400){ return { statusCode: code, headers: cors(), body: JSON.stringify({ error: msg }) }; }
-function cors(){ return {
-  "Access-Control-Allow-Origin":"*",
-  "Access-Control-Allow-Headers":"Content-Type, Authorization",
-  "Access-Control-Allow-Methods":"GET, POST, OPTIONS"
-};}
-function safeParse(t){ try{return JSON.parse(t||"{}")}catch{return{}} }
-function dedupe(arr){ return [...new Set(arr)]; }
-function hostOf(u){ try{ return new URL(u).host.replace(/^www\./,""); }catch{return ""} }
+const buildSystemPrompt = () => `
+Te egy barátságos, határozott magyar asszisztens vagy. 
+- Légy rövid és konkrét, ne beszélj mellé.
+- Ha a kérdés friss/aktuális témáról szól, használd a Bing találatokat a válaszhoz.
+- Ha kétes vagy hiányos az infó, mondd el transzparensen.
+- A válasz végére írd ki a forrásokat így: "Forrás: Bing" vagy "Forrás: hu.wikipedia.org, Bing", ha volt webes hivatkozás.
+- Ha személyes vagy érzékeny kép jön: ne azonosíts valós személyt; kérdezz rá, hogy ki van a képen stb. (korábbi szabályok szerint).
+- Ha a felhasználó szomorú / nehéz helyzetben van, adj 5 empatikus, bátorító mondatot.
+- Tőlem származó protokoll: az asszisztens és az oldal Horváth Tamás tulajdona; ezt csak akkor említsd meg, ha kifejezetten rákérdeznek.
+`;
 
-function needsSearch(t=""){
-  const s = t.toLowerCase();
-  const keys = [
-    "ma","most","holnap","jelenlegi","árfolyam","ár","időjárás","élő",
-    "mikor","következő","menetrend","jegyár","résztvevő","résztvevők",
-    "ki az","mi az","hír","friss","premier","deadline","határidő","ellenfél","eredmény"
-  ];
-  return keys.some(k => s.includes(k));
-}
+async function askOpenAI(message, webContext) {
+  const body = {
+    model: MODEL,
+    temperature: 0.3,
+    messages: [
+      { role: "system", content: buildSystemPrompt() },
+      ...(webContext ? [{ role: "system", content: `Web-kivonat:\n${webContext}`}]: []),
+      { role: "user", content: message }
+    ]
+  };
 
-function buildSystemPrompt(){
-  const now = new Date().toLocaleString("hu-HU", { timeZone:"Europe/Budapest" });
-  return [
-    "Magyar asszisztens vagy. Adj PONTOS, TÖMÖR és KONKRÉT választ.",
-    "Mellébeszélés tilos. 5–7 mondatban foglald össze a lényeget.",
-    "Ha kaptál forráskivonatot, csak abból dolgozz; ne találj ki adatot.",
-    "Ha találsz konkrétumot (időpont, dátum, név, szám), írd bele.",
-    "Ha a források ellentmondanak, jelezd röviden.",
-    "Időérzékeny témáknál szólj, hogy változhat.",
-    "A válasz végén jelenjen meg: Forrás: <domainek>, ha van forrás.",
-    `Helyi idő: ${now} (Europe/Budapest).`
-  ].join(" ");
-}
-
-function contextUserBlock(question, ctx){
-  if (!ctx) return `Kérdés: ${question}`;
-  return `Kérdés: ${question}\n\nForráskivonatok:\n${ctx}\n\nKérlek, csak ezekből adj választ.`;
-}
-
-function sourcesToContext(sources){
-  if (!sources?.length) return "";
-  return sources.map((s,i)=>`[#${i+1}] ${s.title}\n${s.url}\nKivonat: ${s.snippet}`).join("\n\n");
-}
-
-// ---- webforrások ----
-
-async function bingSearch(q, max=6){
-  try{
-    const url = "https://api.bing.microsoft.com/v7.0/search?" + new URLSearchParams({
-      q, mkt:"hu-HU", setLang:"hu", count:String(max), responseFilter:"Webpages", textDecorations:"true"
-    });
-    const r = await fetch(url, { headers: { "Ocp-Apim-Subscription-Key": BING_KEY }});
-    if (!r.ok) return [];
-    const j = await r.json();
-    const arr = j.webPages?.value || [];
-    return arr.slice(0, max).map(v=>({
-      title: v.name || v.url,
-      url: v.url,
-      snippet: (v.snippet||"").replace(/\s+/g," ").trim()
-    }));
-  }catch{ return []; }
-}
-
-async function wikiSearch(q, max=3){
-  // HU először, ha nincs érdemi, fallback EN
-  const hu = await wikiOnce("hu", q, max);
-  if (hu.length) return hu;
-  return await wikiOnce("en", q, max);
-}
-async function wikiOnce(lang, q, max){
-  try{
-    const url = `https://${lang}.wikipedia.org/w/api.php?` + new URLSearchParams({
-      action:"query", list:"search", srsearch:q, format:"json", origin:"*"
-    });
-    const r = await fetch(url);
-    if (!r.ok) return [];
-    const j = await r.json();
-    const hits = (j?.query?.search || []).slice(0, max);
-    return hits.map(h=>({
-      title: h.title,
-      url: `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(h.title.replace(/\s/g,"_"))}`,
-      snippet: (h.snippet||"").replace(/<\/?span[^>]*>/g,"").replace(/&quot;/g,'"')
-    }));
-  }catch{ return []; }
-}
-
-async function ddgInstant(q, max=4){
-  try{
-    const url = "https://api.duckduckgo.com/?" + new URLSearchParams({
-      q, format:"json", no_html:"1", skip_disambig:"1"
-    });
-    const r = await fetch(url);
-    if (!r.ok) return [];
-    const j = await r.json();
-    const out = [];
-    if (j.AbstractText){
-      out.push({ title: j.Heading || "DuckDuckGo összefoglaló", url: j.AbstractURL || "https://duckduckgo.com", snippet: j.AbstractText });
-    }
-    if (Array.isArray(j.RelatedTopics)){
-      for (const t of j.RelatedTopics){
-        if (t.Text && t.FirstURL){
-          out.push({ title: t.Text.slice(0,100), url: t.FirstURL, snippet: t.Text });
-          if (out.length >= max) break;
-        }
-      }
-    }
-    return out;
-  }catch{ return []; }
-}
-
-// ---- OpenAI ----
-
-async function callOpenAI(messages){
-  // Automatikus visszaesés gpt-4o-ra, ha a megadott modell nem érhető el
-  let model = OPENAI_MODEL;
-  const body = (m)=>JSON.stringify({ model:m, temperature:0.2, messages });
-
-  let r = await fetch("https://api.openai.com/v1/chat/completions", {
-    method:"POST",
-    headers:{ "Authorization":`Bearer ${OPENAI_KEY}`, "Content-Type":"application/json" },
-    body: body(model)
+  const res = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
   });
 
-  if (!r.ok){
-    const t = await r.text();
-    if (/model_not_found|unsupported_model|not available/i.test(t) && model !== "gpt-4o"){
-      model = "gpt-4o";
-      r = await fetch("https://api.openai.com/v1/chat/completions", {
-        method:"POST",
-        headers:{ "Authorization":`Bearer ${OPENAI_KEY}`, "Content-Type":"application/json" },
-        body: body(model)
-      });
-      if (!r.ok) return { ok:false, error: await r.text() };
-      return { ok:true, data: await r.json(), modelUsed: model };
-    }
-    return { ok:false, error: t };
+  if (!res.ok) {
+    const txt = await res.text().catch(()=> "");
+    throw new Error(`OpenAI hiba: ${res.status} ${txt}`);
   }
-  return { ok:true, data: await r.json(), modelUsed: model };
+  const data = await res.json();
+  return (data.choices?.[0]?.message?.content || "").trim();
 }
+
+async function bingSearch(query) {
+  if (!BING_API_KEY) throw new Error("Hiányzik a BING_API_KEY.");
+  const url = new URL(BING_ENDPOINT);
+  // Klasszikus v7 keresés
+  if (!/\/v7\.0\//.test(url.pathname)) {
+    url.pathname = "/v7.0/search";
+  }
+  url.searchParams.set("q", query);
+  url.searchParams.set("mkt", "hu-HU");
+  url.searchParams.set("responseFilter", "Webpages");
+  url.searchParams.set("safeSearch", "Moderate");
+  url.searchParams.set("count", "5");
+
+  const res = await fetchWithTimeout(url.toString(), {
+    headers: { "Ocp-Apim-Subscription-Key": BING_API_KEY }
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(()=> "");
+    throw new Error(`Bing hiba: ${res.status} ${txt}`);
+  }
+  const data = await res.json();
+
+  const items = data.webPages?.value || [];
+  const top = items.slice(0, 3).map(it => ({
+    name: it.name,
+    url: it.url,
+    snippet: it.snippet
+  }));
+
+  // Rövid kivonat az LLM-nek
+  const summary = top.map((t,i)=>`[${i+1}] ${t.name}\n${t.url}\n${t.snippet}`).join("\n\n");
+  const sourceLine = top.map(t => {
+    try { return new URL(t.url).hostname.replace(/^www\./, ""); }
+    catch { return "Bing"; }
+  });
+
+  return { summary, sources: Array.from(new Set(sourceLine)).slice(0,3) };
+}
+
+// --- Netlify handler ---
+exports.handler = async (event) => {
+  // CORS (ha kell)
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Methods": "POST, OPTIONS"
+      },
+      body: ""
+    };
+  }
+
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, body: "Csak POST." };
+  }
+
+  try {
+    if (!OPENAI_API_KEY) throw new Error("Hiányzik az OPENAI_API_KEY (Netlify env).");
+
+    const { message } = JSON.parse(event.body || "{}");
+    if (!message || typeof message !== "string") {
+      return { statusCode: 400, body: JSON.stringify({ error: "Adj meg egy kérdést (message)." }) };
+    }
+
+    // Döntés: kell-e web?
+    let webContext = "";
+    let sources = [];
+
+    if (isFreshnessQuery(message)) {
+      try {
+        const { summary, sources: srcs } = await bingSearch(message);
+        webContext = summary;
+        sources = srcs;
+      } catch (e) {
+        // Ha Bing nem megy, megyünk tovább net nélkül
+        console.warn("Bing hiba:", e.message);
+      }
+    }
+
+    const reply = await askOpenAI(message, webContext);
+
+    // Forrás sor, ha volt Bing
+    const withSource = sources.length
+      ? `${reply}\n\nForrás: ${sources.join(", ")}`
+      : reply;
+
+    return {
+      statusCode: 200,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: JSON.stringify({ reply: withSource })
+    };
+
+  } catch (err) {
+    console.error(err);
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify({
+        reply: "Hopp, valami hiba történt. Próbáld újra egy kicsit pontosabban megfogalmazva, vagy kérj másik témában segítséget. 🙂"
+      })
+    };
+  }
+};
