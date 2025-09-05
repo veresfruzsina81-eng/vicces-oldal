@@ -1,5 +1,6 @@
 // netlify/functions/chat.js
-// SAFE MODE: nincs oldal-letöltés → nincs 502. Válasz a Google találatok (cím + snippet) alapján.
+// SAFE MODE v2: nincs oldalletöltés (nincs 502), de a Google találatokból BŐ kivonatot adunk a modellnek,
+// hogy tényleg érdemi, konkrét választ adjon. + 1× "Források" blokk.
 
 import OpenAI from "openai";
 
@@ -13,25 +14,28 @@ export async function handler(event) {
     const question = (message || "").trim();
     if (!question) return json({ error: "Üres üzenet." }, 400);
 
-    // 1) Keresési terv
+    // 1) keresési terv
     const plan = buildQueryPlan(question);
 
-    // 2) Google keresés(ek) → egyesítés + URL-szűrés
+    // 2) Google keresések → egyesítés + URL-szűrés
     let raw = [];
     for (const q of plan.queries) raw.push(...await googleSearch(q, plan.numPerQuery));
-    raw = raw.filter(it => isValidHttpUrl(it?.link)); // masszív szűrés
+    raw = raw.filter(it => isValidHttpUrl(it?.link));
 
-    // 3) Súlyozás + deduplikálás
+    // 3) rangsorolás + dedup
     const ranked = rankAndFilter(raw, plan.maxKeep);
 
-    // 4) Grounded válasz a TALÁLATOKBÓL (csak cím + snippet). Nincs HTML fetch → nincs 502.
+    // 4) Prompt építés: NAGY kivonat a találatokból
     const today = new Date().toISOString().slice(0, 10);
+
     const sys =
       "Te Tamás barátságos magyar asszisztensed vagy. " +
-      "KIZÁRÓLAG az alább megadott találatok (cím + rövid leírás) tartalmából dolgozz; ne találj ki új tényeket. " +
-      "Ha a találatok nem tartalmazzák a választ, mondd ki, hogy jelenleg nem publikus / nem található. " +
-      "Adj magyarul tömör, de informatív választ. NE írj külön 'Források' blokkot – azt a rendszer teszi hozzá.";
-    const user = buildPromptFromSnippets({ question, today, items: ranked, intent: plan.intent });
+      "KIZÁRÓLAG az alább megadott találatokból (cím + rövid leírások) dolgozz; ne találj ki új tényeket. " +
+      "Adj magyarul tömör, de informatív választ, ami közvetlenül megválaszolja a kérdést. " +
+      "Soha ne írj olyan válaszokat, mint 'rendben', 'gondolkodom', 'nem tudok böngészni'. " +
+      "NE írj 'Források' blokkot – azt a rendszer teszi hozzá.";
+
+    const user = buildPromptFromSnippetsRich({ question, today, items: ranked, intent: plan.intent });
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -46,7 +50,7 @@ export async function handler(event) {
       completion.choices?.[0]?.message?.content?.trim() ||
       "Sajnálom, most nem találtam megbízható információt a megadott találatokban.";
 
-    // 5) Egyszeri, deduplikált Források
+    // 5) Egyszeri, deduplikált Források blokk
     const sourcesBlock = renderSources(ranked);
 
     return json({
@@ -60,7 +64,7 @@ export async function handler(event) {
   }
 }
 
-/* ================= Helpers ================= */
+/* ============= helpers ============= */
 
 function cors() {
   return {
@@ -84,7 +88,7 @@ function isValidHttpUrl(u) {
   catch { return false; }
 }
 
-/* ---- Keresési terv ---- */
+/* ---- keresési terv ---- */
 function buildQueryPlan(question) {
   const q = question.toLowerCase();
   const queries = [question];
@@ -98,17 +102,17 @@ function buildQueryPlan(question) {
   if (/\bárfolyam|eur(huf|huf)|euró árfolyam\b/i.test(q)) intent = "fx";
   if (/\bidőjárás|meteo|előrejelzés\b/i.test(q)) intent = "weather";
 
-  return { intent, queries: [...new Set(queries)], numPerQuery: 8, maxKeep: 18 };
+  return { intent, queries: [...new Set(queries)], numPerQuery: 10, maxKeep: 20 };
 }
 
-/* ---- Domain-súlyozás ---- */
+/* ---- domain súlyozás ---- */
 const DOMAIN_SCORE = {
   "rtl.hu": 10, "24.hu": 9, "index.hu": 9, "telex.hu": 9, "hvg.hu": 9,
   "nemzetisport.hu": 8, "nso.hu": 8, "portfolio.hu": 9, "sportal.hu": 7,
   "blikk.hu": 7, "origo.hu": 7, "port.hu": 7, "nlc.hu": 7, "femina.hu": 6, "life.hu": 6
 };
 
-function rankAndFilter(items, maxKeep = 18) {
+function rankAndFilter(items, maxKeep = 20) {
   const seen = new Set();
   const out = [];
   for (const it of items || []) {
@@ -118,15 +122,17 @@ function rankAndFilter(items, maxKeep = 18) {
     seen.add(lk);
     const h = host(lk);
     const base = DOMAIN_SCORE[h] || (h.endsWith(".hu") ? 6 : 3);
-    const bonus = it.title?.toLowerCase().includes("résztvev") ? 2 : 0;
+    const bonus =
+      (it.title?.toLowerCase().includes("résztvev") ? 2 : 0) +
+      (it.title?.toLowerCase().includes("lista") ? 1 : 0);
     out.push({ ...it, _score: base + bonus });
   }
   out.sort((a, b) => b._score - a._score);
   return out.slice(0, maxKeep);
 }
 
-/* ---- Google keresés (csak tiszta http/https linkek) ---- */
-async function googleSearch(q, num = 8) {
+/* ---- Google keresés ---- */
+async function googleSearch(q, num = 10) {
   const key = process.env.GOOGLE_API_KEY;
   const cx = process.env.GOOGLE_CX;
   if (!key || !cx) return [];
@@ -144,39 +150,53 @@ async function googleSearch(q, num = 8) {
   if (!res.ok) return [];
   const data = await res.json();
   return (data.items || [])
-    .map(it => ({ title: it.title, snippet: it.snippet, link: it.link }))
+    .map(it => ({
+      title: it.title,
+      snippet: (it.snippet || "").replace(/\s+/g, " ").trim(),
+      link: it.link
+    }))
     .filter(it => isValidHttpUrl(it.link));
 }
 
-/* ---- Prompt a snippets alapú válaszhoz ---- */
-function buildPromptFromSnippets({ question, today, items, intent }) {
-  const blocks = items.slice(0, 10).map((p, i) => `### Találat ${i + 1}
+/* ---- Prompt a gazdag snippet-összefoglalóhoz ---- */
+function buildPromptFromSnippetsRich({ question, today, items, intent }) {
+  // nagy, egybefűzött kivonat: címek + hosszabb snippet-blokk
+  const top = items.slice(0, 12);
+  const combined = top.map((p, i) =>
+    `# Cikk ${i + 1}
 Cím: ${p.title}
 Link: ${p.link}
-Rövid leírás: ${p.snippet}
-`).join("\n");
+Kivonat: ${p.snippet}`
+  ).join("\n\n");
 
   let extra = "";
   if (intent === "starbox") {
     extra =
-      "Ha a találatok említenek résztvevőket, adj listát: • Név — 1 rövid ismertető — [HIVATALOS/PLETYKA], " +
-      "és jelezd röviden, melyik találatban szerepel. Ha nincs hivatalos lista, mondd ki.";
+      "Feladat: ha a fenti kivonatok alapján szerepelnek résztvevők, adj jól olvasható listát: " +
+      "• Név — 1 rövid ismertető (miért ismert) — [HIVATALOS/PLETYKA]. " +
+      "Ha nincs hivatalos lista, mondd ki egyértelműen.";
   } else if (intent === "fx") {
-    extra = "Ha szerepel konkrét árfolyam-érték a találatokban, írd le röviden (pl. 'EUR/HUF ~395'), és jelezd, hogy változhat.";
+    extra =
+      "Feladat: ha szerepel konkrét árfolyam-érték, írd ki röviden (pl. 'EUR/HUF ~395'), és jelezd, hogy változhat.";
   } else if (intent === "weather") {
-    extra = "Adj 1–2 mondatos időjárás-összefoglalót, ha a találatok erre elég információt adnak.";
+    extra =
+      "Feladat: adj 1–2 mondatos időjárás-összefoglalót (hely, nap, hőmérséklet, csapadék), ha a kivonatok alapján megítélhető.";
   }
+
+  const instructions =
+    "Válaszolj közvetlenül a kérdésre. Ne legyen üres vagy semmitmondó ('rendben', 'gondolkodom'). " +
+    "Használj konkrétumokat: neveket, dátumokat, számokat, ha a kivonatokban szerepelnek.";
 
   return [
     `Dátum: ${today}`,
     `Kérdés: ${question}`,
+    instructions,
     extra,
-    "Válasz: tömör, de informatív magyar összefoglaló. NE írj külön 'Források' listát.",
-    "\n--- Találatok ---\n" + blocks
+    "\n--- KIVONATOK KEZDETE ---\n" + combined + "\n--- KIVONATOK VÉGE ---"
   ].join("\n");
 }
 
-/* ---- Forrásblokk ---- */
+/* ---- Források blokk ---- */
 function renderSources(results, limit = 5) {
   const uniq = uniqueByDomain(results, limit);
   if (!uniq.length) return "";
