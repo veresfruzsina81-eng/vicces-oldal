@@ -284,13 +284,13 @@
 async function sendMessage() {
   const userMessage = document.getElementById("input").value;
 
-  const res = await fetch("/.netlify/functions/chat", {
+  const res = await 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message: userMessage })
   });
 
-  const data = await res.json();
+  const data = await res.json();fetch("./.netlify/functions/chat", { ... })
   document.getElementById("output").innerText = data.reply;
 }
 </script>
