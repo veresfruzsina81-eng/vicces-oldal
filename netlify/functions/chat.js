@@ -1,5 +1,5 @@
 // netlify/functions/chat.js
-// Böngészős, forrás-alapú válaszoló – HU híroldal preferencia, deduplikált "Források" blokk
+// Böngészős, forrás-alapú válaszoló – HU híroldal preferencia, dátum/idézet, deduplikált "Források"
 
 import OpenAI from "openai";
 import cheerio from "cheerio";
@@ -20,23 +20,21 @@ export async function handler(event) {
 
     // 2) Google keresés(ek) -> egyesítés, domain-súlyozás, dedup
     const rawResults = [];
-    for (const q of plan.queries) {
-      const r = await googleSearch(q, plan.numPerQuery);
-      rawResults.push(...r);
-    }
-    const results = rankAndFilter(rawResults, plan.maxKeep);
+    for (const q of plan.queries) rawResults.push(...await googleSearch(q, plan.numPerQuery));
+    const ranked = rankAndFilter(rawResults, plan.maxKeep);
 
-    // 3) Oldalak letöltése + főszöveg kinyerése (párhuzamosan, limitált)
-    const pages = await fetchAndExtract(results.slice(0, plan.fetchLimit));
+    // 3) Oldalak letöltése + főszöveg, meta, dátum (párhuzamosan)
+    const pages = await fetchAndExtract(ranked.slice(0, plan.fetchLimit));
 
     // 4) Grounded válasz az összegyűjtött szövegekből (nincs hallu)
     const today = new Date().toISOString().slice(0, 10);
 
     const sys =
       "Te Tamás barátságos magyar asszisztensed vagy. " +
-      "Mindig csak a megadott források tartalmából válaszolj; ne találj ki új tényeket. " +
-      "Ha a források nem tartalmazzák a választ, mondd ki világosan, hogy jelenleg nem publikus / nem található. " +
-      "Adj tömör, pontos, de informatív választ magyarul. NE írj 'Források:' blokkot – azt a rendszer teszi hozzá.";
+      "KIZÁRÓLAG a megadott források tartalmából dolgozz; ne találj ki új tényeket. " +
+      "Ha a források nem tartalmazzák a választ, mondd ki, hogy jelenleg nem publikus / nem található. " +
+      "Adj magyarul tömör, de informatív választ. NE írj külön 'Források' blokkot – azt a rendszer teszi hozzá. " +
+      "Ha több forrás eltér, jelezd röviden az ellentmondást.";
 
     const user = buildGroundedPrompt({ question, today, pages, intent: plan.intent });
 
@@ -54,14 +52,14 @@ export async function handler(event) {
       "Sajnálom, most nem találtam megbízható információt a megadott forrásokban.";
 
     // 5) Egyszeri, deduplikált „Források” blokk (domain szerint)
-    const sourcesBlock = renderSources(results);
+    const sourcesBlock = renderSources(ranked);
 
     return json({
       ok: true,
       question,
       answer: modelAnswer + sourcesBlock,
       meta: {
-        searchResults: results.length,
+        searchResults: ranked.length,
         fetchedPages: pages.length,
         intent: plan.intent
       }
@@ -92,18 +90,13 @@ const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } 
 function buildQueryPlan(question) {
   const q = question.toLowerCase();
   const queries = [question];
-
-  // Tipikus magyar kifejezések, amik javítják a találatokat
   const add = (...xs) => xs.forEach((x) => queries.push(`${question} ${x}`));
 
-  // Sztárbox / résztvevők eset
   let intent = "generic";
   if (/\bsztárbox\b|sztarbox|sztár box/i.test(q)) {
     intent = "starbox";
-    add("résztvevők", "nevek", "versenyzők", "teljes névsor", "lineup", "2025");
+    add("résztvevők", "nevek", "versenyzők", "teljes névsor", "lineup", "hivatalos", "2025");
   }
-
-  // Árfolyam / időjárás stb. – bővíthető később
   if (/\bárfolyam|eur(huf|huf)|euró árfolyam\b/i.test(q)) intent = "fx";
   if (/\bidőjárás|meteo|előrejelzés\b/i.test(q)) intent = "weather";
 
@@ -139,7 +132,6 @@ function rankAndFilter(items, maxKeep = 18) {
     scored.push({ ...it, _score: score });
   }
 
-  // Legjobb elöl
   scored.sort((a, b) => b._score - a._score);
   return scored.slice(0, maxKeep);
 }
@@ -169,23 +161,56 @@ async function googleSearch(q, num = 8) {
 
 async function fetchAndExtract(results) {
   const limit = pLimit(3);
-  const tasks = results.map(r => limit(async () => {
-    try {
-      const res = await fetch(r.link, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; TamasAI/1.0)",
-          "Accept-Language": "hu-HU,hu;q=0.9"
-        },
-        redirect: "follow"
-      });
-      const ct = res.headers.get("content-type") || "";
-      if (!ct.includes("text/html")) return null;
-      const html = await res.text();
-      const text = extractMainText(html);
-      return { ...r, text: truncate(text, 7000) };
-    } catch { return null; }
-  }));
+  const tasks = results.map(r =>
+    limit(async () => {
+      try {
+        // Guard: csak valódi http(s) URL-ek
+        if (!r.link || !/^https?:\/\//i.test(r.link)) return null;
+
+        const res = await fetch(r.link, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; TamasAI/1.0)",
+            "Accept-Language": "hu-HU,hu;q=0.9"
+          },
+          redirect: "follow"
+        });
+        const ct = res.headers.get("content-type") || "";
+        if (!ct.includes("text/html")) return null;
+        const html = await res.text();
+        const meta = extractMeta(html);
+        const text = extractMainText(html);
+        return { ...r, text: truncate(text, 7000), ...meta };
+      } catch { return null; }
+    })
+  );
   return (await Promise.all(tasks)).filter(Boolean);
+}
+
+function extractMeta(html) {
+  const $ = cheerio.load(html);
+  const pick = (sel, attr) => $(sel).attr(attr) || "";
+
+  // Cím/desc
+  const title =
+    $("meta[property='og:title']").attr("content") ||
+    $("meta[name='twitter:title']").attr("content") ||
+    $("title").text() ||
+    "";
+
+  const description =
+    $("meta[name='description']").attr("content") ||
+    $("meta[property='og:description']").attr("content") ||
+    "";
+
+  // Dátum (minél pontosabb)
+  const published =
+    $("meta[property='article:published_time']").attr("content") ||
+    $("meta[name='article:published_time']").attr("content") ||
+    $("time[datetime]").attr("datetime") ||
+    $("meta[itemprop='datePublished']").attr("content") ||
+    "";
+
+  return { metaTitle: (title || "").trim(), metaDescription: (description || "").trim(), publishedAt: (published || "").trim() };
 }
 
 function extractMainText(html) {
@@ -201,27 +226,38 @@ function extractMainText(html) {
 const truncate = (s, n) => (s && s.length > n ? s.slice(0, n) + "…" : s);
 
 function buildGroundedPrompt({ question, today, pages, intent }) {
-  const blocks = pages.map((p, i) =>
-    `### Forrás ${i + 1}\nCím: ${p.title}\nLink: ${p.link}\nSzöveg:\n${p.text}\n`
-  ).join("\n");
+  // Maximum 6 forrás blokk rövidített kivonattal + meta/dátum
+  const blocks = pages.map((p, i) => {
+    const head = `### Forrás ${i + 1}
+Cím: ${p.metaTitle || p.title || ""}
+Dátum: ${p.publishedAt || "ismeretlen"}
+Link: ${p.link}
+Rövid leírás: ${p.metaDescription || p.snippet || ""}
+Részlet a cikkből:
+${(p.text || "").slice(0, 1200)}
+`;
+    return head;
+  }).join("\n");
 
-  // Intent-specifikus instrukció (pl. Sztárboxnál névsor)
+  // Intent-specifikus kérés a válasz szerkezetére
   let extra = "";
   if (intent === "starbox") {
     extra =
-      "Ha a források alapján ismert a Sztárbox adott évadának résztvevőlistája, sorold fel a NEVEKET felsorolásban. " +
-      "Ha csak pletyka vagy nincs hivatalos lista, ezt mondd ki egyértelműen.";
+      "Feladat: Ha a forrásokban szerepelnek a résztvevők, adj listát: " +
+      "• Név — 1 rövid ismertető (miért ismert) — [HIVATALOS/PLETYKA], és ha kiderül, melyik forrásból származik (pl. 'RTL.hu cikk, 2025-06-01'). " +
+      "Ha nincs teljes névsor vagy csak pletykák vannak, mondd ki egyértelműen.";
   } else if (intent === "fx") {
-    extra =
-      "Ha árfolyamról szólnak a források, adj egy rövid aktuális értéket (ha szerepel), és jelezd, hogy változhat.";
+    extra = "Feladat: Ha szerepel konkrét árfolyam-érték, írd le röviden (pl. 'EUR/HUF ~395 ma'), és jelezd, hogy az érték változhat.";
+  } else if (intent === "weather") {
+    extra = "Feladat: Adj 1-2 mondatos időjárás-összefoglalót (hely, nap, hőmérséklet, csapadék), ha a források tartalmazzák.";
   }
 
   return [
     `Dátum: ${today}`,
     `Kérdés: ${question}`,
     extra,
-    "Válasz: rövid, pontos, forrásokon alapuló összefoglaló magyarul.",
-    "\n--- Források (teljes szövegek) ---\n" + blocks
+    "Válasz: tömör, de informatív magyar összefoglaló. NE írj külön 'Források' listát.",
+    "\n--- Forráskivonatok ---\n" + blocks
   ].join("\n");
 }
 
