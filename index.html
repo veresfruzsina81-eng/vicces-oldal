@@ -19,6 +19,7 @@
       display:flex; flex-direction:column; align-items:center; justify-content:center;
       position:relative; height:100svh; touch-action:manipulation; -webkit-text-size-adjust:100%;
     }
+    /* stabil háttér */
     body::before{
       content:""; position:fixed; inset:0; z-index:-1;
       background: radial-gradient(rgba(0,0,0,.58), rgba(0,0,0,.58)),
@@ -56,6 +57,7 @@
     .user .bubble{background:var(--bubbleUser); color:#1f1200}
     .info .bubble{background:var(--bubbleInfo); color:var(--muted)}
 
+    /* képek a buborékban */
     .chatlog img{ max-width:55%; border-radius:12px; display:block; margin:8px auto; }
 
     /* kis hang ikon a bot válasz alatt */
@@ -113,108 +115,126 @@
       <div class="input">
         <input id="txt" autocomplete="off"
                placeholder="Írj ide…   Enter = küldés, Shift+Enter = új sor" />
-        <input id="imgInput" type="file" accept="image/*" style="display:none">
-        <label for="imgInput" class="icon-btn" title="Kép feltöltés">📷</label>
+        <!-- rejtett file input + label ikon -->
+        <input id="imgInput" type="file" accept="image/*"
+               style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none">
+        <label for="imgInput" class="icon-btn" id="uploadLabel" title="Kép feltöltés">📷</label>
       </div>
-      <button class="send" id="sendBtn">Küldés</button>
+      <button class="send" id="sendBtn" type="button">Küldés</button>
     </div>
   </section>
 
   <footer>© Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.</footer>
 
   <script>
-    const log = document.getElementById('log');
-    const txt = document.getElementById('txt');
-    const sendBtn = document.getElementById('sendBtn');
-    const imgInput = document.getElementById('imgInput');
+    window.addEventListener('DOMContentLoaded', () => {
+      const log = document.getElementById('log');
+      const txt = document.getElementById('txt');
+      const sendBtn = document.getElementById('sendBtn');
+      const imgInput = document.getElementById('imgInput');
+      const uploadLabel = document.getElementById('uploadLabel');
 
-    function speakHu(text){
-      try{
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'hu-HU'; u.rate = 1; u.pitch = 1;
-        speechSynthesis.speak(u);
-      }catch(e){}
-    }
-
-    function addRow(kind, html){
-      const r=document.createElement('div'); r.className='row '+kind;
-      const b=document.createElement('div'); b.className='bubble';
-      b.innerHTML=html; r.appendChild(b); log.appendChild(r);
-
-      // ha bot válasz, tegyünk alá egy kis hang ikont
-      if(kind === 'bot'){
-        const tts = document.createElement('button');
-        tts.className = 'tts-btn';
-        tts.textContent = '🔊';
-        tts.title = 'Felolvasás';
-        tts.addEventListener('click', ()=> speakHu(b.textContent));
-        r.appendChild(tts);
+      function speakHu(text){
+        try{
+          speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'hu-HU'; u.rate = 1; u.pitch = 1;
+          speechSynthesis.speak(u);
+        }catch(e){}
       }
 
-      log.scrollTop=log.scrollHeight;
-      return r;
-    }
+      function addRow(kind, html){
+        const r=document.createElement('div'); r.className='row '+kind;
+        const b=document.createElement('div'); b.className='bubble';
+        b.innerHTML=html; r.appendChild(b); log.appendChild(r);
 
-    async function compressToDataURL(file, maxW=1280, quality=0.85){
-      const fr = new FileReader();
-      const dataURL = await new Promise((res,rej)=>{ fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); });
-      const img = new Image(); img.src = dataURL;
-      await new Promise(r=>img.onload=r);
-      const scale = Math.min(1, maxW/img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(img.width*scale);
-      canvas.height = Math.round(img.height*scale);
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img,0,0,canvas.width,canvas.height);
-      return canvas.toDataURL('image/jpeg', quality);
-    }
+        if(kind === 'bot'){
+          const tts = document.createElement('button');
+          tts.className = 'tts-btn';
+          tts.textContent = '🔊';
+          tts.title = 'Felolvasás';
+          tts.addEventListener('click', ()=> speakHu(b.textContent));
+          r.appendChild(tts);
+        }
 
-    async function callServer(message, imageBase64){
-      const r = await fetch('/.netlify/functions/chat',{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ message, image: imageBase64 })
-      });
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      return r.json();
-    }
-
-    async function ask(text){
-      const message = (text ?? txt.value || '').trim();
-      if(!message) return;
-      addRow('user', message);
-      txt.value='';
-      const think = addRow('bot','<i>Gondolkodom…</i>');
-      try{
-        const data = await callServer(message, null);
-        think.remove();
-        addRow('bot', (data.reply||'').trim() || 'Rendben. 🙂');
-      }catch(e){
-        think.remove();
-        addRow('bot','Hiba történt. Próbáld újra kicsit később. 🙂');
+        log.scrollTop=log.scrollHeight;
+        return r;
       }
-    }
 
-    sendBtn.addEventListener('click', ()=>ask());
-    txt.addEventListener('keydown', e=>{
-      if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ask(); }
-    });
+      async function compressToDataURL(file, maxW=1280, quality=0.85){
+        const fr = new FileReader();
+        const dataURL = await new Promise((res,rej)=>{ fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); });
+        const img = new Image(); img.src = dataURL;
+        await new Promise(r=>img.onload=r);
+        const scale = Math.min(1, maxW/img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width*scale);
+        canvas.height = Math.round(img.height*scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        return canvas.toDataURL('image/jpeg', quality);
+      }
 
-    imgInput.addEventListener('change', async ()=>{
-      const file = imgInput.files && imgInput.files[0];
-      if(!file) return;
-      try{
-        const b64 = await compressToDataURL(file);
-        addRow('user', `<img src="${b64}" alt="Feltöltött kép">`);
+      async function callServer(message, imageBase64){
+        const r = await fetch('/.netlify/functions/chat',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ message, image: imageBase64 })
+        });
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        return r.json();
+      }
+
+      async function ask(text){
+        const message = (text ?? txt.value || '').trim();
+        if(!message){
+          // vizuális visszajelzés, ha üres
+          txt.placeholder = "Írj valamit előbb 🙂";
+          txt.focus();
+          return;
+        }
+        addRow('user', message);
+        txt.value='';
         const think = addRow('bot','<i>Gondolkodom…</i>');
-        const data = await callServer('', b64);
-        think.remove();
-        addRow('bot', (data.reply||'').trim() || 'Szép kép! 🙂');
-      }catch(e){
-        addRow('bot','Nem sikerült feldolgozni a képet. Próbáld meg kisebb fájllal. 📷');
-      }finally{
-        imgInput.value = '';
+        try{
+          const data = await callServer(message, null);
+          think.remove();
+          addRow('bot', (data.reply||'').trim() || 'Rendben. 🙂');
+        }catch(e){
+          think.remove();
+          addRow('bot','Hiba történt. (Lehet, hogy a Netlify-függvény nem érhető el.)');
+        }
       }
+
+      // --- eseménykötések (most már biztosan léteznek az elemek) ---
+      if(sendBtn) sendBtn.addEventListener('click', ()=>ask());
+      if(txt) txt.addEventListener('keydown', e=>{
+        if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ask(); }
+      });
+
+      // a label mellett JS-ből is meghívjuk — mobilon ez segít
+      if(uploadLabel) uploadLabel.addEventListener('click', (e)=>{
+        e.preventDefault();
+        if(imgInput) imgInput.click();
+      });
+
+      if(imgInput) imgInput.addEventListener('change', async ()=>{
+        const file = imgInput.files && imgInput.files[0];
+        if(!file) return;
+        try{
+          const b64 = await compressToDataURL(file);
+          addRow('user', `<img src="${b64}" alt="Feltöltött kép">`);
+          const think = addRow('bot','<i>Gondolkodom…</i>');
+          const data = await callServer('', b64);
+          think.remove();
+          addRow('bot', (data.reply||'').trim() || 'Szép kép! 🙂');
+        }catch(e){
+          addRow('bot','Nem sikerült feldolgozni a képet. Lehet túl nagy a fájl? 📷');
+        }finally{
+          imgInput.value = '';
+        }
+      });
+
+      // kezdő üzenet már bent van a HTML-ben
     });
   </script>
 </body>
