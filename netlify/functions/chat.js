@@ -1,6 +1,6 @@
 // netlify/functions/chat.js
-// Hibrid asszisztens (belső tudás → AI-only → friss adatnál API/böngészés).
-// Rövid válasz (max 2 mondat), max 1 forráslink. DEBUG logokkal.
+// Hibrid asszisztens: (1) belső tudás, (2) AI-only, (3) friss adatnál API/böngészés.
+// Rövid válasz (max 2 mondat), max 1 forráslink. DEBUG logokkal. SAFE (nincs HTML-letöltés).
 
 import OpenAI from "openai";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -32,13 +32,12 @@ export async function handler(event) {
       return json({
         ok: true,
         question,
-        answer:
-          "Az oldalt Horváth Tamás (Szabolcsbáka) készítette, haladó programozó. Ha technikai kérdésed van az oldalról, írd meg nyugodtan.",
+        answer: "Az oldalt Horváth Tamás (Szabolcsbáka) készítette, haladó programozó. Ha technikai kérdésed van az oldalról, írd meg nyugodtan.",
         meta: { intent: "owner" }
       });
     }
 
-    // 2) Intent felismerés
+    // 2) Intent felismerés (szigorított)
     const intent = detectIntent(question);
     console.log("[chat] detected intent:", intent);
 
@@ -64,7 +63,8 @@ export async function handler(event) {
         console.log("[chat] weather result:", wx);
         if (wx && wx.name) {
           const answer =
-            `${wx.name} ${wx.dateLabel}: ${Math.round(wx.tMin)}–${Math.round(wx.tMax)}°C${wx.pop != null ? `, csapadék esély ~${wx.pop}%` : ""}. ` +
+            `${wx.name} ${wx.dateLabel}: ${Math.round(wx.tMin)}–${Math.round(wx.tMax)}°C` +
+            `${wx.pop != null ? `, csapadék esély ~${wx.pop}%` : ""}. ` +
             `Az előrejelzés rendszeresen frissül.\n\n` +
             `Forrás: open-meteo.com\n${wx.sourceUrl}`;
           return json({ ok: true, question, answer, meta: { intent } });
@@ -74,7 +74,7 @@ export async function handler(event) {
       }
     }
 
-    // 4) SAFE böngészés (hírek/jelen idejű kérdések) – max 1 link
+    // 4) SAFE böngészés (hírek/jelen idejű kérdések) – 1 link, RTL preferencia
     if (intent === "news") {
       try {
         const best = await safeSearchBest(question);
@@ -142,12 +142,20 @@ async function ask(messages) {
   return r.choices?.[0]?.message?.content?.trim() || "";
 }
 
-/* ============== Intent ============== */
+/* ============== Intent (javított) ============== */
 function detectIntent(q) {
   const s = q.toLowerCase();
-  if (/\bárfolyam|eur(huf|huf)|euró árfolyam|usd huf|usd to huf|eur to huf\b/.test(s)) return "fx";
-  if (/\bidőjárás|meteo|előrejelzés|weather|hőmérséklet|holnap|ma\b/.test(s)) return "weather";
-  if (/\bsztárbox|sztarbox|sztár box|hír|breaking|legfrissebb|mi történt|résztvevők|névsor|versenyzők|2025\b/.test(s)) return "news";
+
+  // FX – sok minta, ne zavarjon be a "ma/holnap"
+  if (/\b(árfolyam|euro|euró|eur|usd|gbp|chf|pln|ron|huf)\b.*\b(árfolyam|to|->|\/|huf|forint)\b/.test(s)
+      || /\b(eur\/huf|usd\/huf|gbp\/huf|chf\/huf|pln\/huf|ron\/huf)\b/.test(s)) return "fx";
+
+  // Weather – csak explicit időjárás szavak
+  if (/\b(időjárás|meteo|előrejelzés|weather|hőmérséklet)\b/.test(s)) return "weather";
+
+  // Hírek / RTL / Sztárbox
+  if (/\b(rtl|sztárbox|sztarbox|sztár box|hír|breaking|legfrissebb|mi történt|résztvevők|névsor|versenyzők|2025)\b/.test(s)) return "news";
+
   return "generic";
 }
 
@@ -195,22 +203,28 @@ async function safeSearchBest(question) {
     console.log("[chat] googleSearch items:", items.length);
     if (!items.length) return null;
 
+    const preferRtl = /(^|\s)rtl(\s|\.|$)/i.test(question) || /sztárbox|sztarbox/i.test(question);
     const yearStr = String(new Date().getFullYear());
-    const scoreDomain = (h) => ({
-      "rtl.hu": 10, "24.hu": 9, "index.hu": 9, "telex.hu": 9, "hvg.hu": 9,
-      "nemzetisport.hu": 8, "nso.hu": 8, "portfolio.hu": 9, "sportal.hu": 7,
-      "blikk.hu": 6, "origo.hu": 6, "port.hu": 6, "nlc.hu": 6
-    }[h] || (h.endsWith(".hu") ? 5 : 3));
+
+    const scoreDomain = (h) => {
+      const base = {
+        "rtl.hu": 10, "24.hu": 9, "index.hu": 9, "telex.hu": 9, "hvg.hu": 9,
+        "portfolio.hu": 9, "nemzetisport.hu": 8, "nso.hu": 8
+      }[h] || (h.endsWith(".hu") ? 5 : 3);
+      return base;
+    };
 
     let best = null, bestScore = -1;
     for (const it of items) {
       const h = hostname(it.link);
       let s = scoreDomain(h);
       const urlLower = it.link.toLowerCase();
-      if (urlLower.includes(yearStr)) s += 2;
-      if (/\b2023\b|\b2024\b/.test(urlLower)) s -= 2;
+      if (urlLower.includes(yearStr)) s += 2;           // idei év bónusz
+      if (/\b2023\b|\b2024\b/.test(urlLower)) s -= 2;   // régi mínusz
+      if (preferRtl && h === "rtl.hu") s += 5;          // RTL preferencia
       if (it.title.toLowerCase().includes("hivatalos")) s += 1;
-      if (/facebook\.com|forum|hoxa|reddit|blogspot|wordpress/i.test(h)) s -= 3;
+      if (/facebook\.com|hoxa|reddit|blogspot|wordpress/i.test(h)) s -= 4;
+
       if (s > bestScore) { best = it; bestScore = s; }
     }
     return best || items[0];
@@ -236,9 +250,15 @@ async function answerFromSnippet(question, title, snippet) {
 /* ============== FX (Frankfurter API) ============== */
 async function getFxRate(q) {
   try {
-    const m = q.toUpperCase().match(/([A-Z]{3})\s*\/?\s*([A-Z]{3})/);
+    const S = q.toUpperCase().replace(/[.,]/g, " ");
     let from = "EUR", to = "HUF";
-    if (m) { from = m[1]; to = m[2]; }
+
+    const mPair  = S.match(/\b([A-Z]{3})\s*\/\s*([A-Z]{3})\b/);
+    const mWords = S.match(/\b(EUR|USD|GBP|CHF|PLN|RON)\b.*\b(HUF|EUR|USD|GBP|CHF|PLN|RON)\b/);
+
+    if (mPair) { from = mPair[1]; to = mPair[2]; }
+    else if (mWords && mWords[1] !== mWords[2]) { from = mWords[1]; to = mWords[2]; }
+    else if (/eur|euro|euró/i.test(q) && /huf|forint/i.test(q)) { from = "EUR"; to = "HUF"; }
 
     const url = new URL("https://api.frankfurter.app/latest");
     url.searchParams.set("from", from);
