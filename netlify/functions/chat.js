@@ -22,7 +22,7 @@ function needsSearch(q) {
 }
 
 // --- OpenAI hívás (GPT-5)
-async function askOpenAI({ system, user, temperature = 0 }) {
+async function askOpenAI({ system, user, temperature = 1 }) {
   const resp = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -104,7 +104,7 @@ export const handler = async (event) => {
           `Google találatok:\n` +
           JSON.stringify(searchData?.results ?? [], null, 2);
 
-        const summary = await askOpenAI({ system, user, temperature: 0.2 });
+        const summary = await askOpenAI({ system, user, temperature: 1 });
 
         return {
           statusCode: 200,
@@ -136,7 +136,7 @@ export const handler = async (event) => {
     // --- Egyébként: tisztán GPT-5
     const system =
       "Te egy magyar AI asszisztens vagy. Légy barátságos, tömör és lényegre törő.";
-    const answer = await askOpenAI({ system, user: message, temperature: 0.5 });
+    const answer = await askOpenAI({ system, user: message, temperature: 1 });
 
     return {
       statusCode: 200,
