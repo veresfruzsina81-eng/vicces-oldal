@@ -1,8 +1,10 @@
 // netlify/functions/chat.js
-const fetch = require("node-fetch");
+
+// Netlify Node 18+ alatt a fetch globálisan elérhető, nem kell a node-fetch
+// const fetch = require("node-fetch");
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_MODEL   = process.env.OPENAI_MODEL || "gpt-4o-mini"; // ha van hozzáférésed más modellhez, ide írd
+const OPENAI_MODEL   = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 // Eldönti, érdemes-e weben keresni
 function wantsWebSearch(text) {
@@ -21,6 +23,10 @@ function wantsWebSearch(text) {
   return /(\?|mi |mikor |hol |mennyi |hogyan|hogy )/.test(q);
 }
 
+function host(u) {
+  try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return json(405, { error: "Csak POST kérés engedélyezett." });
@@ -31,7 +37,7 @@ exports.handler = async (event) => {
     const userMsg = (message || "").trim();
     if (!userMsg) return json(400, { error: "Kérlek, adj meg egy üzenetet (message)." });
 
-    // „van neted?” típusú kérdésekre röviden
+    // „van neted?” jellegű kérdésekre röviden
     if (/van.*internet(ed)?|tudsz.*böngészni|böngészel\??/i.test(userMsg)) {
       return json(200, {
         reply: "Igen – tudok Google-lel keresni. Írj konkrét kérdést (pl. „euró árfolyam ma”, „időjárás Budapest holnap”), és hozok forrásokat is.",
@@ -39,23 +45,34 @@ exports.handler = async (event) => {
       });
     }
 
-    // 1) Próbáljunk weben keresni
+    // 1) Webkeresés (ha érdemes)
     let searchResults = null;
     if (wantsWebSearch(userMsg)) {
-      const host = (event.headers["x-forwarded-host"] || event.headers.host || "").replace(/\/+$/,"");
-      const url  = `https://${host}/.netlify/functions/google?q=${encodeURIComponent(userMsg)}`;
+      const hdrs = event.headers || {};
+      const forwardedHost = (hdrs["x-forwarded-host"] || hdrs.host || "").replace(/\/+$/, "");
+      const siteURL = process.env.URL || process.env.DEPLOY_PRIME_URL || (forwardedHost ? `https://${forwardedHost}` : "");
+      const googleFn = siteURL ? `${siteURL}/.netlify/functions/google` : "/.netlify/functions/google";
+
       try {
-        const r = await fetch(url);
+        const r = await fetch(`${googleFn}?q=${encodeURIComponent(userMsg)}`);
         if (r.ok) {
           const data = await r.json();
           if (Array.isArray(data.results) && data.results.length) {
-            searchResults = data.results.slice(0, 5);
+            // Normalizálás: biztosítsuk a source mezőt a link hostjával
+            searchResults = data.results.slice(0, 5).map(it => ({
+              title: it.title || "",
+              snippet: it.snippet || "",
+              link: it.link || "",
+              source: it.source || host(it.link || "")
+            }));
           }
         }
-      } catch (_) { /* csendben bukik, majd GPT-only */ }
+      } catch (_) {
+        // csendben bukik → fallback GPT-only
+      }
     }
 
-    // 2) Ha vannak találatok → kérjünk összefoglalót OpenAI-tól
+    // 2) Ha vannak találatok → kérjünk összefoglalót OpenAI-tól, forrás deduplikációval
     if (searchResults && searchResults.length) {
       const context = searchResults
         .map((r, i) => `#${i + 1} [${r.source}] ${r.title}\n${r.snippet}\nLink: ${r.link}`)
@@ -63,20 +80,22 @@ exports.handler = async (event) => {
 
       const system =
         "Magyar asszisztens vagy. Légy tényszerű, tömör és egyértelmű. " +
-        "A válasz végére írj 'Források:' alatt legfeljebb 3 domaint a kapott listából.";
+        "Kizárólag a megadott kivonatokra támaszkodj; ha nem elég a bizonyíték, mondd ki röviden. " +
+        "A válasz végére írj 'Források:' alatt legfeljebb 3 domaint.";
 
       const prompt =
         `Kérdés: """${userMsg}"""\n\nForrás-jelöltek (kivonat):\n${context}\n\n` +
-        "Válaszolj magyarul, a legfontosabb tényekkel. Ha bizonytalan vagy, mondd el röviden.";
+        "Válaszolj magyarul, a legfontosabb tényekkel, dátumokkal ha vannak. Ne találj ki új tényeket.";
 
       const summary = await askOpenAI(system, prompt);
 
-      const domains = [...new Set(searchResults.map(r => r.source))].slice(0, 3);
+      // domain deduplikáció link alapján (ha source nincs/rossz, host(link))
+      const domains = [...new Set(searchResults.map(r => r.source || host(r.link)).filter(Boolean))].slice(0, 3);
       const forras = domains.length ? `\n\nForrások: ${domains.join(", ")}` : "";
 
       return json(200, {
         reply: summary + forras,
-        sources: searchResults.map(r => ({ title: r.title, link: r.link, source: r.source })),
+        sources: searchResults.map(r => ({ title: r.title, link: r.link, source: r.source || host(r.link) })),
         meta: { mode: "web+gpt", engine: "Google+OpenAI" }
       });
     }
@@ -93,7 +112,7 @@ exports.handler = async (event) => {
   }
 };
 
-// ========== OpenAI hívó (temperature NINCS, ezért nincs többé hibakód)
+// ========== OpenAI hívó ==========
 async function askOpenAI(system, user) {
   if (!OPENAI_API_KEY) {
     return "Fejlesztői mód: nincs beállítva OPENAI_API_KEY, ezért nem tudok GPT-választ adni.";
@@ -107,6 +126,7 @@ async function askOpenAI(system, user) {
     },
     body: JSON.stringify({
       model: OPENAI_MODEL,
+      temperature: 0.2,
       messages: [
         { role: "system", content: system },
         { role: "user",   content: user }
