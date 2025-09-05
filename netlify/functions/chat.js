@@ -112,7 +112,7 @@ export const handler = async (event) => {
           JSON.stringify(searchData?.results ?? [], null, 2) +
           `\n\nKészíts összefoglalót (magyarul), és a végén adj 'Források:' felsorolást a linkekkel.`;
 
-        const summary = await askOpenAI({ system, user, temperature: 0.2 });
+        const summary = await askOpenAI({ system, user, temperature: 0.3 });
 
         return {
           statusCode: 200,
