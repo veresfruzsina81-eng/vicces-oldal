@@ -1,12 +1,8 @@
-// netlify/functions/google.js
+// Google Custom Search proxy (ESM). Támogatja a frissesség-szűrést és HU preferenciákat.
+// Használat: /.netlify/functions/google?q=kerdes&type=news&fr=7
 
-// Megjegyzés: Node 18+ környezetben a fetch globális, nem kell a 'node-fetch' csomag.
-
-exports.handler = async (event) => {
-  // CORS preflight
-  if (event.httpMethod === "OPTIONS") {
-    return reply(204, null, cors());
-  }
+export async function handler(event) {
+  if (event.httpMethod === "OPTIONS") return reply(204, null, cors());
 
   try {
     const { GOOGLE_API_KEY, GOOGLE_CX } = process.env;
@@ -14,19 +10,22 @@ exports.handler = async (event) => {
       return reply(500, { error: "Hiányzik a GOOGLE_API_KEY vagy a GOOGLE_CX környezeti változó." });
     }
 
-    const q = (event.queryStringParameters && event.queryStringParameters.q || "").trim();
+    const q   = (event.queryStringParameters?.q || "").trim();
+    const typ = (event.queryStringParameters?.type || "web").toLowerCase();
+    const fr  = Math.max(1, Math.min(30, parseInt(event.queryStringParameters?.fr || (typ === "news" ? 7 : 14), 10) || (typ === "news" ? 7 : 14)));
+
     if (!q) return reply(400, { error: "Hiányzik a keresési lekérdezés (q)." });
 
-    // Google Custom Search API — HU fókusz
     const url = new URL("https://www.googleapis.com/customsearch/v1");
     url.searchParams.set("key", GOOGLE_API_KEY);
     url.searchParams.set("cx",  GOOGLE_CX);
     url.searchParams.set("q",   q);
-    url.searchParams.set("num", "8");         // több jelölt a jobb összefoglaláshoz
-    url.searchParams.set("safe","active");    // biztonságos találatok
-    url.searchParams.set("hl",  "hu");        // felület nyelv
-    url.searchParams.set("gl",  "hu");        // geolokáció
-    url.searchParams.set("lr",  "lang_hu");   // magyar nyelvű találatok preferálása
+    url.searchParams.set("num", "10");
+    url.searchParams.set("safe","active");
+    url.searchParams.set("hl",  "hu");
+    url.searchParams.set("gl",  "hu");
+    url.searchParams.set("lr",  "lang_hu");
+    url.searchParams.set("dateRestrict", `d${fr}`);
 
     const r = await fetch(url, { headers: { "Accept": "application/json" } });
     if (!r.ok) {
@@ -39,19 +38,14 @@ exports.handler = async (event) => {
       const link = it.link || "";
       let source = "";
       try { source = new URL(link).hostname.replace(/^www\./, ""); } catch {}
-      return {
-        title: it.title || "",
-        snippet: it.snippet || "",
-        link,
-        source
-      };
+      return { title: it.title || "", snippet: it.snippet || "", link, source };
     });
 
-    return reply(200, { results: items, source: "Google" });
+    return reply(200, { results: items, source: "Google", freshness_days: fr, type: typ });
   } catch (e) {
     return reply(500, { error: "Szerver hiba a google függvényben.", detail: String(e?.message || e) });
   }
-};
+}
 
 function cors() {
   return {
@@ -64,11 +58,7 @@ function cors() {
 function reply(statusCode, body, extraHeaders = {}) {
   return {
     statusCode,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      ...cors(),
-      ...extraHeaders
-    },
+    headers: { "Content-Type": "application/json; charset=utf-8", ...cors(), ...extraHeaders },
     body: body == null ? "" : JSON.stringify(body)
   };
 }
