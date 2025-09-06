@@ -12,6 +12,9 @@ const MIN_SOURCES_RELAX  = 2;
 const MIN_CHARS_STRICT   = 300;
 const MIN_CHARS_RELAX    = 120;
 
+// Hány URL-ről töltsünk le szöveget a sebesség miatt
+const MAX_PAGES_TO_FETCH = 8;
+
 /** Elsőbbségi források – ezeket mindig megtartjuk és előresoroljuk */
 const PRIMARY_SOURCES = [
   // RTL / tulajdon
@@ -88,29 +91,16 @@ function buildQueryVariants(userMsg){
     };
   }
 
-  // SZTÁRBOX – résztvevők & párosítások, RTL és elsőbbségi források
+  // SZTÁRBOX – résztvevők & párosítások (lebutított, célzott és gyors)
   if (q.includes("sztárbox") || q.includes("sztábox") || q.includes("sztarbox") || q.includes("sztar box")) {
     return {
       topic: "sztarbox",
       variants: [
-        // résztvevők
         `Sztárbox 2025 résztvevők hivatalos RTL`,
-        `Sztárbox 2025 szereplők hivatalos RTL`,
-        `Sztárbox 2025 indulók hivatalos RTL`,
-        `Sztárbox 2025 versenyzők`,
-        // párosítások
-        `Sztárbox 2025 párosítások hivatalos RTL`,
-        `Sztárbox 2025 RTL fight card első meccs`,
-        // site: célzások
+        `Sztárbox 2025 párosítások RTL`,
         `site:rtl.hu Sztárbox 2025`,
-        `site:rtl.hu/sztarbox Sztárbox 2025`,
         `site:news.google.com Sztárbox 2025`,
-        `site:wikipedia.org Sztárbox`,
-        `site:facebook.com Sztárbox 2025`,
-        `site:instagram.com Sztárbox 2025`,
-        `site:x.com Sztárbox 2025`,
-        `site:nemzetisport.hu Sztárbox 2025`,
-        `site:m4sport.hu Sztárbox 2025`
+        `Sztárbox 2025 indulók`
       ],
       preferred: [
         "rtl.hu","rtl.hu/sztarbox","rtlmost.hu","rtlplusz.hu",
@@ -244,13 +234,15 @@ export async function handler(event){
       let flat = uniqByUrl(batch.flat().map(it => ({ title: it.title, url: it.link, snippet: it.snippet })));
       flat = sortPrimaryFirst(flat, preferred);
 
-      const pages = await Promise.all(flat.map(r => fetchPagePlainText(r.url)));
+      // ⬇ csak az első 8 oldalról töltünk le szöveget (gyors!)
+      const flatTop = flat.slice(0, MAX_PAGES_TO_FETCH);
+      const pages = await Promise.all(flatTop.map(r => fetchPagePlainText(r.url)));
 
       const isSztar = plan.topic === "sztarbox";
       const PRIMARY_MIN = isSztar ? 60 : MIN_CHARS_RELAX;
 
       // szigorú
-      let strict = flat.map((r,i)=>({
+      let strict = flatTop.map((r,i)=>({
           ...r,
           content: pages[i]?.content || "",
           _primary: isPrimary(r.url)
@@ -264,7 +256,7 @@ export async function handler(event){
       let sources = strict;
       const minStrict = isSztar ? 2 : MIN_SOURCES_STRICT;
       if (sources.length < minStrict){
-        sources = flat.map((r,i)=>({
+        sources = flatTop.map((r,i)=>({
             ...r,
             content: pages[i]?.content || "",
             _primary: isPrimary(r.url)
@@ -289,11 +281,12 @@ export async function handler(event){
       let flat = uniqByUrl(last.flat().map(it => ({ title: it.title, url: it.link, snippet: it.snippet })));
       flat = sortPrimaryFirst(flat, preferred);
 
-      const pages2 = await Promise.all(flat.map(r => fetchPagePlainText(r.url)));
+      const flatTop = flat.slice(0, MAX_PAGES_TO_FETCH);
+      const pages2 = await Promise.all(flatTop.map(r => fetchPagePlainText(r.url)));
       const isSztar = plan.topic === "sztarbox";
       const PRIMARY_MIN = isSztar ? 60 : MIN_CHARS_RELAX;
 
-      let sources2 = flat.map((r,i)=>({
+      let sources2 = flatTop.map((r,i)=>({
           ...r, content: pages2[i]?.content || "",
           _primary: isPrimary(r.url)
         }))
