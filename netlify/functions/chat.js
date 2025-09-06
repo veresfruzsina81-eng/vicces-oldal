@@ -4,9 +4,9 @@ import { searchGoogle, fetchPagePlainText } from "./google.js";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const DEFAULT_MODEL  = process.env.OPENAI_MODEL || "gpt-4.1";
 const TODAY = new Date().toISOString().slice(0,10);
-const CURRENT_YEAR = new Date().getFullYear(); // 2025
+const CURRENT_YEAR = new Date().getFullYear(); // pl. 2025
 
-// forrás-prioritások
+// --- Források priorizálása
 const PRIMARY_SOURCES = [
   "rtl.hu","rtl.hu/sztarbox","rtlmost.hu","rtlplusz.hu",
   "facebook.com","instagram.com","x.com","twitter.com","youtube.com","tiktok.com",
@@ -29,7 +29,7 @@ const PREFERRED_DOMAINS = [
   ...PRIMARY_SOURCES
 ];
 
-// ===== INTENT: mikor böngésszen
+// ===== Intent: mikor böngésszen
 function classifyIntent(msg){
   const q = (msg||"").toLowerCase().trim();
   const greetings = ["szia","hello","helló","hali","hi","csá","jó reggelt","jó napot","jó estét"];
@@ -39,7 +39,7 @@ function classifyIntent(msg){
     "most","ma","mai","friss","aktuális","legújabb","percről percre",
     "árfolyam","időjárás","bejelentett","bejelentés","hírek","ki nyerte","eredmény","élő","live",
     "párosítás","fight card","menetrend",
-    "résztvevő","résztvevők","szereplő","szereplők","induló","indulók","versenyző","versenyzők",
+    "résztvevő","résztvevők","szereplő","induló","indulók","versenyző","versenyzők",
     "2024","2025","2026","sztárbox","sztábox","sztarbox"
   ];
 
@@ -49,7 +49,7 @@ function classifyIntent(msg){
   return "normal";
 }
 
-// ===== Query variánsok
+// ===== Kereső query variánsok
 function buildQueryVariants(userMsg){
   const q = userMsg.toLowerCase();
 
@@ -107,7 +107,7 @@ function buildQueryVariants(userMsg){
   };
 }
 
-// ===== segédek
+// ===== Segédek
 function uniqByUrl(arr){ const s=new Set(); return arr.filter(x=>!s.has(x.url)&&s.add(x.url)); }
 function scoreByPreferred(url, preferred){ return preferred.some(d=>url.includes(d)) ? 1 : 0; }
 function isPrimary(url){ return PRIMARY_SOURCES.some(d => url.includes(d)); }
@@ -120,7 +120,7 @@ function sortPrimaryFirst(items, preferred){
   });
 }
 
-// 2025 fókusz – dobjuk a régi évadot
+// 2025 fókusz – régi évadok kidobása
 function removeOldSeasons(text){
   if (!text) return "";
   return text
@@ -135,7 +135,7 @@ function removeOldSeasons(text){
     .trim();
 }
 
-// SZIGORÚ magyar név-kinyerő (2 szavas)
+// ===== Névkinyerés (szigorú)
 const NAME_STOPWORDS = new Set([
   "Sztárboxban","Elkezdődött","Reggeli","Házon","Boxing","Kings","Exek",
   "Security","Hell","Adam","Marcsii","Előző","Korábbi","Versenyzők","Lista",
@@ -192,7 +192,7 @@ function aggregateNames(sourcesContents, year){
   return { allow, raw: agg };
 }
 
-// párosítás felismerés + aggregálás
+// ===== Párosítások
 function extractMatchupsFromText(text){
   if (!text) return [];
   const rxs = [
@@ -240,7 +240,56 @@ function aggregateMatchupsFromSources(collected){
   return { verified, raw: map };
 }
 
-// ===== rendszerprompt – NINCS URL a válaszban!
+// ===== Csatorna és dátum kinyerése
+function extractBroadcasterAndDate(collected, year){
+  const out = { broadcaster: null, premiereDate: null, proofs: { broadcaster: [], date: [] } };
+
+  const CH_RX = /\b(RTL(?:\s*Klub)?|RTL\s*\+|RTL\s*Plusz|RTL\s*csatorna)\b/i;
+  const MONTHS = "jan|febr?|már|mar|ápr|apr|máj|maj|jún|jun|júl|jul|aug|szept?|okt|nov|dec";
+  const DATE_RX = new RegExp(`\\b(20\\d{2}|${year})[\\.\\-/\\s]*(${MONTHS})[\\.]?\\s*(\\d{1,2})\\b|\\b(${MONTHS})[\\.]?\\s*(\\d{1,2})\\b`, "i");
+  const mentions = { ch: new Map(), date: new Map() };
+
+  const hostOf = (u)=>{ try{ return new URL(u).hostname.replace(/^www\./,""); }catch{ return ""; } };
+  const trusted = (h)=> /rtl\\.|telex\\.hu|index\\.hu|24\\.hu|hvg\\.hu|nemzetisport\\.hu|m4sport\\.hu/i.test(h);
+
+  for (const s of collected){
+    const url = s.url || ""; const host = hostOf(url);
+    const text = (s.content || "").slice(0, 4000);
+
+    const ch = text.match(CH_RX)?.[0];
+    if (ch){
+      mentions.ch.set(ch, (mentions.ch.get(ch)||new Set()).add(host));
+      if (!out.broadcaster && /rtl\\./i.test(host)) out.broadcaster = "RTL";
+      out.proofs.broadcaster.push({ host, url });
+    }
+
+    const dm = text.match(DATE_RX);
+    if (dm){
+      const raw = dm[0];
+      mentions.date.set(raw, (mentions.date.get(raw)||new Set()).add(host));
+      out.proofs.date.push({ host, url, raw });
+    }
+  }
+
+  if (!out.broadcaster){
+    for (const [val, hosts] of mentions.ch.entries()){
+      if ([...hosts].some(h => /rtl\\./i.test(h))) { out.broadcaster = "RTL"; break; }
+    }
+  }
+
+  let bestDate = null, bestCount = 0, hasTrusted = false;
+  for (const [raw, setHosts] of mentions.date.entries()){
+    const hosts = [...setHosts]; const count = hosts.length; const anyTrusted = hosts.some(trusted);
+    if (count > bestCount || (count === bestCount && anyTrusted && !hasTrusted)){
+      bestDate = raw; bestCount = count; hasTrusted = anyTrusted;
+    }
+  }
+  if (bestDate) out.premiereDate = bestDate;
+
+  return out;
+}
+
+// ===== Prompt (nincs URL a válaszban)
 const SYSTEM_PROMPT = `
 Te Tamás barátságos, magyar asszisztensed vagy. A mai dátum: ${TODAY}.
 
@@ -251,7 +300,8 @@ Szabályok:
 - Ha a Sztárbox résztvevőiről/párosításairól kérdeznek, mindig az aktuális évad (${CURRENT_YEAR}) adatait írd. Régi (2023/2024) nevek felsorolását kerüld.
 - Ha a kontextusban szerepel ELLENŐRZÖTT LISTA (currentSeasonNames), akkor a Sztárbox aktuális évadának résztvevőit csak ebből sorold fel.
 - Sztárbox párosításokat csak akkor sorolj fel, ha azok a kontextusban szereplő VERIFIED MATCHUPS listában szerepelnek. Ha nincs elég, jelezd a bizonytalanságot.
-- Ne tüntess fel „női/férfi/súlycsoport” kategóriát, ha a források nem mondják ki egyértelműen.
+- Ha a kontextusban BROADCASTER szerepel, írd ki külön sorban: "Csatorna: <név>".
+- Ha a kontextusban PREMIERE DATE szerepel, írd ki külön sorban: "Kezdés: <dátum>" (ha nem végleges, jelezd: "előzetes" vagy "várható").
 
 Identitás:
 - "Az oldal tulajdonosa és a mesterséges intelligencia 100%-os alkotója-fejlesztője: Horváth Tamás (Szabolcsbáka)."
@@ -352,7 +402,7 @@ export async function handler(event){
       });
     }
 
-    // Résztvevők (2025 kontextus)
+    // Résztvevők (aktuális évad)
     let currentSeasonNames = [];
     let namesDiagnostics = null;
     if (plan.topic === "sztarbox"){
@@ -362,17 +412,26 @@ export async function handler(event){
       namesDiagnostics = agg.raw;
     }
 
-    // Párosítások (≥2 domain + van trusted)
+    // Párosítások
     const { verified: verifiedMatchups, raw: matchupsRaw } = aggregateMatchupsFromSources(collected);
     const matchups = verifiedMatchups.map(v => v.pair);
+
+    // Csatorna + dátum
+    let broadcasterInfo = null;
+    let premiereInfo = null;
+    if (plan.topic === "sztarbox"){
+      const bd = extractBroadcasterAndDate(collected, CURRENT_YEAR);
+      if (bd.broadcaster) broadcasterInfo = bd.broadcaster;      // pl. "RTL"
+      if (bd.premiereDate) premiereInfo = bd.premiereDate;       // pl. "szept. 14."
+    }
 
     const browserBlock =
       "\n\nForráskivonatok ("+collected.length+" db):\n" +
       collected.map((s,i)=>`[#${i+1}] ${s.title}\nURL: ${s.url}\nRészlet: ${s.content.slice(0,1000)}`).join("\n\n") +
       (currentSeasonNames.length ? `\n\nELLENŐRZÖTT LISTA (aktuális évad ${CURRENT_YEAR}):\n- ${currentSeasonNames.join("\n- ")}` : "") +
-      (matchups.length
-        ? `\n\nVERIFIED MATCHUPS (több forrás alapján):\n- ${matchups.join("\n- ")}`
-        : `\n\nVERIFIED MATCHUPS: nincs elég, jelezd a bizonytalanságot.`);
+      (matchups.length ? `\n\nVERIFIED MATCHUPS:\n- ${matchups.join("\n- ")}` : `\n\nVERIFIED MATCHUPS: nincs elég.`) +
+      (broadcasterInfo ? `\n\nBROADCASTER (ellenőrzött): ${broadcasterInfo}` : "") +
+      (premiereInfo ? `\n\nPREMIERE DATE (valószínű): ${premiereInfo}` : "");
 
     const messages = [
       { role:"system", content:SYSTEM_PROMPT },
@@ -388,7 +447,9 @@ export async function handler(event){
       meta:{ ts: Date.now() },
       diagnostics:{ topic:plan.topic, usedRecencyDays: usedTier, sourcesFound: collected.length },
       currentSeasonNames,
-      verifiedMatchups: verifiedMatchups.map(v => ({ pair: v.pair, sources: v.sources.slice(0,5) }))
+      verifiedMatchups: verifiedMatchups.map(v => ({ pair: v.pair, sources: v.sources.slice(0,5) })),
+      broadcaster: broadcasterInfo || null,
+      premiereDate: premiereInfo || null
     };
 
     if (debug){
