@@ -2,14 +2,11 @@
   "name": "tamas-ai",
   "version": "1.0.0",
   "description": "AI chat + Google kereső",
-  "main": "index.js",
   "type": "module",
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "openai": "^4.56.0",
-    "cheerio": "^1.0.0-rc.12",
-    "p-limit": "^5.0.0"
+    "openai": "^4.56.0"
   }
 }
