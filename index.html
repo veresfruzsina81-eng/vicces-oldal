@@ -137,12 +137,9 @@
   <footer>© Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.</footer>
 
   <script>
-    // ======= Segédek / UI =======
     const log = document.getElementById('log');
     const txt = document.getElementById('txt');
     const errBar = document.getElementById('err');
-
-    /* Beszélgetési kontextus — a szerver meta-ját itt tároljuk és minden kérésnél visszaküldjük */
     let context = {};
 
     function showError(msg){
@@ -223,64 +220,11 @@
       return "";
     }
 
-    // ======= Robusztus képtömörítés (iteratív) =======
-    async function compressToDataURL(file, maxWidth = 1600, targetKB = 350, minQuality = 0.6){
-      const mime = (file.type || '').toLowerCase();
-      if (mime.includes('heic') || mime.includes('heif')) {
-        throw new Error('A kep HEIC/HEIF formatumu. Kerlek mentsd el JPG-kent, majd probald ujra 📷');
-      }
-      const dataURL = await new Promise((res, rej) => {
-        const fr = new FileReader();
-        fr.onload = () => res(fr.result);
-        fr.onerror = rej;
-        fr.readAsDataURL(file);
-      });
-      const img = await new Promise((res, rej) => {
-        const i = new Image();
-        i.onload = () => res(i);
-        i.onerror = () => rej(new Error('Nem sikerult betolteni a kepet'));
-        i.src = dataURL;
-      });
-
-      let q = 0.85;
-      let w = Math.min(maxWidth, img.width);
-      let h = Math.round(img.height * (w / img.width));
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      function exportJpeg(){
-        canvas.width = w; canvas.height = h;
-        ctx.clearRect(0,0,w,h);
-        ctx.drawImage(img, 0, 0, w, h);
-        return canvas.toDataURL('image/jpeg', q);
-      }
-
-      let out = exportJpeg();
-      let bytes = Math.ceil((out.length * 3) / 4);
-      const targetBytes = targetKB * 1024;
-
-      let steps = 0;
-      while (bytes > targetBytes && steps < 6) {
-        if (q > minQuality) q = Math.max(minQuality, q - 0.1);
-        else if (w > 720) { w = Math.round(w * 0.8); h = Math.round(h * 0.8); }
-        else break;
-        out = exportJpeg();
-        bytes = Math.ceil((out.length * 3) / 4);
-        steps++;
-      }
-      return out; // data:image/jpeg;base64,...
-    }
-
-    // ======= Szerver hívás =======
     async function callServer(message, imageBase64){
       const resp = await fetch('/.netlify/functions/chat', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          message,
-          image: imageBase64 || null,
-          context
-        })
+        body: JSON.stringify({ message, image: imageBase64 || null, context })
       });
       if(!resp.ok){
         const txt = await resp.text().catch(()=> '');
@@ -289,14 +233,14 @@
       return resp.json();
     }
 
-    // ======= Küldés =======
     async function sendNow(){
       try{
         const message = (txt?.value || '').trim();
         if(!message){ txt.placeholder = "Írj valamit előbb 🙂"; txt?.focus(); return; }
         addRow('user', message);
-        txt.value='';
-        const thinking = addRow('bot','<i>Gondolkodom…</i>');
+
+        // 🔴 ITT CSERÉLTEM
+        const thinking = addRow('bot','<i>Gondolkodj a válaszért…</i>');
 
         const data = await callServer(message, null);
         thinking.remove();
@@ -315,79 +259,6 @@
       }
     }
     window.sendNow = sendNow;
-
-    // ======= Közös képfeldolgozó =======
-    async function processImageFile(file){
-      try{
-        let b64 = await compressToDataURL(file, 1600, 350, 0.6);
-        // plusz korlát (~1.8MB)
-        let approxBytes = Math.ceil((b64.length * 3) / 4);
-        if (approxBytes > 1_800_000) {
-          showError('A kep nagy, probalok tovabbi zsugoritast…');
-          b64 = await compressToDataURL(file, 1280, 280, 0.55);
-          approxBytes = Math.ceil((b64.length * 3) / 4);
-          if (approxBytes > 1_800_000) {
-            throw new Error('A kep tul nagy a kuldeshez. Kerlek keszits kisebb felbontast vagy vagd korul.');
-          }
-        }
-
-        addRow('user', `<img src="${b64}" alt="Feltöltött kép">`);
-        const thinking = addRow('bot','<i>Gondolkodom…</i>');
-        const data = await callServer('', b64);
-        thinking.remove();
-
-        if (data && data.meta) context = data.meta;
-
-        let answer = pickAnswer(data) || 'Szép kép! 🙂';
-        let sourcesHtml = pickSourcesBlock(data, answer);
-        addRow('bot', answer + sourcesHtml);
-      }catch(e){
-        showError(e);
-        addRow('bot','Nem sikerült feldolgozni a képet. Lehet túl nagy a fájl? 📷');
-      }
-    }
-
-    // Eredeti file input
-    async function handleImage(inputEl){
-      const file = inputEl?.files && inputEl.files[0];
-      if(!file) return;
-      await processImageFile(file);
-      if(inputEl) inputEl.value = '';
-    }
-    window.handleImage = handleImage;
-
-    // Paste képfelismerés
-    window.addEventListener('paste', async (e)=>{
-      const items = e.clipboardData?.items || [];
-      for (const it of items){
-        if (it.type && it.type.startsWith('image/')){
-          const file = it.getAsFile();
-          if (file) {
-            await processImageFile(file);
-            e.preventDefault();
-            break;
-          }
-        }
-      }
-    });
-
-    // Drag & drop képfelismerés
-    log.addEventListener('dragover', e => { e.preventDefault(); });
-    log.addEventListener('drop', async e => {
-      e.preventDefault();
-      const files = e.dataTransfer?.files || [];
-      for (const f of files){
-        if (f.type && f.type.startsWith('image/')){
-          await processImageFile(f);
-          break;
-        }
-      }
-    });
-
-    // ======= Extra biztosíték =======
-    window.onerror = function(msg, src, line, col){
-      showError(msg + ' @ ' + (line||'?') + ':' + (col||'?'));
-    };
   </script>
 </body>
 </html>
