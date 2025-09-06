@@ -1,5 +1,4 @@
-// Hibrid asszisztens: AI-only + friss adatok (időjárás/árfolyam/hírek) + kontextus-követés + vision + visszakérdezés.
-// Frontend küldhet 'context' mezőt; mi frissítve visszaadjuk a meta-ban.
+// Hibrid asszisztens: AI-only + friss adatok (időjárás/árfolyam/hírek) + kontextus-követés (város/személy) + vision + visszakérdezés.
 
 import OpenAI from "openai";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -8,19 +7,30 @@ export async function handler(event) {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: cors() };
 
   try {
-    const { message = "", context = {}, image = null } = JSON.parse(event.body || "{}");
-    const question = (message || "").trim();
+    let { message = "", context = {}, image = null } = JSON.parse(event.body || "{}");
+    let question = (message || "").trim();
 
     if (!question && !image) return json({ error: "Üres üzenet." }, 400);
 
-    // --- perzisztens kontextus (a frontend tartsa meg és küldje vissza) ---
+    // Perzisztens kontextus
     const ctx = {
       last_intent: context.last_intent || null,
       last_city:   context.last_city   || null,
-      last_topic:  context.last_topic  || null
+      last_topic:  context.last_topic  || null,
+      last_person: context.last_person || null
     };
 
-    /* ========== 0/a) KÉP ========== */
+    /* ===== 0/a) Személynév kontextus (pl. "Cristiano Ronaldo" → "hány éves?") ===== */
+    if (question) {
+      const nameMatch = question.match(/\b([A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+)+)\b/);
+      if (nameMatch) {
+        ctx.last_person = nameMatch[1].trim();
+      } else if (ctx.last_person && isVagueFollowUp(question)) {
+        question = `${ctx.last_person} ${question}`; // egészítsük ki az előző személlyel
+      }
+    }
+
+    /* ===== 0/b) Kép-ág (vision) ===== */
     const MAX_IMAGE_BYTES = 2_000_000; // ~2MB
     if (image) {
       const len = typeof image === "string" ? image.length : 0;
@@ -52,7 +62,7 @@ export async function handler(event) {
       }
     }
 
-    /* ========== 0/b) Smalltalk / köszönés ========== */
+    /* ===== 0/c) Smalltalk / köszönés ===== */
     if (isGreeting(question)) {
       return json({
         ok: true,
@@ -70,7 +80,7 @@ export async function handler(event) {
       });
     }
 
-    /* ========== 1) Készítő ========== */
+    /* ===== 1) Készítő ===== */
     if (isOwnerQuestion(question)) {
       return json({
         ok: true,
@@ -80,7 +90,7 @@ export async function handler(event) {
       });
     }
 
-    /* ========== 2) Intent detektálás (szabály + LLM) ========== */
+    /* ===== 2) Intent detektálás ===== */
     let intent = detectIntentRules(question);
     if (intent === "generic") {
       try {
@@ -89,14 +99,14 @@ export async function handler(event) {
       } catch {}
     }
 
-    // Erős témaváltó jelek (ne ragadjon bent az előző intentben)
+    // Erős híres jel → témaváltás (ne ragadjunk weather-ben)
     if (hasStrongNewsSignal(question) && intent !== "weather") {
       ctx.last_city = null;
       ctx.last_intent = "news";
       intent = "news";
     }
 
-    // Homályos follow-up → próbáljunk kontextusra támaszkodni
+    // Homályos follow-up → kontextus, vagy visszakérdezés
     if (isVagueFollowUp(question)) {
       if (hasStrongNewsSignal(question)) intent = "news";
       else if (hasStrongWeatherSignal(question) && ctx.last_city) intent = "weather";
@@ -104,7 +114,6 @@ export async function handler(event) {
       else if (ctx.last_intent === "news" && ctx.last_topic) intent = "news";
       else if (ctx.last_intent === "fx") intent = "fx";
       else {
-        // tényleg homályos → visszakérdezés
         const cq = await buildClarifyingQuestion(question);
         return json({
           ok: true,
@@ -115,7 +124,8 @@ export async function handler(event) {
       }
     }
 
-    /* ========== 3) FRISS ADAT ÁGAK ========== */
+    /* ===== 3) FRISS ADAT ÁGAK ===== */
+
     // 3/a FX
     if (intent === "fx") {
       const fx = await getFxRate(question);
@@ -135,7 +145,6 @@ export async function handler(event) {
     if (intent === "weather") {
       const guessCity = extractCityGuess(question) || ctx.last_city || null;
       if (!guessCity && !/holnap|ma|weather|időjárás|idojaras/i.test(question)) {
-        // várost sem látunk → visszakérdezés
         return json({
           ok: true,
           question,
@@ -183,7 +192,7 @@ export async function handler(event) {
       });
     }
 
-    /* ========== 4) AI-only ========== */
+    /* ===== 4) AI-only ===== */
     const text = await answerShortDirect(question);
     return json({
       ok: true,
@@ -216,6 +225,13 @@ function json(body, statusCode = 200) {
 const hostname = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
 function isValidHttpUrl(u) { try { const x = new URL(u); return x.protocol === "http:" || x.protocol === "https:"; } catch { return false; } }
 function normalizeHu(s){ return (s||"").toLowerCase().normalize("NFC"); }
+function deburrHu(s){
+  return (s||"")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"")
+    .replace(/ő/g,"o").replace(/ű/g,"u")
+    .replace(/Ő/g,"O").replace(/Ű/g,"U");
+}
 
 function isGreeting(q) {
   const s = normalizeHu(q).trim();
@@ -249,10 +265,10 @@ function detectIntentRules(q) {
 
   const fxPatterns = [
     /\bárfolyam\b/,
-    /\b(euró|euro|eur|usd|gbp|chf|pln|ron)\b.*\b(huf|forint|árfolyam|rate)\b/,
+    /\b(euró|euro|eur|eu|usd|gbp|chf|pln|ron)\b.*\b(huf|forint|árfolyam|rate)\b/,
     /\b(eur\/huf|usd\/huf|gbp\/huf|chf\/huf|pln\/huf|ron\/huf)\b/,
-    /hány\s+forint\s+(egy|1)\s+(euró|euro|eur)\b/,
-    /mennyi\s+(az\s+)?(euró|euro|eur)\b/
+    /hány\s+forint\s+(egy|1)\s+(euró|euro|eur|eu)\b/,
+    /mennyi\s+(az\s+)?(euró|euro|eur|eu)\b/
   ];
   if (fxPatterns.some(rx => rx.test(s))) return "fx";
 
@@ -338,6 +354,7 @@ async function safeSearchBest(question) {
     .map(it => ({ title: it.title || "", snippet: it.snippet || "", link: it.link || "" }))
     .filter(it => isValidHttpUrl(it.link));
 
+  // Magyar whitelist
   const whitelist = new Set(["rtl.hu","telex.hu","index.hu","24.hu","hvg.hu","portfolio.hu","nso.hu","nemzetisport.hu"]);
   items = items.filter(it => whitelist.has(hostname(it.link)));
 
@@ -368,8 +385,10 @@ async function safeSearchBest(question) {
   }
 
   if (!best) {
-    const rtl = (data.items || []).find(i => hostname(i.link) === "rtl.hu");
-    return rtl || (data.items || [])[0] || null;
+    const wl = ["rtl.hu","telex.hu","index.hu","24.hu","hvg.hu","portfolio.hu","nso.hu","nemzetisport.hu"];
+    const firstWL = (data.items || []).find(i => wl.includes(hostname(i.link)));
+    if (firstWL) return firstWL;
+    return null; // inkább kérjen pontosítást, mint kétes link
   }
   return best;
 }
@@ -390,7 +409,8 @@ async function answerFromSnippet(question, title, snippet) {
 /* ================= FX ================= */
 async function getFxRate(q) {
   try {
-    const S = q.toUpperCase().replace(/[.,]/g, " ");
+    let S = q.toUpperCase().replace(/[.,]/g, " ");
+    S = S.replace(/\bEU\b/g,"EUR"); // "eu árfolyam?" → EUR
     let from = "EUR", to = "HUF";
 
     const mPair  = S.match(/\b([A-Z]{3})\s*\/\s*([A-Z]{3})\b/);
@@ -398,7 +418,7 @@ async function getFxRate(q) {
 
     if (mPair) { from = mPair[1]; to = mPair[2]; }
     else if (mWords && mWords[1] !== mWords[2]) { from = mWords[1]; to = mWords[2]; }
-    else if (/eur|euro|euró/i.test(q) && /huf|forint/i.test(q)) { from = "EUR"; to = "HUF"; }
+    else if (/eur|euro|euró|eu/i.test(q) && /huf|forint/i.test(q)) { from = "EUR"; to = "HUF"; }
     else if (/usd/i.test(q) && /forint|huf/i.test(q)) { from = "USD"; to = "HUF"; }
 
     const url = new URL("https://api.frankfurter.app/latest");
@@ -423,20 +443,19 @@ function stripHungarianCase(word) {
           .replace(/(?:ban|ben|ba|be|ra|re|rol|ról|ről|tol|től|nak|nek|on|en|ön|n|hoz|hez|höz|ig|val|vel|ként|nál|nél)$/u, "");
 }
 function extractCityGuess(q) {
-  const s = normalizeHu(q).replace(/[^\p{L}\s-]/gu, " ").trim();
+  const raw = (q||"").trim();
+  const s = deburrHu(normalizeHu(raw)).replace(/[^\p{L}\s-]/gu, " ").trim();
   const stop = new Set([
-    "milyen","az","idojaras","elorejelzes","van","lesz","ma","holnap","heti","magyarorszagon","magyarorszag","ido","idoben","ott","itt","most"
+    "milyen","az","idojaras","elorejelzes","van","lesz","ma","holnap","heti",
+    "magyarorszagon","magyarorszag","ido","idoben","ott","itt","most","?","!"
   ]);
   const tokens = s.split(/\s+/).filter(t => t && t.length >= 3 && !stop.has(t));
   if (!tokens.length) return null;
   let cand = stripHungarianCase(tokens[tokens.length - 1]);
 
   const map = {
-    "szabolcsbáka":"Szabolcsbáka",
     "szabolcsbaka":"Szabolcsbáka",
     "szabolcs-baka":"Szabolcsbáka",
-    "szabolcs":"Nyíregyháza",
-    "szabolcs-szatmar-bereg":"Nyíregyháza",
     "bp":"Budapest",
     "pest":"Budapest"
   };
@@ -508,7 +527,7 @@ async function getWeather(q, preferredCity) {
 function stripDataUrlPrefix(b64){
   if (typeof b64 !== "string") return "";
   const m = b64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
-  return m ? m[0] : `data:image/jpeg;base64,${b64}`; // ha nem teljes dataURL, egészítjük
+  return m ? m[0] : `data:image/jpeg;base64,${b64}`;
 }
 async function analyzeImage(imageBase64OrDataUrl, promptText){
   try{
