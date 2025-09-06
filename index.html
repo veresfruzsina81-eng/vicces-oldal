@@ -65,7 +65,7 @@
     .input input{ flex:1 1 auto; border:0; outline:none; background:transparent; color:var(--text); font-size:16px; min-width:0; }
 
     .icon-btn, label.icon-btn{
-      min-width:40px; height:40px; border:0; border-radius:10px; background:#11182780; color:var(--text); cursor:pointer;
+      min-width:40px; height:40px; border:0; border-radius:10px; background:#11182780; color:#fff; cursor:pointer;
       display:inline-grid; place-items:center; padding:0 10px;
     }
     .send{ flex:0 0 auto; border:0; cursor:pointer; font-weight:800; color:#331d00; background:linear-gradient(90deg,#ffb84d,#ffa53a); padding:10px 16px; border-radius:14px; white-space:nowrap; }
@@ -78,6 +78,7 @@
       width:24px; height:24px; border-radius:6px; background:#0b1220;
       display:inline-flex; align-items:center; justify-content:center;
       box-shadow:0 1px 3px rgba(0,0,0,.08); color:#e8eef6; font-weight:700; font-size:12px;
+      border:1px solid rgba(255,255,255,.06);
     }
     .source-logo img { width:18px; height:18px; display:block; }
   </style>
@@ -116,7 +117,7 @@
     const txt = document.getElementById('txt');
     const errBar = document.getElementById('err');
     let context = {};
-    let SENDING = false; // dupla-küldés védelem
+    let SENDING = false;
 
     function showError(msg){
       console.error(msg);
@@ -152,32 +153,56 @@
       return r;
     }
 
-    // --- Forrás logócsík segédek + fallback ---
-    function domainFromUrl(u){
-      try { return new URL(u).hostname.replace(/^www\./,''); } catch { return ""; }
-    }
+    // --- Forrás logócsík + fallback ---
+    function domainFromUrl(u){ try { return new URL(u).hostname.replace(/^www\./,''); } catch { return ""; } }
     function gFavicon(d){ return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(d)}&sz=64`; }
     function ddgFavicon(d){ return `https://icons.duckduckgo.com/ip3/${encodeURIComponent(d)}.ico`; }
+
+    // utólagos biztosítás: ha nincs IMG és üres a span, írjuk be az első betűt
+    function ensureSourceBadgesLetters(container){
+      const nodes = container.querySelectorAll('.source-logo');
+      nodes.forEach(sp=>{
+        const hasImg = !!sp.querySelector('img');
+        if (!hasImg && !sp.textContent.trim()){
+          const title = sp.getAttribute('title') || '?';
+          sp.textContent = (title[0]||'?').toUpperCase();
+        }
+      });
+    }
+
     function renderSources(refs){
       try{
         if(!Array.isArray(refs) || !refs.length) return "";
-        const seen = new Set(); const logos = [];
-        for(const s of refs){
-          const link = s.link || s.url || ""; const dom = domainFromUrl(link);
-          if(!dom || seen.has(dom)) continue; seen.add(dom);
-          const img1 = gFavicon(dom); const img2 = ddgFavicon(dom);
+        const seen = new Set();
+        const parts = [];
+        for (const s of refs){
+          const link = s.link || s.url || "";
+          const dom = domainFromUrl(link);
+          if(!dom || seen.has(dom)) continue;
+          seen.add(dom);
+          const img1 = gFavicon(dom);
+          const img2 = ddgFavicon(dom);
           const html = `
             <span class="source-logo" title="${dom}" aria-label="${dom}">
               <img src="${img1}" alt="${dom}"
-                   onerror="this.onerror=null; this.src='${img2}'; this.parentElement.style.background='#0b1220';
-                            this.addEventListener('error', ()=>{ this.remove(); const sp=this.parentElement; sp.textContent='${(dom[0]||'?').toUpperCase()}'; });">
+                   onerror="this.onerror=null; this.src='${img2}';
+                            this.parentElement && (this.parentElement.style.background='#0b1220');
+                            this.addEventListener('error', ()=>{ const sp=this.parentElement; this.remove(); if(sp){ sp.textContent='${(dom[0]||'?').toUpperCase()}'; } });">
             </span>`;
-          logos.push(html); if (logos.length >= 8) break;
+          parts.push(html);
+          if (parts.length >= 8) break;
         }
-        return logos.length ? `
-          <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-            <span class="source-badge">Források:</span> ${logos.join("")}
-          </div>` : "";
+        if (!parts.length) return "";
+        // becsomagolva úgy, hogy utólagos ellenőrzést futtassunk rá
+        const blockId = 'src_' + Math.random().toString(36).slice(2,8);
+        setTimeout(()=>{
+          const el = document.getElementById(blockId);
+          if (el) ensureSourceBadgesLetters(el);
+        }, 1200);
+        return `
+          <div id="${blockId}" style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <span class="source-badge">Források:</span> ${parts.join("")}
+          </div>`;
       }catch{ return ""; }
     }
 
@@ -220,7 +245,9 @@
 
         let answer = pickAnswer(data) || "Sajnálom, most nem találtam elég információt. Próbáljuk pontosabban megfogalmazni?";
         let sourcesHtml = pickSourcesBlock(data);
-        addRow('bot', answer + sourcesHtml);
+        const row = addRow('bot', answer + sourcesHtml);
+        // extra betű-biztosítás
+        ensureSourceBadgesLetters(row);
       }catch(e){
         showError(e);
         addRow('bot','Hiba történt. (Lehet, hogy a Netlify-függvény nem érhető el.)');
@@ -230,7 +257,7 @@
     }
     window.sendNow = sendNow;
 
-    // Kép kezelése (ha használod)
+    // Képkezelés (ha használod)
     async function compressToDataURL(file, maxWidth = 1600, targetKB = 350, minQuality = 0.6){
       const mime = (file.type || '').toLowerCase();
       if (mime.includes('heic') || mime.includes('heif')) throw new Error('A kep HEIC/HEIF formatumu. Mentsd JPG-ként, majd próbáld újra 📷');
@@ -253,7 +280,8 @@
         if (data && data.meta) context = data.meta;
         let answer = pickAnswer(data) || 'Szép kép! 🙂';
         let sourcesHtml = pickSourcesBlock(data);
-        addRow('bot', answer + sourcesHtml);
+        const row = addRow('bot', answer + sourcesHtml);
+        ensureSourceBadgesLetters(row);
       }catch(e){
         showError(e);
         addRow('bot','Nem sikerült feldolgozni a képet. Lehet túl nagy a fájl? 📷');
@@ -262,11 +290,18 @@
     async function handleImage(inputEl){ const file = inputEl?.files && inputEl.files[0]; if(!file) return; await processImageFile(file); if(inputEl) inputEl.value=''; }
     window.handleImage = handleImage;
 
+    // paste & dragdrop
     window.addEventListener('paste', async (e)=>{ const items = e.clipboardData?.items || []; for (const it of items){ if (it.type && it.type.startsWith('image/')){ const file = it.getAsFile(); if (file) { await processImageFile(file); e.preventDefault(); break; } } } });
     log.addEventListener('dragover', e => { e.preventDefault(); });
     log.addEventListener('drop', async e => { e.preventDefault(); const files = e.dataTransfer?.files || []; for (const f of files){ if (f.type && f.type.startsWith('image/')){ await processImageFile(f); break; } } });
 
-    window.onerror = function(msg, src, line, col){ showError(msg + ' @ ' + (line||'?') + ':' + (col||'?')); };
+    // --- Globális hibafigyelő: resource load hibák elnyelve
+    window.addEventListener('error', (e) => {
+      const t = e.target;
+      if (t && (t.tagName === 'IMG' || t.tagName === 'LINK' || t.tagName === 'SCRIPT')) return;
+      const msg = e?.message || 'Ismeretlen hiba';
+      showError(msg);
+    }, true);
   </script>
 </body>
 </html>
