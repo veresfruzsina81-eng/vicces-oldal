@@ -1,36 +1,20 @@
 // netlify/functions/chat.js
 import { searchGoogle, fetchPagePlainText } from "./google.js";
 
-/** ======= Alap beállítások ======= */
-const DEFAULT_MODEL  = process.env.OPENAI_MODEL || "gpt-4.1";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const DEFAULT_MODEL  = process.env.OPENAI_MODEL || "gpt-4.1";
 const TODAY = new Date().toISOString().slice(0,10);
 const CURRENT_YEAR = new Date().getFullYear(); // 2025
 
-// Adaptív küszöbök
-const MIN_SOURCES_STRICT = 3;
-const MIN_SOURCES_RELAX  = 2;
-const MIN_CHARS_STRICT   = 300;
-const MIN_CHARS_RELAX    = 120;
-
-// Hány URL-ről töltsünk le szöveget a sebesség miatt
-const MAX_PAGES_TO_FETCH = 8;
-
-/** Elsőbbségi források – ezeket mindig megtartjuk és előresoroljuk */
+// forrás-prioritások
 const PRIMARY_SOURCES = [
-  // RTL / tulajdon
   "rtl.hu","rtl.hu/sztarbox","rtlmost.hu","rtlplusz.hu",
-  // közösségi
   "facebook.com","instagram.com","x.com","twitter.com","youtube.com","tiktok.com",
-  // aggregátor / enciklopédia
   "news.google.com","google.com/search","wikipedia.org",
-  // nagy magyar híroldalak
   "telex.hu","index.hu","24.hu","hvg.hu","hirado.hu","blikk.hu","origo.hu",
-  // sport
   "nemzetisport.hu","nso.hu","m4sport.hu","sport365.hu"
 ];
 
-/** Párosításokhoz számított „megbízható” domainek */
 const TRUSTED_MATCHUP_DOMAINS = [
   "rtl.hu","rtlmost.hu","rtlplusz.hu",
   "telex.hu","index.hu","24.hu","hvg.hu","hirado.hu","origo.hu","blikk.hu",
@@ -39,39 +23,36 @@ const TRUSTED_MATCHUP_DOMAINS = [
   "news.google.com","wikipedia.org"
 ];
 
-/** Általános preferenciák (rangsoroláshoz) */
 const PREFERRED_DOMAINS = [
-  "mnb.hu","portfolio.hu","otpbank.hu","raiffeisen.hu","erste.hu","granitbank.hu","wise.com","revolut",
+  "mnb.hu","portfolio.hu","otpbank.hu","raiffeisen.hu","erste.hu","wise.com","granitbank.hu",
   "met.hu","idokep.hu","koponyeg.hu",
   ...PRIMARY_SOURCES
 ];
 
-/** ======= INTENT – mikor böngésszen ======= */
+// ===== INTENT: mikor böngésszen
 function classifyIntent(msg){
   const q = (msg||"").toLowerCase().trim();
   const greetings = ["szia","hello","helló","hali","hi","csá","jó reggelt","jó napot","jó estét"];
-  const followups = ["mesélsz róla","meselj rola","bővebben","részletek","és még","még?","oké","köszi","köszönöm","értem","arról","róla"];
+  const followups = ["mesélsz","meselj","bővebben","részletek","és még","még?","oké","köszi","köszönöm","értem","arról","róla"];
 
-  // Realtime kulcsszavak – BŐVÍTVE a "résztvevők/szereplők/indulók/versenyzők"-kel
   const realtime = [
     "most","ma","mai","friss","aktuális","legújabb","percről percre",
     "árfolyam","időjárás","bejelentett","bejelentés","hírek","ki nyerte","eredmény","élő","live",
-    "párosítás","fight card","menetrend","ár","akció","készlet",
+    "párosítás","fight card","menetrend",
     "résztvevő","résztvevők","szereplő","szereplők","induló","indulók","versenyző","versenyzők",
-    "2024","2025","2026"
+    "2024","2025","2026","sztárbox","sztábox","sztarbox"
   ];
 
   if (greetings.some(w => q === w || q.startsWith(w))) return "greeting";
-  if (realtime.some(w => q.includes(w))) return "realtime";         // ⬅ realtime előrébb!
+  if (realtime.some(w => q.includes(w))) return "realtime";
   if (followups.some(w => q.includes(w)) || q.split(/\s+/).length <= 3) return "followup";
   return "normal";
 }
 
-/** ======= Query-variánsok (témafüggő) ======= */
+// ===== Query variánsok
 function buildQueryVariants(userMsg){
   const q = userMsg.toLowerCase();
 
-  // EUR/HUF árfolyam
   if (q.includes("árfolyam") && (q.includes("eur") || q.includes("euró") || q.includes("euro"))) {
     return {
       topic: "fx",
@@ -86,8 +67,7 @@ function buildQueryVariants(userMsg){
     };
   }
 
-  // Budapest időjárás
-  if (q.includes("időjárás") && (q.includes("bp") || q.includes("budapest") || q.includes("budapesten"))) {
+  if (q.includes("időjárás") && (q.includes("budapest") || q.includes("bp") || q.includes("budapesten"))) {
     return {
       topic: "weather",
       variants: [
@@ -101,7 +81,6 @@ function buildQueryVariants(userMsg){
     };
   }
 
-  // SZTÁRBOX – résztvevők & párosítások (gyors és célzott)
   if (q.includes("sztárbox") || q.includes("sztábox") || q.includes("sztarbox") || q.includes("sztar box")) {
     return {
       topic: "sztarbox",
@@ -112,17 +91,10 @@ function buildQueryVariants(userMsg){
         `site:news.google.com Sztárbox ${CURRENT_YEAR}`,
         `Sztárbox ${CURRENT_YEAR} indulók`
       ],
-      preferred: [
-        "rtl.hu","rtl.hu/sztarbox","rtlmost.hu","rtlplusz.hu",
-        "news.google.com","wikipedia.org",
-        "facebook.com","instagram.com","x.com","youtube.com","tiktok.com",
-        "telex.hu","index.hu","24.hu","hvg.hu","hirado.hu","blikk.hu",
-        "nemzetisport.hu","nso.hu","m4sport.hu","sport365.hu"
-      ]
+      preferred: PRIMARY_SOURCES
     };
   }
 
-  // Alapértelmezett
   return {
     topic: "general",
     variants: [
@@ -135,7 +107,7 @@ function buildQueryVariants(userMsg){
   };
 }
 
-/** ======= Segédfüggvények ======= */
+// ===== segédek
 function uniqByUrl(arr){ const s=new Set(); return arr.filter(x=>!s.has(x.url)&&s.add(x.url)); }
 function scoreByPreferred(url, preferred){ return preferred.some(d=>url.includes(d)) ? 1 : 0; }
 function isPrimary(url){ return PRIMARY_SOURCES.some(d => url.includes(d)); }
@@ -148,22 +120,7 @@ function sortPrimaryFirst(items, preferred){
   });
 }
 
-// „X vs Y” felismerő (párosítások)
-function extractMatchupsFromText(text){
-  if (!text) return [];
-  const rxs = [
-    /([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)\s*(?:vs\.?|–|—|-)\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)/gu,
-    /párosítás[a-z]*:\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)\s*(?:–|—|-)\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)/giu
-  ];
-  const out = new Set();
-  for (const rx of rxs){ let m; while((m=rx.exec(text))!==null){
-    const a=m[1].replace(/\s+/g," ").trim(), b=m[2].replace(/\s+/g," ").trim();
-    if (a && b && a.toLowerCase()!==b.toLowerCase()) out.add(`${a} vs ${b}`);
-  }}
-  return [...out];
-}
-
-// 2025 fókusz: dobjuk ki a 2023/2024/„előző évad/korábbi” sorokat
+// 2025 fókusz – dobjuk a régi évadot
 function removeOldSeasons(text){
   if (!text) return "";
   return text
@@ -178,20 +135,26 @@ function removeOldSeasons(text){
     .trim();
 }
 
-// Magyar 2–3 szavas személynevek kinyerése
+// SZIGORÚ magyar név-kinyerő (2 szavas)
+const NAME_STOPWORDS = new Set([
+  "Sztárboxban","Elkezdődött","Reggeli","Házon","Boxing","Kings","Exek",
+  "Security","Hell","Adam","Marcsii","Előző","Korábbi","Versenyzők","Lista",
+  "Részletes","Hivatalos","RTL","Verseny","Indul","Bemutatkozik","Kezdés"
+]);
+function looksLikeHuNameToken(tok){ return /^[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű-]{2,}$/.test(tok); }
 function extractPersonNamesHu(text){
   if (!text) return [];
-  const rx = /([A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+){1,2})/gu;
   const out = new Set();
+  const rx = /([A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű-]{2,})\s+([A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű-]{2,})/gu;
   let m;
   while ((m = rx.exec(text)) !== null){
-    const name = m[1].replace(/\s+/g, " ").trim();
-    if (name.length >= 5) out.add(name);
+    const a = m[1], b = m[2];
+    if (!looksLikeHuNameToken(a) || !looksLikeHuNameToken(b)) continue;
+    if (NAME_STOPWORDS.has(a) || NAME_STOPWORDS.has(b)) continue;
+    out.add(`${a} ${b}`);
   }
   return [...out];
 }
-
-// Nevek: kontextus pontozása (2025/idén/aktuális vs régi)
 function scoreNamesByContext(text, year){
   const names = extractPersonNamesHu(text);
   const y = String(year);
@@ -210,8 +173,6 @@ function scoreNamesByContext(text, year){
   }
   return map;
 }
-
-// Nevek összesítése több forrásból: legalább 2 "curr" és 0 "prev"
 function aggregateNames(sourcesContents, year){
   const agg = {};
   for (const content of sourcesContents){
@@ -225,15 +186,26 @@ function aggregateNames(sourcesContents, year){
   }
   const allow = [];
   for (const [name, a] of Object.entries(agg)){
-    if (a.curr >= 2 && a.prev === 0){
-      allow.push(name);
-    }
+    if (a.curr >= 2 && a.prev === 0){ allow.push(name); }
   }
   allow.sort((a,b)=> (agg[b].curr - agg[a].curr) || (agg[b].hits - agg[a].hits));
   return { allow, raw: agg };
 }
 
-// Nevek normalizálása és párok aggregálása (≥2 domain + van trusted)
+// párosítás felismerés + aggregálás
+function extractMatchupsFromText(text){
+  if (!text) return [];
+  const rxs = [
+    /([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)\s*(?:vs\.?|–|—|-)\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)/gu,
+    /párosítás[a-z]*:\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)\s*(?:–|—|-)\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)/giu
+  ];
+  const out = new Set();
+  for (const rx of rxs){ let m; while((m=rx.exec(text))!==null){
+    const a=m[1].replace(/\s+/g," ").trim(), b=m[2].replace(/\s+/g," ").trim();
+    if (a && b && a.toLowerCase()!==b.toLowerCase()) out.add(`${a} vs ${b}`);
+  }}
+  return [...out];
+}
 function normName(s){ return s.replace(/\s+/g," ").trim(); }
 function normPair(a,b){
   const A = normName(a), B = normName(b);
@@ -268,17 +240,17 @@ function aggregateMatchupsFromSources(collected){
   return { verified, raw: map };
 }
 
-/** ======= Rendszerprompt ======= */
+// ===== rendszerprompt – NINCS URL a válaszban!
 const SYSTEM_PROMPT = `
 Te Tamás barátságos, magyar asszisztensed vagy. A mai dátum: ${TODAY}.
 
 Szabályok:
+- Soha NE írj nyers URL-t és NE készíts "Források:" szekciót a válasz szövegében. Ha hivatkozni kell, csak sorszámokat használj: [1], [2], [3]. A linkeket a rendszer külön jeleníti meg.
 - Ha forráskivonatok érkeznek, kizárólag azokra támaszkodj. Cutoff-ot ne említs.
-- Hivatkozásokat sorszámozva add meg: [1], [2], [3].
 - Ha nincs elég jó forrás, mondd ki őszintén és javasolj kulcsszavakat.
 - Ha a Sztárbox résztvevőiről/párosításairól kérdeznek, mindig az aktuális évad (${CURRENT_YEAR}) adatait írd. Régi (2023/2024) nevek felsorolását kerüld.
 - Ha a kontextusban szerepel ELLENŐRZÖTT LISTA (currentSeasonNames), akkor a Sztárbox aktuális évadának résztvevőit csak ebből sorold fel.
-- Sztárbox párosításokat csak akkor sorolj fel, ha azok a kontextusban szereplő, ellenőrzött listában (VERIFIED MATCHUPS) is benne vannak. Ha nincs ilyen lista, jelezd, hogy a teljes hivatalos párosítás még nem biztosan ismert.
+- Sztárbox párosításokat csak akkor sorolj fel, ha azok a kontextusban szereplő VERIFIED MATCHUPS listában szerepelnek. Ha nincs elég, jelezd a bizonytalanságot.
 - Ne tüntess fel „női/férfi/súlycsoport” kategóriát, ha a források nem mondják ki egyértelműen.
 
 Identitás:
@@ -288,7 +260,7 @@ Stílus:
 - Rövid bevezető → lényegpontok → részletek. Magyarul, tömören.
 `;
 
-/** ======= OpenAI hívó ======= */
+// ===== OpenAI hívás
 async function callOpenAI(messages,{model=DEFAULT_MODEL,temperature=0.3}={}){
   if (!OPENAI_API_KEY) throw new Error("Hiányzik az OPENAI_API_KEY.");
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -301,22 +273,15 @@ async function callOpenAI(messages,{model=DEFAULT_MODEL,temperature=0.3}={}){
   return { text: data.choices?.[0]?.message?.content || "", model: data.model || model };
 }
 
-/** ======= HTTP helper ======= */
 function http(statusCode, body){
   return { statusCode, headers:{ "Content-Type":"application/json; charset=utf-8" }, body: JSON.stringify(body) };
 }
 
-/** ======= Handler ======= */
+// ===== fő handler
 export async function handler(event){
   try{
-    const {
-      message = "",
-      history = [],           // [{role:"user"|"assistant", content:"..."}]
-      maxSources = 8,
-      recencyDays,
-      forceBrowse = null,
-      debug = false           // 👈 ha true, részletes diagnosztikát adunk vissza
-    } = JSON.parse(event.body || "{}");
+    const { message = "", history = [], maxSources = 8, recencyDays, forceBrowse = null, debug = false } =
+      JSON.parse(event.body || "{}");
     if (!message.trim()) return http(400, { ok:false, error:"Üres üzenet" });
 
     const intent = classifyIntent(message);
@@ -324,7 +289,7 @@ export async function handler(event){
                         : (forceBrowse===false) ? false
                         : (intent === "realtime");
 
-    // --- OFFLINE ág (nem böngészünk) ---
+    // OFFLINE
     if (!shouldBrowse){
       const msgs = [
         { role:"system", content:SYSTEM_PROMPT },
@@ -332,14 +297,13 @@ export async function handler(event){
         { role:"user", content:message }
       ];
       const { text, model } = await callOpenAI(msgs,{});
-      return http(200,{ ok:true, usedBrowsing:false, model, answer:text, references:[] });
+      return http(200,{ ok:true, usedBrowsing:false, model, answer:text, references:[], meta:{ ts: Date.now() } });
     }
 
-    // --- ONLINE ág (multi-query, adaptív) ---
+    // ONLINE
     const plan = buildQueryVariants(message);
     const preferred = plan.preferred?.length ? plan.preferred : PREFERRED_DOMAINS;
 
-    // Időablakok: Sztárboxnál 0→365→180→90→30 (0 = nincs dateRestrict)
     const tiers = (typeof recencyDays === "number")
       ? [recencyDays, Math.max(90,recencyDays), Math.max(365,recencyDays)]
       : (plan.topic==="sztarbox" ? [0,365,180,90,30] : [7,30,90,365]);
@@ -352,7 +316,7 @@ export async function handler(event){
     for (const days of tiers){
       const batch = await Promise.all(
         plan.variants.map(vq => (queriesTried.push({q:vq, days}), searchGoogle(vq, {
-          num: Math.min(Math.max(maxSources, MIN_SOURCES_STRICT), 10),
+          num: Math.min(Math.max(maxSources, 6), 10),
           recencyDays: days
         })))
       );
@@ -360,88 +324,35 @@ export async function handler(event){
       let flat = uniqByUrl(batch.flat().map(it => ({ title: it.title, url: it.link, snippet: it.snippet })));
       flat = sortPrimaryFirst(flat, preferred);
 
-      // csak az első 8 oldalról töltünk le szöveget (gyors!)
-      const flatTop = flat.slice(0, MAX_PAGES_TO_FETCH);
+      const flatTop = flat.slice(0, 8);
       let pages = await Promise.all(flatTop.map(r => fetchPagePlainText(r.url)));
 
-      // 🎯 Sztárbox: 2025 fókusz – dobjuk a régi évad-sorokat
-      const isSztar = plan.topic === "sztarbox";
-      if (isSztar){
+      if (plan.topic === "sztarbox"){
         pages = pages.map(p => ({ ...p, content: removeOldSeasons(p.content) }));
       }
 
-      const PRIMARY_MIN = isSztar ? 60 : MIN_CHARS_RELAX;
-
-      // szigorú
-      let strict = flatTop.map((r,i)=>({
-          ...r,
-          content: pages[i]?.content || "",
-          _primary: isPrimary(r.url)
-        }))
-        .filter(s =>
-          (s._primary && s.content && s.content.length >= PRIMARY_MIN) ||
-          (!s._primary && s.content && s.content.length >= MIN_CHARS_STRICT)
-        );
-
-      // lazítás
-      let sources = strict;
-      const minStrict = isSztar ? 2 : MIN_SOURCES_STRICT;
-      if (sources.length < minStrict){
-        sources = flatTop.map((r,i)=>({
-            ...r,
-            content: pages[i]?.content || "",
-            _primary: isPrimary(r.url)
-          }))
-          .filter(s =>
-            (s._primary && s.content && s.content.length >= PRIMARY_MIN) ||
-            (!s._primary && s.content && s.content.length >= MIN_CHARS_RELAX)
-          );
-      }
-
-      sources = sortPrimaryFirst(sources, preferred).slice(0, Math.max(3,6));
-      if (sources.length >= (isSztar ? 2 : MIN_SOURCES_RELAX)){
-        collected = sources;
-        usedTier = days;
-        break outer;
-      }
-    }
-
-    // utolsó fallback: no-dateRestrict + 10 találat
-    if (!collected.length){
-      const last = await Promise.all(plan.variants.map(vq => searchGoogle(vq, { num: 10, recencyDays: 0 })));
-      let flat = uniqByUrl(last.flat().map(it => ({ title: it.title, url: it.link, snippet: it.snippet })));
-      flat = sortPrimaryFirst(flat, preferred);
-
-      const flatTop = flat.slice(0, MAX_PAGES_TO_FETCH);
-      let pages2 = await Promise.all(flatTop.map(r => fetchPagePlainText(r.url)));
-      const isSztar = plan.topic === "sztarbox";
-      if (isSztar){
-        pages2 = pages2.map(p => ({ ...p, content: removeOldSeasons(p.content) }));
-      }
-      const PRIMARY_MIN = isSztar ? 60 : MIN_CHARS_RELAX;
-
-      let sources2 = flatTop.map((r,i)=>({
-          ...r, content: pages2[i]?.content || "",
-          _primary: isPrimary(r.url)
+      const PRIMARY_MIN = plan.topic === "sztarbox" ? 60 : 120;
+      let sources = flatTop.map((r,i)=>({
+          ...r, content: pages[i]?.content || "", _primary: isPrimary(r.url)
         }))
         .filter(s => (s._primary && s.content && s.content.length >= PRIMARY_MIN) ||
-                     (!s._primary && s.content && s.content.length >= MIN_CHARS_RELAX));
+                     (!s._primary && s.content && s.content.length >= 200));
 
-      sources2 = sortPrimaryFirst(sources2, preferred).slice(0, 6);
-
-      if (sources2.length >= 1){
-        collected = sources2;
-        usedTier = 0;
-      } else {
-        return http(200,{
-          ok:false, usedBrowsing:true,
-          error:"Sztárbox: nem találtam elég hiteles forrást (fallback sem).",
-          diagnostics:{ topic:plan.topic, triedNoDateRestrict:true, previewUrls: flat.slice(0,10).map(x=>x.url) }
-        });
+      sources = sortPrimaryFirst(sources, preferred).slice(0, 6);
+      if (sources.length >= (plan.topic==="sztarbox" ? 2 : 2)){
+        collected = sources; usedTier = days; break outer;
       }
     }
 
-    // ✅ Résztvevők (csak 2025-ös kontextus alapján, ≥2 forrás)
+    if (!collected.length){
+      return http(200,{
+        ok:false, usedBrowsing:true,
+        error:"Nem találtam elég hiteles forrást.",
+        diagnostics:{ topic:plan.topic, queriesTried }
+      });
+    }
+
+    // Résztvevők (2025 kontextus)
     let currentSeasonNames = [];
     let namesDiagnostics = null;
     if (plan.topic === "sztarbox"){
@@ -451,11 +362,10 @@ export async function handler(event){
       namesDiagnostics = agg.raw;
     }
 
-    // ✅ Párosítások (≥2 külön domain + van trusted)
+    // Párosítások (≥2 domain + van trusted)
     const { verified: verifiedMatchups, raw: matchupsRaw } = aggregateMatchupsFromSources(collected);
     const matchups = verifiedMatchups.map(v => v.pair);
 
-    // Kontextus az LLM-nek
     const browserBlock =
       "\n\nForráskivonatok ("+collected.length+" db):\n" +
       collected.map((s,i)=>`[#${i+1}] ${s.title}\nURL: ${s.url}\nRészlet: ${s.content.slice(0,1000)}`).join("\n\n") +
@@ -475,6 +385,7 @@ export async function handler(event){
 
     const base = {
       ok:true, usedBrowsing:true, model, answer, references,
+      meta:{ ts: Date.now() },
       diagnostics:{ topic:plan.topic, usedRecencyDays: usedTier, sourcesFound: collected.length },
       currentSeasonNames,
       verifiedMatchups: verifiedMatchups.map(v => ({ pair: v.pair, sources: v.sources.slice(0,5) }))
