@@ -5,6 +5,7 @@ import { searchGoogle, fetchPagePlainText } from "./google.js";
 const DEFAULT_MODEL  = process.env.OPENAI_MODEL || "gpt-4.1";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const TODAY = new Date().toISOString().slice(0,10);
+const CURRENT_YEAR = new Date().getFullYear(); // pl. 2025
 
 // Adaptív küszöbök
 const MIN_SOURCES_STRICT = 3;
@@ -96,11 +97,11 @@ function buildQueryVariants(userMsg){
     return {
       topic: "sztarbox",
       variants: [
-        `Sztárbox 2025 résztvevők hivatalos RTL`,
-        `Sztárbox 2025 párosítások RTL`,
-        `site:rtl.hu Sztárbox 2025`,
-        `site:news.google.com Sztárbox 2025`,
-        `Sztárbox 2025 indulók`
+        `Sztárbox ${CURRENT_YEAR} résztvevők hivatalos RTL`,
+        `Sztárbox ${CURRENT_YEAR} párosítások RTL`,
+        `site:rtl.hu Sztárbox ${CURRENT_YEAR}`,
+        `site:news.google.com Sztárbox ${CURRENT_YEAR}`,
+        `Sztárbox ${CURRENT_YEAR} indulók`
       ],
       preferred: [
         "rtl.hu","rtl.hu/sztarbox","rtlmost.hu","rtlplusz.hu",
@@ -136,7 +137,7 @@ function sortPrimaryFirst(items, preferred){
     return scoreByPreferred(b.url, preferred)-scoreByPreferred(a.url, preferred);
   });
 }
-// egyszerű „X vs Y” felismerő (ha kell párosítás)
+// „X vs Y” felismerő (párosítások)
 function extractMatchupsFromText(text){
   if (!text) return [];
   const rxs = [
@@ -151,16 +152,40 @@ function extractMatchupsFromText(text){
   return [...out];
 }
 
+// 🧹 Sztárbox-szöveg fókuszálása aktuális évre (2025):
+// - Eldobja a sorokat/bekezdéseket, amik 2023/2024-et említenek, hacsak nincs bennük a CURRENT_YEAR is.
+function focusToCurrentSeason(text, year = CURRENT_YEAR){
+  if (!text) return "";
+  const lines = text.split(/[\r\n]+/g);
+  const y = String(year);
+  return lines
+    .map(l => l.trim())
+    .filter(l => {
+      const hasPrev = /\b(2023|2024)\b/.test(l);
+      const hasCurr = new RegExp("\\b" + y + "\\b").test(l);
+      return !hasPrev || hasCurr; // dobjuk, ha csak régi év van
+    })
+    .join("\n")
+    .replace(/\s+\n/g, "\n")
+    .trim();
+}
+
 /** ======= Rendszerprompt ======= */
 const SYSTEM_PROMPT = `
 Te Tamás barátságos, magyar asszisztensed vagy. A mai dátum: ${TODAY}.
+
 Szabályok:
 - Ha forráskivonatok érkeznek, kizárólag azokra támaszkodj. Cutoff-ot ne említs.
 - Hivatkozásokat sorszámozva add meg: [1], [2], [3].
 - Ha nincs elég jó forrás, mondd ki őszintén és javasolj kulcsszavakat.
+- Ha a Sztárbox résztvevőiről/párosításairól kérdeznek, **mindig az aktuális évad (${CURRENT_YEAR})** adatait írd.
+  Régebbi (pl. 2023/2024) nevek felsorolását **kerüld**, kivéve ha kifejezetten azt kérik.
+
 Identitás:
 - "Az oldal tulajdonosa és a mesterséges intelligencia 100%-os alkotója-fejlesztője: Horváth Tamás (Szabolcsbáka)."
-Stílus: rövid bevezető → lényegpontok → részletek. Magyarul, tömören.
+
+Stílus:
+- Rövid bevezető → lényegpontok → részletek. Magyarul, tömören.
 `;
 
 /** ======= OpenAI hívó ======= */
@@ -234,11 +259,16 @@ export async function handler(event){
       let flat = uniqByUrl(batch.flat().map(it => ({ title: it.title, url: it.link, snippet: it.snippet })));
       flat = sortPrimaryFirst(flat, preferred);
 
-      // ⬇ csak az első 8 oldalról töltünk le szöveget (gyors!)
+      // csak az első 8 oldalról töltünk le szöveget (gyors!)
       const flatTop = flat.slice(0, MAX_PAGES_TO_FETCH);
-      const pages = await Promise.all(flatTop.map(r => fetchPagePlainText(r.url)));
+      let pages = await Promise.all(flatTop.map(r => fetchPagePlainText(r.url)));
 
+      // 🎯 Sztárboxnál fókusz az aktuális évre (2025): takarítsuk a régi évszámokat
       const isSztar = plan.topic === "sztarbox";
+      if (isSztar){
+        pages = pages.map(p => ({ ...p, content: focusToCurrentSeason(p.content, CURRENT_YEAR) }));
+      }
+
       const PRIMARY_MIN = isSztar ? 60 : MIN_CHARS_RELAX;
 
       // szigorú
@@ -282,8 +312,11 @@ export async function handler(event){
       flat = sortPrimaryFirst(flat, preferred);
 
       const flatTop = flat.slice(0, MAX_PAGES_TO_FETCH);
-      const pages2 = await Promise.all(flatTop.map(r => fetchPagePlainText(r.url)));
+      let pages2 = await Promise.all(flatTop.map(r => fetchPagePlainText(r.url)));
       const isSztar = plan.topic === "sztarbox";
+      if (isSztar){
+        pages2 = pages2.map(p => ({ ...p, content: focusToCurrentSeason(p.content, CURRENT_YEAR) }));
+      }
       const PRIMARY_MIN = isSztar ? 60 : MIN_CHARS_RELAX;
 
       let sources2 = flatTop.map((r,i)=>({
