@@ -10,7 +10,6 @@
       --panel:#0f1620cc; --text:#e8eef6; --muted:#9fb0c3;
       --bubbleUser:#ffb84d; --bubbleBot:#243447; --bubbleInfo:#1b2838;
       --shadow:0 10px 30px rgba(0,0,0,.25);
-      --danger:#ff4d4d;
     }
     html,body{height:100%;overflow:hidden}
     body{
@@ -31,7 +30,7 @@
     .card{
       width:min(1000px,94vw); height:78dvh;
       background:var(--panel); border:1px solid rgba(255,255,255,.08);
-      border-radius:22px; box-shadow:var(--shadow);
+      border-radius:22px; box-shadow:0 10px 30px rgba(0,0,0,.25);
       display:flex; flex-direction:column; overflow:hidden; position:relative;
     }
     .errorbar{
@@ -55,7 +54,7 @@
     }
     .bot .bubble{background:var(--bubbleBot)}
     .user .bubble{background:var(--bubbleUser); color:#1f1200}
-    .info .bubble{background:var(--bubbleInfo); color:var(--muted)}
+    .info .bubble{background:var(--bubbleInfo); color:#9fb0c3}
     .chatlog img{ max-width:55%; border-radius:12px; display:block; margin:8px auto; }
 
     .tts-btn{ border:0; background:none; cursor:pointer; font-size:18px; margin:4px 0 0 6px; color:#9fb0c3; }
@@ -110,7 +109,7 @@
     </div>
   </section>
 
-  <footer>© Tamás AI — védett oldal. Bármilyen másolás jogsértésnek minősül.</footer>
+  <footer>© Tamás AI</footer>
 
   <script>
     const log = document.getElementById('log');
@@ -158,7 +157,6 @@
     function gFavicon(d){ return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(d)}&sz=64`; }
     function ddgFavicon(d){ return `https://icons.duckduckgo.com/ip3/${encodeURIComponent(d)}.ico`; }
 
-    // utólagos biztosítás: ha nincs IMG és üres a span, írjuk be az első betűt
     function ensureSourceBadgesLetters(container){
       const nodes = container.querySelectorAll('.source-logo');
       nodes.forEach(sp=>{
@@ -193,7 +191,6 @@
           if (parts.length >= 8) break;
         }
         if (!parts.length) return "";
-        // becsomagolva úgy, hogy utólagos ellenőrzést futtassunk rá
         const blockId = 'src_' + Math.random().toString(36).slice(2,8);
         setTimeout(()=>{
           const el = document.getElementById(blockId);
@@ -246,7 +243,6 @@
         let answer = pickAnswer(data) || "Sajnálom, most nem találtam elég információt. Próbáljuk pontosabban megfogalmazni?";
         let sourcesHtml = pickSourcesBlock(data);
         const row = addRow('bot', answer + sourcesHtml);
-        // extra betű-biztosítás
         ensureSourceBadgesLetters(row);
       }catch(e){
         showError(e);
@@ -257,7 +253,7 @@
     }
     window.sendNow = sendNow;
 
-    // Képkezelés (ha használod)
+    // Képkezelés
     async function compressToDataURL(file, maxWidth = 1600, targetKB = 350, minQuality = 0.6){
       const mime = (file.type || '').toLowerCase();
       if (mime.includes('heic') || mime.includes('heif')) throw new Error('A kep HEIC/HEIF formatumu. Mentsd JPG-ként, majd próbáld újra 📷');
@@ -290,12 +286,7 @@
     async function handleImage(inputEl){ const file = inputEl?.files && inputEl.files[0]; if(!file) return; await processImageFile(file); if(inputEl) inputEl.value=''; }
     window.handleImage = handleImage;
 
-    // paste & dragdrop
-    window.addEventListener('paste', async (e)=>{ const items = e.clipboardData?.items || []; for (const it of items){ if (it.type && it.type.startsWith('image/')){ const file = it.getAsFile(); if (file) { await processImageFile(file); e.preventDefault(); break; } } } });
-    log.addEventListener('dragover', e => { e.preventDefault(); });
-    log.addEventListener('drop', async e => { e.preventDefault(); const files = e.dataTransfer?.files || []; for (const f of files){ if (f.type && f.type.startsWith('image/')){ await processImageFile(f); break; } } });
-
-    // --- Globális hibafigyelő: resource load hibák elnyelve
+    // resource load hibák elnyelése (favikon stb.)
     window.addEventListener('error', (e) => {
       const t = e.target;
       if (t && (t.tagName === 'IMG' || t.tagName === 'LINK' || t.tagName === 'SCRIPT')) return;
