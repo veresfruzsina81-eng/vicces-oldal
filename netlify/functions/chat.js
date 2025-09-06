@@ -15,14 +15,28 @@ const MIN_SOURCES_RELAX  = 2;
 const MIN_CHARS_STRICT = 300;
 const MIN_CHARS_RELAX  = 120;
 
-// Preferált domainek
+/** Elsőbbségi források — ezeket mindig tartsuk meg és tegyük előre */
+const PRIMARY_SOURCES = [
+  // RTL & tulajdonok
+  "rtl.hu","rtl.hu/sztarbox","rtlmost.hu","rtlplusz.hu",
+  // Közösségi
+  "facebook.com","instagram.com","x.com","twitter.com","youtube.com","tiktok.com",
+  // Aggregátor / enciklopédia
+  "news.google.com","google.com/search","wikipedia.org",
+  // Nagy magyar híroldalak
+  "telex.hu","index.hu","24.hu","hvg.hu","hirado.hu","blikk.hu","origo.hu",
+  // Sport-hírek
+  "nemzetisport.hu","nso.hu","m4sport.hu","sport365.hu"
+];
+
+/** Témánként preferált domainek (rangsoroláshoz) */
 const PREFERRED_DOMAINS = [
   // pénz/árfolyam
   "mnb.hu","portfolio.hu","otpbank.hu","raiffeisen.hu","erste.hu","granitbank.hu","wise.com","revolut",
   // időjárás
   "met.hu","idokep.hu","koponyeg.hu",
-  // hazai hírek / Sztárbox
-  "rtl.hu","rtlmost.hu","telex.hu","index.hu","24.hu","blikk.hu","hirado.hu","hvg.hu","facebook.com","instagram.com","x.com"
+  // hírek / Sztárbox (általános preferencia)
+  ...PRIMARY_SOURCES
 ];
 
 /** ======= Szándékfelismerés – mikor böngésszen ======= */
@@ -76,18 +90,31 @@ function buildQueryVariants(userMsg){
     };
   }
 
-  // Sztárbox (párosítások)
+  // Sztárbox (párosítások) — RTL + elsőbbségi oldalak kötelező preferenciával
   if (q.includes("sztárbox") || q.includes("sztábox") || q.includes("sztarbox")) {
     return {
       topic: "sztarbox",
       variants: [
         `Sztárbox 2025 párosítások hivatalos RTL`,
-        `Sztárbox 2025 fight card első meccs`,
-        `Sztárbox 2025 mérkőzések párok`,
-        `Sztárbox 2025 sorsolás sajtótájékoztató`,
-        `RTL Sztárbox 2025 bejelentés párosítás`
+        `Sztárbox 2025 RTL fight card első meccs`,
+        `Sztárbox 2025 RTL mérkőzések párok`,
+        `RTL Sztárbox 2025 sorsolás sajtótájékoztató`,
+        `RTL Sztárbox 2025 hivatalos bejelentés`,
+        // site:-os célzások az elsőbbségi forrásokra
+        `site:rtl.hu Sztárbox 2025 párosítások`,
+        `site:facebook.com Sztárbox 2025 párosítások`,
+        `site:instagram.com Sztárbox 2025`,
+        `site:wikipedia.org Sztárbox 2025`,
+        `site:news.google.com Sztárbox 2025`,
+        `site:nemzetisport.hu Sztárbox 2025`,
+        `site:m4sport.hu Sztárbox 2025`
       ],
-      preferred: ["rtl.hu","rtlmost.hu","rtl.hu/sztarbox","telex.hu","index.hu","24.hu","hvg.hu","hirado.hu","blikk.hu","facebook.com","instagram.com","x.com"]
+      preferred: [
+        "rtl.hu","rtl.hu/sztarbox","rtlmost.hu",
+        "telex.hu","index.hu","24.hu","hvg.hu","hirado.hu","blikk.hu",
+        "facebook.com","instagram.com","x.com","wikipedia.org","news.google.com",
+        "nemzetisport.hu","nso.hu","m4sport.hu","sport365.hu"
+      ]
     };
   }
 
@@ -116,6 +143,9 @@ function sortByPreference(items, preferredDomains){
   return items.slice().sort((a,b) =>
     scoreByPreferred(b.url, preferredDomains) - scoreByPreferred(a.url, preferredDomains)
   );
+}
+function isPrimary(url){
+  return PRIMARY_SOURCES.some(d => url.includes(d));
 }
 // Párosítások (X vs Y) kinyerése a szövegből
 function extractMatchupsFromText(text){
@@ -233,23 +263,45 @@ export async function handler(event){
 
       let flat = batch.flat().map(it => ({ title: it.title, url: it.link, snippet: it.snippet }));
       flat = uniqByUrl(flat);
-      flat = sortByPreference(flat, preferred);
 
+      // 3/a. Kötelező: PRIMARY források legyenek elöl
+      const primaryFirst = (items) => items.slice().sort((a,b) => {
+        const ap = isPrimary(a.url) ? 1 : 0;
+        const bp = isPrimary(b.url) ? 1 : 0;
+        if (ap !== bp) return bp - ap;
+        return scoreByPreferred(b.url, preferred) - scoreByPreferred(a.url, preferred);
+      });
+      flat = primaryFirst(flat);
+
+      // 4) Oldalak letöltése és kivonat
       const pages = await Promise.all(flat.map(r => fetchPagePlainText(r.url)));
 
-      // Szigorú szűrés
-      let strict = flat.map((r,i)=>({ ...r, content: pages[i]?.content || "" }))
-                       .filter(s => s.content && s.content.length >= MIN_CHARS_STRICT);
+      // 5) Szigorú szűrés (DE: elsőbbségi forrásokat röviden is megtartjuk)
+      let strict = flat.map((r,i)=>({
+          ...r,
+          content: pages[i]?.content || "",
+          _primary: isPrimary(r.url)
+        }))
+        .filter(s => s._primary || (s.content && s.content.length >= MIN_CHARS_STRICT));
 
+      // Lazítás, ha kevés
       let sources = strict;
       if (sources.length < MIN_SOURCES_STRICT){
-        // Lazítás
-        sources = flat.map((r,i)=>({ ...r, content: pages[i]?.content || "" }))
-                      .filter(s => s.content && s.content.length >= MIN_CHARS_RELAX);
+        sources = flat.map((r,i)=>({
+            ...r,
+            content: pages[i]?.content || "",
+            _primary: isPrimary(r.url)
+          }))
+          .filter(s => s._primary || (s.content && s.content.length >= MIN_CHARS_RELAX));
       }
 
-      // Rendezés és vágás
-      sources = sortByPreference(sources, preferred).slice(0, Math.max(MIN_SOURCES_STRICT, 6));
+      // 6) Elsőbbségi források kötelező megtartása + rendezés
+      const ensurePrimary = (arr) => {
+        const primaries = arr.filter(a => a._primary);
+        const others    = arr.filter(a => !a._primary);
+        return primaryFirst([...primaries, ...others]);
+      };
+      sources = ensurePrimary(sources).slice(0, Math.max(MIN_SOURCES_STRICT, 6));
 
       if (sources.length >= MIN_SOURCES_RELAX){
         collected = sources;
@@ -274,7 +326,7 @@ export async function handler(event){
     }
     matchups = Array.from(new Set(matchups));
 
-    // 4) Kontextus összeállítása a modellnek (history + forráskivonatok)
+    // 7) Kontextus összeállítása a modellnek (history + forráskivonatok)
     const browserBlock =
       "\n\nForráskivonatok ("+collected.length+" db):\n" +
       collected.map((s,idx) => `[#${idx+1}] ${s.title}\nURL: ${s.url}\nRészlet: ${s.content.slice(0, 1000)}`).join("\n\n") +
