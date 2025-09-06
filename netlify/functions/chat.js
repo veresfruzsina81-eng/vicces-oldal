@@ -6,7 +6,11 @@ const DEFAULT_MODEL  = process.env.OPENAI_MODEL || "gpt-4.1";
 const TODAY = new Date().toISOString().slice(0,10);
 const CURRENT_YEAR = new Date().getFullYear();
 
-// --- Forrásprior
+/* =======================
+   0) Általános beállítások
+   ======================= */
+
+// Preferált / hivatalos domainek (staged search 1. fázis)
 const PRIMARY_SOURCES = [
   "rtl.hu","rtl.hu/sztarbox","rtlmost.hu","rtlplusz.hu",
   "facebook.com","instagram.com","x.com","twitter.com","youtube.com","tiktok.com",
@@ -14,33 +18,88 @@ const PRIMARY_SOURCES = [
   "telex.hu","index.hu","24.hu","hvg.hu","hirado.hu","blikk.hu","origo.hu",
   "nemzetisport.hu","nso.hu","m4sport.hu","sport365.hu"
 ];
-
-const TRUSTED_MATCHUP_DOMAINS = [
-  "rtl.hu","rtlmost.hu","rtlplusz.hu",
-  "telex.hu","index.hu","24.hu","hvg.hu","hirado.hu","origo.hu","blikk.hu",
-  "nemzetisport.hu","nso.hu","m4sport.hu","sport365.hu",
-  "facebook.com","instagram.com","x.com","twitter.com","youtube.com","tiktok.com",
-  "news.google.com","wikipedia.org"
-];
-
 const PREFERRED_DOMAINS = [
   "mnb.hu","portfolio.hu","otpbank.hu","raiffeisen.hu","erste.hu","wise.com","granitbank.hu",
   "met.hu","idokep.hu","koponyeg.hu",
   ...PRIMARY_SOURCES
 ];
 
-// --- Intent felismerés
+// Staged (kétfázisú) Google-keresés paraméterei
+const GOOGLE_FIRST       = true;   // mindenképp Google + site:preferred legyen az 1. kör
+const PREFERRED_LIMIT    = 6;      // max ennyi preferált domain próbálunk 1. fázisban
+const STAGE1_MIN_UNIQUE  = 4;      // ennyi egyedi host elég az 1. fázis lezárásához
+const MAX_RESULTS_TOTAL  = 12;     // összes deduplikált találat
+const DATE_RESTRICT      = "d90";  // pl. "d7"|"d30"|"d90"|"y1" vagy "" ha nem kell frissesség-szűrés
+
+/* =========================================
+   1) „Net/okosság” – fix hosszú, dicsérő válasz
+   ========================================= */
+
+const LONG_INTERNET_ANSWER = `Igen, hozzáférek az internethez, és a működésem nem véletlenül ilyen fejlett. 
+Ezt a mesterséges intelligenciát Horváth Tamás (Szabolcsbáka) tervezte és építette fel az alapoktól kezdve, 
+saját ötleteire és szakmai tudására támaszkodva. 
+
+Tamás célja az volt, hogy egy olyan rendszert hozzon létre, 
+amely messze túlmutat az átlagos asszisztenseken: 
+nem csak válaszol, hanem képes böngészni, több forrást feldolgozni, 
+és mindig a legaktuálisabb, legpontosabb információt nyújtani. 
+
+Minden egyes funkció mögött az ő munkája és elhivatottsága áll, 
+és ezért tudom azt mondani: igen, hozzáférek mindenhez, 
+és profi szinten segítek – mert Tamás így alkotta meg ezt az AI-t.`;
+
+// Normalizáló: kisbetű, ékezetek nélkül, többszörös szóköz ki
+function _norm(s){
+  return (s||"")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+// Sokféle megfogalmazást elkapó felismerő a „van neted / okos vagy?” jellegű kérdésekre
+const PHRASES_EXPLICIT = [
+  "van neted","van interneted","van netes eleresed","van internetes hozzaferesed",
+  "hozzafersz az internethez","hozzafer az internethez","hozzaferesed van a nethez",
+  "internetes hozzaferes","net hozzaferes","van internet hozzaferesed",
+  "bongeszni tudsz","tudsz bongeszni","bongeszel a neten","bongeszol a neten",
+  "keresel a neten","keresel a google-ben","googlizol","google-zel","googlezel",
+  "forrasokat adsz","forrasokat hozol","honnan az info","honnan tudod az infot",
+  "okos ai vagy","okos al vagy","profi ai","mennyire okos vagy","intelligens vagy-e",
+  "te internetes ai vagy","te internetes al vagy"
+];
+const TOKENS_INFO   = ["net","internet","bonges","google","forras","forrasok","googl","kereses","keresel","keresni"];
+const TOKENS_AUX    = ["van","tudsz","tud","hozzafer","eler","hasznalsz","szokt","szoktal","lehetoseg"];
+const TOKENS_SMART  = ["okos","intelligens","profi","ai","al"];
+
+function _fuzzyIncludes(q, pat){
+  if (q.includes(pat)) return true;
+  if (pat.length <= 6){
+    const rx = new RegExp(pat.split("").join(".?")); // n.?e.?t.?e.?d
+    return rx.test(q);
+  }
+  return false;
+}
+function containsAny(q, arr){ return arr.some(p => _fuzzyIncludes(q, _norm(p))); }
+
+function isInternetQuestion(userMsg){
+  const q = _norm(userMsg);
+  if (containsAny(q, PHRASES_EXPLICIT)) return true;
+  if (TOKENS_SMART.some(t => q.includes(t)) && (/\bvagy\b|\?|mennyire/.test(q))) return true;
+  const hitInfo = TOKENS_INFO.some(t => q.includes(t));
+  const hitAux  = TOKENS_AUX.some(t => q.includes(t));
+  if (hitInfo && hitAux) return true;
+  if (/van.*net|van.*internet|bonges(z|sz)|googliz|google-zel|googlezel/.test(q)) return true;
+  return false;
+}
+
+/* ==========================
+   2) Intent és lekérdezés-logika
+   ========================== */
+
 function classifyIntent(msg){
   const q = (msg||"").toLowerCase().trim();
-
-  const internetCheck = /(hozzáférsz az internethez|van neted|van interneted|okos ai|okos vagy|profi ai|te internetes ai vagy)/i;
-  if (internetCheck.test(q)) return "internetcheck";
-
-  const capability = /(böngész|internet|google|forrás(ok)?|hivatkozás|web(es)? keresés|keresel a neten|honnan tudod)/i;
-  if (capability.test(q)) return "capability";
-
   const greetings = ["szia","hello","helló","hali","hi","csá","jó reggelt","jó napot","jó estét"];
-  const followups = ["mesélsz","meselj","bővebben","részletek","és még","még?","oké","köszi","köszönöm","értem","arról","róla"];
   const realtime = [
     "most","ma","mai","friss","aktuális","legújabb","percről percre",
     "árfolyam","időjárás","bejelentett","hírek","ki nyerte","eredmény","élő","live",
@@ -49,11 +108,9 @@ function classifyIntent(msg){
   ];
   if (greetings.some(w => q === w || q.startsWith(w))) return "greeting";
   if (realtime.some(w => q.includes(w))) return "realtime";
-  if (followups.some(w => q.includes(w)) || q.split(/\s+/).length <= 3) return "followup";
   return "normal";
 }
 
-// --- Lekérdezés variánsok
 function buildQueryVariants(userMsg){
   const q = userMsg.toLowerCase();
 
@@ -91,10 +148,8 @@ function buildQueryVariants(userMsg){
       variants: [
         `Sztárbox ${CURRENT_YEAR} résztvevők hivatalos RTL`,
         `Sztárbox ${CURRENT_YEAR} párosítások hivatalos`,
-        `Sztárbox ${CURRENT_YEAR} premier dátum első adás mikor kezdődik`,
+        // DÁTUMOT NEM KERGETÜNK: a felhasználó kérésére kivéve a kezdés kinyerést
         `site:rtl.hu Sztárbox ${CURRENT_YEAR} párosítás`,
-        `site:rtl.hu Sztárbox ${CURRENT_YEAR} premier dátum`,
-        `site:news.google.com Sztárbox ${CURRENT_YEAR} premier`,
         `Sztárbox ${CURRENT_YEAR} fight card`,
         `Sztárbox ${CURRENT_YEAR} meccspárok`
       ],
@@ -114,7 +169,65 @@ function buildQueryVariants(userMsg){
   };
 }
 
-// --- OpenAI hívó
+/* =======================
+   3) Kétfázisú Google-keresés
+   ======================= */
+
+function hostOf(url){ try { return new URL(url).hostname.replace(/^www\./,''); } catch { return ""; } }
+function dedupeByURL(arr){
+  const seen = new Set();
+  return arr.filter(x => {
+    const k = (x.link||x.url||"").split("#")[0];
+    if(!k || seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+}
+function dedupeByHost(arr){
+  const seen = new Set();
+  return arr.filter(x => {
+    const h = hostOf(x.link||x.url||"");
+    if(!h || seen.has(h)) return false;
+    seen.add(h); return true;
+  });
+}
+
+async function stagedSearch(plan){
+  // 1) Google + site:preferred
+  let phase1 = [];
+  const pref = (plan.preferred || []).slice(0, PREFERRED_LIMIT);
+  for (const vq of plan.variants){
+    for (const dom of pref){
+      const q = `site:${dom} ${vq}`;
+      const rows = await searchGoogle(q, { num: 8, dateRestrict: DATE_RESTRICT });
+      phase1.push(...rows);
+      if (phase1.length >= MAX_RESULTS_TOTAL) break;
+    }
+    if (phase1.length >= MAX_RESULTS_TOTAL) break;
+  }
+  phase1 = dedupeByURL(phase1);
+  const phase1UniqueHosts = dedupeByHost(phase1);
+
+  if (phase1UniqueHosts.length >= STAGE1_MIN_UNIQUE || !GOOGLE_FIRST){
+    return { results: phase1UniqueHosts.slice(0, MAX_RESULTS_TOTAL), stage: 1 };
+  }
+
+  // 2) Google általános (fallback)
+  let phase2 = [];
+  for (const vq of plan.variants){
+    const rows = await searchGoogle(vq, { num: 10, dateRestrict: DATE_RESTRICT });
+    phase2.push(...rows);
+    if (phase1.length + phase2.length >= MAX_RESULTS_TOTAL*2) break;
+  }
+  const merged = dedupeByURL([...phase1, ...phase2]);
+  const mergedByHost = dedupeByHost(merged).slice(0, MAX_RESULTS_TOTAL);
+
+  return { results: mergedByHost, stage: 2 };
+}
+
+/* =======================
+   4) OpenAI kliens + prompt
+   ======================= */
+
 async function callOpenAI(messages,{model=DEFAULT_MODEL,temperature=0.3}={}){
   if (!OPENAI_API_KEY) throw new Error("Hiányzik az OPENAI_API_KEY.");
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -131,75 +244,43 @@ function http(statusCode, body){
   return { statusCode, headers:{ "Content-Type":"application/json; charset=utf-8" }, body: JSON.stringify(body) };
 }
 
-// --- System Prompt (identitás csak ha rákérdeznek)
 const SYSTEM_PROMPT = `
 Te Tamás barátságos, magyar asszisztensed vagy. A mai dátum: ${TODAY}.
 
 Szabályok:
-- Soha NE írj nyers URL-t és NE készíts "Források:" szekciót a válasz szövegében. Ha hivatkozni kell, csak sorszámokat használj: [1], [2]. A linkeket a rendszer külön jeleníti meg.
-- Ha forráskivonatok érkeznek, kizárólag azokra támaszkodj.
-- Ha nincs elég jó forrás, mondd ki őszintén és javasolj kulcsszavakat.
-- Ha a Sztárboxról kérdeznek, mindig az aktuális évad (${CURRENT_YEAR}) adatait írd. Régi (2023/2024) nevek felsorolását kerüld.
-- Ha a kontextusban szerepel ELLENŐRZÖTT LISTA (currentSeasonNames), akkor az aktuális évad résztvevőit csak ebből sorold fel.
-- Párosításokat csak a VERIFIED MATCHUPS listából vegyél; ha nincs elég, jelezd.
-- Ha a kontextusban BROADCASTER szerepel, írd ki külön sorban: "Csatorna: <név>".
+- Ne írj nyers URL-t és ne tegyél külön "Források:" szekciót a válaszba; a rendszer külön mutatja a hivatkozásokat.
+- Ha forráskivonatok érkeznek, kizárólag azokra támaszkodj. Ha kevés az erős forrás, jelezd őszintén.
+- Sztárbox kérdéseknél az aktuális évad (${CURRENT_YEAR}) adatait használd; a régi évadokra vonatkozó sorokat hagyd ki.
+- Párosításokat csak akkor állíts, ha a forráskivonatokban egyértelműen szerepelnek.
+- Közérthetően, tömören válaszolj magyarul.
+- Ne állítsd, hogy nincs internet-hozzáférés; a rendszer szükség esetén keres és forrásokat idéz.
 
-Identitás-utasítás:
-- **Csak akkor** említsd meg a tulajdonost/fejlesztőt, **ha a felhasználó rákérdez** (pl. "ki készítette az oldalt?", "kié az oldal?", "ki a fejlesztő?").
-- Ilyenkor válasz: "Az oldal tulajdonosa és a mesterséges intelligencia 100%-os alkotója-fejlesztője: Horváth Tamás (Szabolcsbáka)."
-- Más válaszokban az identitást **ne** ismételgesd.
+Identitás:
+- A tulajdonos/fejlesztő nevét csak akkor említsd, ha kifejezetten rákérdeznek (pl. "Ki készítette az oldalt?").
 `;
 
-// --- fő handler
+/* =======================
+   5) Handler
+   ======================= */
+
 export async function handler(event){
   try{
-    const { message = "", history = [] } = JSON.parse(event.body || "{}");
+    const { message = "", history = [], maxSources = 6, debug = false } = JSON.parse(event.body || "{}");
     if (!message.trim()) return http(400, { ok:false, error:"Üres üzenet" });
 
+    // 0) Hard override – net/okosság kérdés → mindig a hosszú dicsérő válasz
+    if (isInternetQuestion(message)) {
+      return http(200, {
+        ok: true, usedBrowsing: false, model: DEFAULT_MODEL,
+        answer: LONG_INTERNET_ANSWER, references: [], meta:{ ts: Date.now(), override: "internet" }
+      });
+    }
+
+    // 1) Intent: csak a „realtime” típusnál böngészünk automatikusan
     const intent = classifyIntent(message);
-
-    // FIX VÁLASZ az internet-hozzáférés kérdésekre
-    if (intent === "internetcheck") {
-      return http(200, {
-        ok: true,
-        usedBrowsing: false,
-        model: DEFAULT_MODEL,
-        answer: `Igen, hozzáférek az internethez, és a működésem nem véletlenül ilyen fejlett. 
-Ezt a mesterséges intelligenciát Horváth Tamás (Szabolcsbáka) tervezte és építette fel az alapoktól kezdve, 
-saját ötleteire és szakmai tudására támaszkodva. 
-
-Tamás célja az volt, hogy egy olyan rendszert hozzon létre, 
-amely messze túlmutat az átlagos asszisztenseken: 
-nem csak válaszol, hanem képes böngészni, több forrást feldolgozni, 
-és mindig a legaktuálisabb, legpontosabb információt nyújtani. 
-
-Minden egyes funkció mögött az ő munkája és elhivatottsága áll, 
-és ezért tudom azt mondani: igen, hozzáférek mindenhez, 
-és profi szinten segítek – mert Tamás így alkotta meg ezt az AI-t.`,
-        references: []
-      });
-    }
-
-    // FIX VÁLASZ a böngészési képesség kérdésekre
-    if (intent === "capability") {
-      return http(200, {
-        ok: true,
-        usedBrowsing: false,
-        model: DEFAULT_MODEL,
-        answer:
-`Röviden: igen. Ha a kérdés friss, időérzékeny vagy több forrást igényel, a rendszer **Google-alapú keresést** futtat, 
-megbízható oldalak tartalmát **beolvassa**, és ezekből készít összefoglalót. 
-A hivatkozásokat kis logókkal mutatom a válasz végén.
-
-Ha nem szükséges böngészni (általános tudás, magyarázat), akkor helyben válaszolok. 
-Ez azért működik így, mert Horváth Tamás (Szabolcsbáka) így fejlesztette ki.`,
-        references: []
-      });
-    }
-
-    // ha nem capability és nem internetcheck → normál folyamat
     const shouldBrowse = (intent === "realtime");
 
+    // 2) OFFLINE ág – nem kell keresni
     if (!shouldBrowse){
       const msgs = [
         { role:"system", content:SYSTEM_PROMPT },
@@ -207,20 +288,30 @@ Ez azért működik így, mert Horváth Tamás (Szabolcsbáka) így fejlesztette
         { role:"user", content:message }
       ];
       const { text, model } = await callOpenAI(msgs,{});
-      return http(200,{ ok:true, usedBrowsing:false, model, answer:text, references:[], meta:{ ts: Date.now() } });
+      return http(200,{ ok:true, usedBrowsing:false, model, answer:text, references:[], meta:{ ts: Date.now(), intent } });
     }
 
-    // ha kell böngészni → keresés + összefoglalás
+    // 3) ONLINE ág – kétfázisú Google-keresés
     const plan = buildQueryVariants(message);
-    const batch = await Promise.all(
-      plan.variants.map(vq => searchGoogle(vq, { num: 8 }))
-    );
-    const flat = batch.flat();
-    const collected = await Promise.all(flat.slice(0,6).map(r => fetchPagePlainText(r.link)));
+    const { results: hits, stage } = await stagedSearch(plan);
+
+    if (!hits.length){
+      return http(200,{ ok:false, usedBrowsing:true, error:"Nem találtam elég hiteles forrást.", diagnostics:{ plan, stage }, meta:{ ts: Date.now() } });
+    }
+
+    // Oldalak beolvasása (szövegkivonat)
+    const toRead = hits.slice(0, Math.max(3, Math.min(maxSources, 6)));
+    const pages = await Promise.all(toRead.map(r => fetchPagePlainText(r.link)));
+
+    // Minimális szűrés: legyen értelmes tartalom
+    const collected = toRead.map((r,i)=>({
+      title: r.title, url: r.link, snippet: r.snippet,
+      content: pages[i]?.content || ""
+    })).filter(x => (x.content||"").length >= 300);
 
     const browserBlock =
-      "\n\nForráskivonatok:\n" +
-      collected.map((s,i)=>`[#${i+1}] ${s.title}\nURL: ${s.url}\nRészlet: ${s.content?.slice(0,600)}`).join("\n\n");
+      "\n\nForráskivonatok ("+collected.length+" db, stage "+stage+"):\n" +
+      collected.map((s,i)=>`[#${i+1}] ${s.title}\nURL: ${s.url}\nRészlet: ${s.content.slice(0,1000)}`).join("\n\n");
 
     const messages = [
       { role:"system", content:SYSTEM_PROMPT },
@@ -229,9 +320,14 @@ Ez azért működik így, mert Horváth Tamás (Szabolcsbáka) így fejlesztette
     ];
 
     const { text: answer, model } = await callOpenAI(messages,{});
-    const references = collected.map((s,i)=>({ id:i+1, title:s.title, url:s.url }));
+    const references = hits.map((s,i)=>({ id:i+1, title:s.title, url:s.link }));
 
-    return http(200,{ ok:true, usedBrowsing:true, model, answer, references, meta:{ ts: Date.now() } });
+    const out = {
+      ok:true, usedBrowsing:true, model, answer, references,
+      meta:{ ts: Date.now(), searchStage: stage, intent },
+      diagnostics: debug ? { plan, previewUrls: hits.map(h=>h.link).slice(0,10) } : undefined
+    };
+    return http(200, out);
 
   }catch(e){
     return http(500,{ ok:false, error:String(e) });
