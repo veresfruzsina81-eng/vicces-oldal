@@ -58,7 +58,7 @@
     .info .bubble{background:var(--bubbleInfo); color:var(--muted)}
     .chatlog img{ max-width:55%; border-radius:12px; display:block; margin:8px auto; }
 
-    .tts-btn{ border:0; background:none; cursor:pointer; font-size:18px; margin:4px 0 0 6px; color:var(--muted); }
+    .tts-btn{ border:0; background:none; cursor:pointer; font-size:18px; margin:4px 0 0 6px; color:#9fb0c3; }
 
     .composer{ display:flex; align-items:center; gap:10px; padding:10px; background:rgba(0,0,0,.5); flex-wrap:nowrap; position:sticky; bottom:0; }
     .input{ flex:1 1 auto; display:flex; align-items:center; gap:10px; padding:10px 14px; background:#0f1620bf; border:1px solid rgba(255,255,255,.12); border-radius:14px; min-width:0; }
@@ -70,11 +70,15 @@
     }
     .send{ flex:0 0 auto; border:0; cursor:pointer; font-weight:800; color:#331d00; background:linear-gradient(90deg,#ffb84d,#ffa53a); padding:10px 16px; border-radius:14px; white-space:nowrap; }
 
-    footer{ margin-top:8px; font-size:12px; color:var(--muted); text-align:center; user-select:none; pointer-events:none }
+    footer{ margin-top:8px; font-size:12px; color:#9fb0c3; text-align:center; user-select:none; pointer-events:none }
 
     /* Forrás logó csík */
     .source-badge { font-size:12px; color:#9fb0c3; }
-    .source-logo { width:24px; height:24px; border-radius:6px; background:#f1f5f9; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+    .source-logo {
+      width:24px; height:24px; border-radius:6px; background:#0b1220;
+      display:inline-flex; align-items:center; justify-content:center;
+      box-shadow:0 1px 3px rgba(0,0,0,.08); color:#e8eef6; font-weight:700; font-size:12px;
+    }
     .source-logo img { width:18px; height:18px; display:block; }
   </style>
 </head>
@@ -148,24 +152,27 @@
       return r;
     }
 
-    // --- Források logócsíkjához segédek ---
-    function domainFromUrl(u){ try { return new URL(u).hostname.replace(/^www\./,''); } catch { return ""; } }
-    function faviconUrl(u){ const d = domainFromUrl(u); return d ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(d)}&sz=64` : ""; }
-
-    // Nem link, csak favicon logók
+    // --- Forrás logócsík segédek + fallback ---
+    function domainFromUrl(u){
+      try { return new URL(u).hostname.replace(/^www\./,''); } catch { return ""; }
+    }
+    function gFavicon(d){ return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(d)}&sz=64`; }
+    function ddgFavicon(d){ return `https://icons.duckduckgo.com/ip3/${encodeURIComponent(d)}.ico`; }
     function renderSources(refs){
       try{
         if(!Array.isArray(refs) || !refs.length) return "";
-        const seen = new Set();
-        const logos = [];
+        const seen = new Set(); const logos = [];
         for(const s of refs){
-          const link = s.link || s.url || "";
-          const dom = domainFromUrl(link);
-          if(!dom || seen.has(dom)) continue;
-          seen.add(dom);
-          const fav = faviconUrl(link);
-          logos.push(`<span class="source-logo" title="${dom}"><img src="${fav}" alt="${dom}"></span>`);
-          if (logos.length >= 8) break;
+          const link = s.link || s.url || ""; const dom = domainFromUrl(link);
+          if(!dom || seen.has(dom)) continue; seen.add(dom);
+          const img1 = gFavicon(dom); const img2 = ddgFavicon(dom);
+          const html = `
+            <span class="source-logo" title="${dom}" aria-label="${dom}">
+              <img src="${img1}" alt="${dom}"
+                   onerror="this.onerror=null; this.src='${img2}'; this.parentElement.style.background='#0b1220';
+                            this.addEventListener('error', ()=>{ this.remove(); const sp=this.parentElement; sp.textContent='${(dom[0]||'?').toUpperCase()}'; });">
+            </span>`;
+          logos.push(html); if (logos.length >= 8) break;
         }
         return logos.length ? `
           <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
@@ -179,28 +186,10 @@
       for(const c of candidates){ if(typeof c === 'string' && c.trim()) return c.trim(); }
       return "";
     }
-    function pickSourcesBlock(d, answerText){
-      // a modell nem tesz "Források:" blokkot; mi logókat mutatunk a references alapján
+    function pickSourcesBlock(d){
       const arrays = [d?.references, d?.sources, d?.results, d?.items];
-      for(const arr of arrays){
-        if(Array.isArray(arr) && arr.length){ return renderSources(arr); }
-      }
+      for(const arr of arrays){ if(Array.isArray(arr) && arr.length){ return renderSources(arr); } }
       return "";
-    }
-
-    // képtömörítés (meghagytam, ha használod a képfeltöltést)
-    async function compressToDataURL(file, maxWidth = 1600, targetKB = 350, minQuality = 0.6){
-      const mime = (file.type || '').toLowerCase();
-      if (mime.includes('heic') || mime.includes('heif')) throw new Error('A kep HEIC/HEIF formatumu. Mentsd JPG-ként, majd próbáld újra 📷');
-      const dataURL = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
-      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Nem sikerult betolteni a kepet')); i.src = dataURL; });
-
-      let q = 0.85, w = Math.min(maxWidth, img.width), h = Math.round(img.height * (w / img.width));
-      const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
-      function exportJpeg(){ canvas.width = w; canvas.height = h; ctx.clearRect(0,0,w,h); ctx.drawImage(img, 0, 0, w, h); return canvas.toDataURL('image/jpeg', q); }
-      let out = exportJpeg(); let bytes = Math.ceil((out.length * 3) / 4); const targetBytes = targetKB * 1024; let steps = 0;
-      while (bytes > targetBytes && steps < 6) { if (q > minQuality) q = Math.max(minQuality, q - 0.1); else if (w > 720) { w = Math.round(w * 0.8); h = Math.round(h * 0.8); } else break; out = exportJpeg(); bytes = Math.ceil((out.length * 3) / 4); steps++; }
-      return out;
     }
 
     async function callServer(message, imageBase64){
@@ -214,7 +203,7 @@
 
     async function sendNow(){
       try{
-        if (SENDING) return; // dupla-küldés védelem
+        if (SENDING) return;
         const message = (txt?.value || '').trim();
         if(!message){ txt.placeholder = "Írj valamit előbb 🙂"; txt?.focus(); return; }
 
@@ -230,7 +219,7 @@
         if (data && data.meta) context = data.meta;
 
         let answer = pickAnswer(data) || "Sajnálom, most nem találtam elég információt. Próbáljuk pontosabban megfogalmazni?";
-        let sourcesHtml = pickSourcesBlock(data, answer);
+        let sourcesHtml = pickSourcesBlock(data);
         addRow('bot', answer + sourcesHtml);
       }catch(e){
         showError(e);
@@ -241,17 +230,29 @@
     }
     window.sendNow = sendNow;
 
-    // képfeldolgozás (ha kell)
+    // Kép kezelése (ha használod)
+    async function compressToDataURL(file, maxWidth = 1600, targetKB = 350, minQuality = 0.6){
+      const mime = (file.type || '').toLowerCase();
+      if (mime.includes('heic') || mime.includes('heif')) throw new Error('A kep HEIC/HEIF formatumu. Mentsd JPG-ként, majd próbáld újra 📷');
+      const dataURL = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Nem sikerult betolteni a kepet')); i.src = dataURL; });
+      let q=0.85, w=Math.min(maxWidth,img.width), h=Math.round(img.height*(w/img.width));
+      const canvas=document.createElement('canvas'), ctx=canvas.getContext('2d');
+      function exportJpeg(){ canvas.width=w; canvas.height=h; ctx.clearRect(0,0,w,h); ctx.drawImage(img,0,0,w,h); return canvas.toDataURL('image/jpeg',q); }
+      let out=exportJpeg(), bytes=Math.ceil((out.length*3)/4), targetBytes=targetKB*1024, steps=0;
+      while(bytes>targetBytes && steps<6){ if(q>minQuality) q=Math.max(minQuality,q-0.1); else if(w>720){ w=Math.round(w*0.8); h=Math.round(h*0.8);} else break; out=exportJpeg(); bytes=Math.ceil((out.length*3)/4); steps++; }
+      return out;
+    }
     async function processImageFile(file){
       try{
-        let b64 = await compressToDataURL(file, 1600, 350, 0.6);
+        const b64 = await compressToDataURL(file, 1600, 350, 0.6);
         addRow('user', `<img src="${b64}" alt="Feltöltött kép">`);
         const thinking = addRow('bot','<i>Gondolkodj a válaszért…</i>');
         const data = await callServer('', b64);
         thinking.remove();
         if (data && data.meta) context = data.meta;
         let answer = pickAnswer(data) || 'Szép kép! 🙂';
-        let sourcesHtml = pickSourcesBlock(data, answer);
+        let sourcesHtml = pickSourcesBlock(data);
         addRow('bot', answer + sourcesHtml);
       }catch(e){
         showError(e);
@@ -261,7 +262,6 @@
     async function handleImage(inputEl){ const file = inputEl?.files && inputEl.files[0]; if(!file) return; await processImageFile(file); if(inputEl) inputEl.value=''; }
     window.handleImage = handleImage;
 
-    // paste & drag&drop
     window.addEventListener('paste', async (e)=>{ const items = e.clipboardData?.items || []; for (const it of items){ if (it.type && it.type.startsWith('image/')){ const file = it.getAsFile(); if (file) { await processImageFile(file); e.preventDefault(); break; } } } });
     log.addEventListener('dragover', e => { e.preventDefault(); });
     log.addEventListener('drop', async e => { e.preventDefault(); const files = e.dataTransfer?.files || []; for (const f of files){ if (f.type && f.type.startsWith('image/')){ await processImageFile(f); break; } } });
