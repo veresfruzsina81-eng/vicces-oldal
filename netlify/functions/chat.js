@@ -8,7 +8,8 @@
 // - AI-only fallback rövid, emberi stílusban
 // - Minőség-ellenőrzés (LLM judge)
 // - Képértés (vision)
-// - Barátságos, természetes köszönés (NEM „rövid válaszokat adok”)
+// - Barátságos, természetes köszönés
+// - HIBAVÉDELEM: csak http/https linket tölt le (URL validáció!)
 // ============================================================================
 import OpenAI from "openai";
 import * as cheerio from "cheerio";
@@ -29,7 +30,6 @@ const WL = new Set([
 ]);
 
 /* =================== EGYSZERŰ CACHE =================== */
-// In-memory (Netlify function cold start esetén nullázódhat, de így is sokat segít)
 const cache = new Map(); // kulcs: string -> { until:number, value:any }
 function cacheGet(key){
   const it = cache.get(key);
@@ -37,7 +37,7 @@ function cacheGet(key){
   if (Date.now() > it.until) { cache.delete(key); return null; }
   return it.value;
 }
-function cacheSet(key, value, ttlMs=10*60*1000){ // 10 perc alap
+function cacheSet(key, value, ttlMs=12*60*1000){ // 12 perc
   cache.set(key, { until: Date.now() + ttlMs, value });
 }
 
@@ -59,13 +59,13 @@ export async function handler(event) {
       last_person: context.last_person || null
     };
 
-    /* ===== 0/a) Személynév kontextus (pl. "Cristiano Ronaldo" → "hány éves?") ===== */
+    /* ===== 0/a) Személynév kontextus ===== */
     if (question) {
       const nameMatch = question.match(/\b([A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+)+)\b/);
       if (nameMatch) {
-        ctx.last_person = nameMatch[1].trim();           // mentjük az aktuális nevet
+        ctx.last_person = nameMatch[1].trim();
       } else if (ctx.last_person && isVagueFollowUp(question)) {
-        question = `${ctx.last_person} ${question}`;     // egészítjük a homályos kérdést
+        question = `${ctx.last_person} ${question}`;
       }
     }
 
@@ -100,12 +100,12 @@ export async function handler(event) {
       }
     }
 
-    /* ===== 0/c) Smalltalk / köszönés (természetes) ===== */
+    /* ===== 0/c) Smalltalk / köszönés ===== */
     if (isGreeting(question)) {
       return json({
         ok: true,
         question,
-        answer: "Szia! Itt vagyok — kérdezz bármiről. Ha friss infó kell, megnézem több megbízható forrásban is.",
+        answer: "Szia! Itt vagyok — kérdezz bátran. Ha friss infó kell, megnézem több megbízható forrásban is.",
         meta: { ...ctx, smalltalk: true }
       });
     }
@@ -113,7 +113,7 @@ export async function handler(event) {
       return json({
         ok: true,
         question,
-        answer: "Itt vagyok és figyelek. Miről szeretnél többet tudni?",
+        answer: "Itt vagyok és figyelek. Miben segíthetek most?",
         meta: { ...ctx, smalltalk: true }
       });
     }
@@ -140,14 +140,14 @@ export async function handler(event) {
     // Generikus „aktuális” jel → netezzen
     if (intent === "generic" && wantsWeb(question)) intent = "news";
 
-    // Erős híres jel → témaváltás (ne ragadjunk weather-ben)
+    // Erős híres jel → témaváltás
     if (hasStrongNewsSignal(question) && intent !== "weather") {
       ctx.last_city = null;
       ctx.last_intent = "news";
       intent = "news";
     }
 
-    // SAFE MODE: intent bizalom és óvatos öröklés
+    // SAFE MODE
     const conf = SAFE_MODE ? intentConfidence(question) : 1;
     if (SAFE_MODE) {
       const strongNews = hasStrongNewsSignal(question);
@@ -177,7 +177,7 @@ export async function handler(event) {
       }
     }
 
-    // Személy + ténykérdés → AI-only (stabil, rövid)
+    // Személy + ténykérdés → AI-only
     if (ctx.last_person && isPersonFactoid(question)) {
       const text = await answerShortDirect(`${ctx.last_person} ${question}`);
       const checked = await qualityCheck(question, text);
@@ -206,7 +206,7 @@ export async function handler(event) {
       return json({ ok: true, question, answer: "Most nem érem el az árfolyam API-t. Próbáld kicsit később.", meta: ctx });
     }
 
-    // 3/b Weather — soha ne defaultoljon „Budapestre” biztos jel nélkül
+    // 3/b Weather — ne defaultoljon Budapestre
     if (intent === "weather") {
       const guessCity = extractCityGuess(question) || ctx.last_city || null;
       if (!guessCity) {
@@ -236,7 +236,7 @@ export async function handler(event) {
       return json({ ok: true, question, answer: "Most nem sikerült időjárási adatot lekérni. Nézzük meg egy másik városra?", meta: ctx });
     }
 
-    // 3/c News – „minden erejével” web pipeline
+    // 3/c News – agresszív web pipeline
     if (intent === "news" || (SUPER_MODE && intent === "generic")) {
       const wantsList = /\b(résztvevők|nevsor|névsor|versenyzők|versenyzok|szereplők|szereplok)\b/i.test(question);
       const wantsSchedule = /\b(menetrend|időpont|idopont|datum|dátum|mikor|műsor|musor)\b/i.test(question);
@@ -251,11 +251,11 @@ export async function handler(event) {
       if (rich) {
         const checked = await qualityCheck(question, rich);
         const finalAns = mergeQuality(rich, checked);
-        cacheSet(richKey, finalAns, 12*60*1000); // 12 perc cache
+        cacheSet(richKey, finalAns);
         return json({ ok:true, question, answer: finalAns, meta: { ...ctx, last_intent:"news" } });
       }
 
-      // fallback: snippet összefoglaló 1 linkkel
+      // fallback: snippet + 1 link
       const best = await safeSearchBest(question);
       ctx.last_intent = "news";
       ctx.last_topic = keywordsForContext(question);
@@ -319,14 +319,23 @@ function deburrHu(s){
     .replace(/ő/g,"o").replace(/ű/g,"u")
     .replace(/Ő/g,"O").replace(/Ű/g,"U");
 }
+// <<< ÚJ: szigorú URL validáció (hiba ellen)
+function isValidUrl(u) {
+  try {
+    const parsed = new URL(u);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 /* ===== intent bizalom ===== */
 function intentConfidence(q){
   const s = normalizeHu(q);
   let c = 0;
-  if (/\b(árfolyam|eur|euro|eu|usd|gbp|chf|pln|ron|huf|forint)\b/.test(s)) c += 0.6; // FX
-  if (/\b(időjárás|idojaras|előrejelzés|elorejelzes|hőmérséklet|homerseklet|eső|eso|holnap|ma)\b/.test(s)) c += 0.6; // Weather
-  if (/\b(rtl|sztárbox|sztarbox|x-faktor|xfaktor|ukrajna|oroszország|breaking|friss|menetrend|névsor|nevsor|2025|ma|tegnap|most)\b/.test(s)) c += 0.6; // News
+  if (/\b(árfolyam|eur|euro|eu|usd|gbp|chf|pln|ron|huf|forint)\b/.test(s)) c += 0.6;
+  if (/\b(időjárás|idojaras|előrejelzés|elorejelzes|hőmérséklet|homerseklet|eső|eso|holnap|ma)\b/.test(s)) c += 0.6;
+  if (/\b(rtl|sztárbox|sztarbox|x-faktor|xfaktor|ukrajna|oroszország|breaking|friss|menetrend|névsor|nevsor|2025|ma|tegnap|most)\b/.test(s)) c += 0.6;
   if (/\b[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+/.test(q)) c += 0.15;
   if (/\d{4}/.test(q)) c += 0.1;
   return Math.min(1, c);
@@ -374,7 +383,7 @@ function mergeQuality(answer, qc){
 function detectIntentRules(q) {
   const s = normalizeHu(q);
 
-  // --- FX: engedékeny rövid kérdésekre is ---
+  // --- FX ---
   const hasArfolyam = /\bárfolyam\b/.test(s);
   const rawTokens = s.split(/\s+/).filter(Boolean);
   const tokens = rawTokens.map(deburrTokenHu);
@@ -492,7 +501,7 @@ async function safeSearchBest(question) {
   const data = await res.json();
   let items = (data.items || [])
     .map(it => ({ title: it.title || "", snippet: it.snippet || "", link: it.link || "" }))
-    .filter(it => isValidHttpUrl(it.link));
+    .filter(it => it.link && isValidUrl(it.link)); // <<< ÚJ: csak http/https link
 
   // Magyar whitelist
   items = items.filter(it => WL.has(hostname(it.link)));
@@ -524,9 +533,11 @@ async function safeSearchBest(question) {
   }
 
   if (!best) {
-    const firstWL = (data.items || []).find(i => WL.has(hostname(i.link)));
+    const firstWL = (data.items || [])
+      .map(it => ({ title: it.title || "", snippet: it.snippet || "", link: it.link || "" }))
+      .find(i => i.link && isValidUrl(i.link) && WL.has(hostname(i.link)));
     if (firstWL) return firstWL;
-    return null; // inkább kérjen pontosítást, mint kétes link
+    return null;
   }
   return best;
 }
@@ -550,18 +561,24 @@ async function webAnswerAggressive(query, {needList=false, needSchedule=false} =
   const cx  = process.env.GOOGLE_CX      || process.env.Google_CX;
   if (!key || !cx) return null;
 
-  // keresés (10 találat), whitelist-szűrés
+  // keresés (10 találat), whitelist + URL validálás
   const hits = await safeSearch(query);
-  const items = (hits||[]).filter(h => WL.has(host(h.link))).slice(0,5);
+  const items = (hits || [])
+    .filter(h => h && h.link && isValidUrl(h.link))   // <<< ÚJ
+    .filter(h => WL.has(host(h.link)))
+    .slice(0,5);
   if (!items.length) return null;
 
-  // letöltés párhuzamosan
+  // letöltés párhuzamosan (csak valid http/https)
   const limit = pLimit(3);
-  const pages = (await Promise.all(items.map(it => limit(()=> fetchHtml(it.link)
-      .then(html => ({...it, html})).catch(()=>null)
-  )))).filter(Boolean);
+  const pages = (await Promise.all(
+    items.map(it => limit(() =>
+      fetchHtml(it.link)
+        .then(html => ({ ...it, html }))
+        .catch(() => null)
+    ))
+  )).filter(Boolean);
 
-  // kinyerés több cikkből
   let facts = { names: new Set(), dates: new Set(), bullets: [] };
   for (const p of pages){
     const ex = extractFromHtml(p.html, p.link, {needList, needSchedule});
@@ -582,7 +599,6 @@ async function webAnswerAggressive(query, {needList=false, needSchedule=false} =
     return `Következő időpont(ok): ${dates.join(", ")}.\n\nForrás: ${host(src)}\n${src}`;
   }
 
-  // általános rövid válasz (2 mondat + 1 link)
   const best = pages.find(p => p.link.includes("rtl.hu")) || pages[0];
   const two = (facts.bullets||[]).slice(0,2).map(s => s.replace(/\s+/g," ").trim()).filter(Boolean).join(" ");
   return `${two || "A források alapján röviden összefoglaltam a lényeget."}\n\nForrás: ${host(best.link)}\n${best.link}`;
@@ -599,7 +615,10 @@ async function safeSearch(q){
   url.searchParams.set("q", q); url.searchParams.set("num","10");
   url.searchParams.set("safe","active"); url.searchParams.set("hl","hu"); url.searchParams.set("gl","hu"); url.searchParams.set("lr","lang_hu");
   const r = await fetch(url); if(!r.ok) return [];
-  const d = await r.json(); return (d.items||[]).map(it=>({title:it.title||"", snippet:it.snippet||"", link:it.link||""}));
+  const d = await r.json();
+  return (d.items || [])
+    .map(it => ({ title: it.title || "", snippet: it.snippet || "", link: it.link || "" }))
+    .filter(it => it.link && isValidUrl(it.link)); // <<< ÚJ
 }
 async function fetchHtml(url){ const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0'}}); if(!r.ok) throw 0; return await r.text(); }
 
@@ -613,7 +632,6 @@ function extractFromHtml(html, url, {needList=false, needSchedule=false}={}){
   const dates = new Set();
   const bullets = [];
 
-  // névsor
   if (needList){
     $('h1,h2,h3,h4,h5,h6,p,strong,b').each((_,el)=>{
       const t=$(el).text().trim();
@@ -635,7 +653,6 @@ function extractFromHtml(html, url, {needList=false, needSchedule=false}={}){
     }
   }
 
-  // dátum/menetrend
   if (needSchedule){
     $('time').each((_,t)=>{ const d=$(t).attr('datetime')||$(t).text(); addDate(d); });
     $('p,li,span,strong,b,h2,h3').each((_,el)=>{
@@ -645,7 +662,6 @@ function extractFromHtml(html, url, {needList=false, needSchedule=false}={}){
     });
   }
 
-  // általános: első bekezdések/alcímek
   $('p').slice(0,3).each((_,p)=>{ const t=$(p).text().replace(/\s+/g,' ').trim(); if(t) bullets.push(t); });
 
   return { names, dates, bullets };
@@ -663,7 +679,7 @@ function extractFromHtml(html, url, {needList=false, needSchedule=false}={}){
 async function getFxRate(q) {
   try {
     let S = q.toUpperCase().replace(/[.,]/g, " ");
-    S = S.replace(/\bEU\b/g,"EUR").replace(/\bEURO?\b/g,"EUR"); // "eu árfolyam", "euró" → EUR
+    S = S.replace(/\bEU\b/g,"EUR").replace(/\bEURO?\b/g,"EUR");
     let from = "EUR", to = "HUF";
 
     const mPair  = S.match(/\b([A-Z]{3})\s*\/\s*([A-Z]{3})\b/);
@@ -733,7 +749,7 @@ async function getWeather(q, preferredCity) {
 
     let loc = await geocode(guess);
     if (!loc && guess && !/hungary|magyar/i.test(guess)) loc = await geocode(`${guess}, Hungary`);
-    if (!loc) return null; // ne defaultoljon Budapestre
+    if (!loc) return null;
 
     const lat = loc.latitude, lon = loc.longitude;
     const tz = loc.timezone || "Europe/Budapest";
