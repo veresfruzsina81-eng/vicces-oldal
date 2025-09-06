@@ -1,7 +1,11 @@
-// === Tamás AI – Komplex asszisztens motor (HARDENED) =========================
-// Intent router + kontextusmemória + agresszív web-pipeline (több forrás)
-// Rövid, emberi válasz + minőségellenőrzés + képértés
-// HIBAVÉDELEM: mindenhol http/https URL-ellenőrzés, bombabiztos fetchHtml()
+// === Tamás AI – Profi asszisztens motor (HARDENED) ===========================
+// - Intent router + kontextusmemória (last_city/person/topic)
+// - Web pipeline: Google CSE -> whitelist -> párhuzamos letöltés -> cheerio kinyerés
+//   * Névsor (résztvevők/versenyzők) / Menetrend / Rövid összefoglaló több forrásból
+// - AI-only fallback (emberi, max 2 mondat)
+// - Minőség-ellenőrzés (LLM judge) + follow-up javaslat
+// - Képértés (vision)
+// - HIBAVÉDELEM: szigorú URL-validáció mindenhol + bombabiztos fetchHtml()
 // ============================================================================
 import OpenAI from "openai";
 import * as cheerio from "cheerio";
@@ -11,19 +15,19 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /* =================== BEÁLLÍTÁSOK =================== */
 const SAFE_MODE = true;
-const SUPER_MODE = true;
-const INTENT_MIN_CONF = 0.60;
+const SUPER_MODE = true;          // generikus kérdésnél is használhat netet
+const INTENT_MIN_CONF = 0.60;     // ez alatt inkább visszakérdez
 const MAX_IMAGE_BYTES = 2_000_000;
 
 const WL = new Set([
   "rtl.hu","telex.hu","index.hu","24.hu","hvg.hu","portfolio.hu",
-  "nso.hu","nemzetisport.hu"
+  "nso.hu","nemzetisport.hu","444.hu","magyarnemzet.hu"
 ]);
 
 /* =================== EGYSZERŰ CACHE =================== */
 const cache = new Map();
-function cacheGet(key){ const it=cache.get(key); if(!it) return null; if(Date.now()>it.until){cache.delete(key);return null;} return it.value; }
-function cacheSet(key,val,ttl=12*60*1000){ cache.set(key,{until:Date.now()+ttl,value:val}); }
+function cacheGet(k){ const it=cache.get(k); if(!it) return null; if(Date.now()>it.until){cache.delete(k);return null;} return it.value; }
+function cacheSet(k,v,ttl=12*60*1000){ cache.set(k,{until:Date.now()+ttl,value:v}); }
 
 /* =================== HANDLER =================== */
 export async function handler(event) {
@@ -34,6 +38,7 @@ export async function handler(event) {
     let question = (message || "").trim();
     if (!question && !image) return json({ error: "Üres üzenet." }, 400);
 
+    // Kontextus
     const ctx = {
       last_intent: context.last_intent || null,
       last_city:   context.last_city   || null,
@@ -41,36 +46,43 @@ export async function handler(event) {
       last_person: context.last_person || null
     };
 
-    // --- személy kontextus
+    // --- 0/a) személynév kontextus
     if (question) {
       const m = question.match(/\b([A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+)+)\b/);
       if (m) ctx.last_person = m[1].trim();
       else if (ctx.last_person && isVagueFollowUp(question)) question = `${ctx.last_person} ${question}`;
     }
 
-    // --- kép ág
+    // --- 0/b) kép ág
     if (image) {
-      const approxBytes = Math.ceil((image.length * 3) / 4);
+      const approxBytes = Math.ceil((image.length*3)/4);
       if (approxBytes > MAX_IMAGE_BYTES) {
-        return json({ ok:false, question: "[kép]", answer: "A kép túl nagy. Kérlek 2 MB alatt küldd el.", meta:{...ctx,last_intent:"vision"} });
+        return json({ ok:false, question:"[kép]", answer:"A kép túl nagy. Kérlek 2 MB alatt küldd el.", meta:{...ctx,last_intent:"vision"} });
       }
-      const vision = await analyzeImage(image, question);
-      if (vision) return json({ ok:true, question: question||"[kép]", answer: limitToTwoSentences(vision), meta:{...ctx,last_intent:"vision"} });
+      const desc = await analyzeImage(image, question);
+      if (desc) return json({ ok:true, question:question||"[kép]", answer:limitToTwoSentences(desc), meta:{...ctx,last_intent:"vision"} });
       if (!question) return json({ ok:true, question:"[kép]", answer:"Szép kép! 🙂 Most nem sikerült elemezni, próbáld kicsit kisebb méretben.", meta:{...ctx,last_intent:"vision"} });
     }
 
-    // --- smalltalk
-    if (isGreeting(question)) return json({ ok:true, question, answer:"Szia! Itt vagyok — kérdezz bátran. Ha friss infó kell, több megbízható forrásból is megnézem.", meta:{...ctx,smalltalk:true}});
-    if (isSmalltalk(question)) return json({ ok:true, question, answer:"Figyelek. Miben segíthetek most?", meta:{...ctx,smalltalk:true}});
+    // --- 0/c) smalltalk/köszönés
+    if (isGreeting(question)) {
+      return json({ ok:true, question, answer:"Szia! Itt vagyok — kérdezz bátran. Ha friss infó kell, több megbízható forrásból is megnézem.", meta:{...ctx,smalltalk:true} });
+    }
+    if (isSmalltalk(question)) {
+      return json({ ok:true, question, answer:"Figyelek. Miben segíthetek most?", meta:{...ctx,smalltalk:true} });
+    }
 
-    // --- készítő
-    if (isOwnerQuestion(question)) return json({ ok:true, question, answer:"Az oldalt Horváth Tamás készítette Szabolcsbákán. Technikai kérdés? Írd meg nyugodtan.", meta:{...ctx,last_intent:"owner"}});
+    // --- 1) készítő
+    if (isOwnerQuestion(question)) {
+      return json({ ok:true, question, answer:"Az oldalt Horváth Tamás készítette Szabolcsbákán. Technikai kérdés? Írd meg nyugodtan.", meta:{...ctx,last_intent:"owner"} });
+    }
 
-    // --- intent
+    // --- 2) intent + bizalom
     let intent = detectIntentRules(question);
     if (intent === "generic") { try{ const li=await classifyIntentLLM(question); if(li) intent=li; }catch{} }
+
     if (intent === "generic" && wantsWeb(question)) intent = "news";
-    if (hasStrongNewsSignal(question) && intent !== "weather") { ctx.last_city=null; intent="news"; }
+    if (hasStrongNewsSignal(question) && intent !== "weather") { ctx.last_city = null; intent = "news"; }
 
     const conf = SAFE_MODE ? intentConfidence(question) : 1;
     if (SAFE_MODE) {
@@ -90,14 +102,15 @@ export async function handler(event) {
       }
     }
 
-    // --- személyes tény → AI-only
+    // --- személy + tény → AI only
     if (ctx.last_person && isPersonFactoid(question)) {
       const t = await answerShortDirect(`${ctx.last_person} ${question}`);
-      const checked = await qualityCheck(question, t);
-      return json({ ok:true, question, answer: limitToTwoSentences(mergeQuality(t,checked)), meta:{...ctx,last_intent:"ai-only",last_topic:ctx.last_person} });
+      const qc = await qualityCheck(question, t);
+      return json({ ok:true, question, answer: limitToTwoSentences(mergeQuality(t,qc)), meta:{...ctx,last_intent:"ai-only",last_topic:ctx.last_person} });
     }
 
-    // --- FX
+    // --- 3) FRISS ADAT ÁGAK ---
+    // FX
     if (intent === "fx") {
       const fx = await getFxRate(question);
       if (fx?.rate) {
@@ -107,10 +120,12 @@ export async function handler(event) {
       return json({ ok:true, question, answer:"Most nem érem el az árfolyam API-t. Próbáld meg később.", meta:{...ctx,last_intent:"fx"} });
     }
 
-    // --- Weather (nem defaultolunk Budapestre)
+    // Weather
     if (intent === "weather") {
       const guessCity = extractCityGuess(question) || ctx.last_city || null;
-      if (!guessCity) return json({ ok:true, question, answer:"Melyik városra nézzük az időjárást? (pl. Szeged, Debrecen, London) 🙂", meta:{...ctx,last_intent:"clarify-weather"} });
+      if (!guessCity) {
+        return json({ ok:true, question, answer:"Melyik városra nézzük az időjárást? (pl. Szeged, Debrecen, London) 🙂", meta:{...ctx,last_intent:"clarify-weather"} });
+      }
       const wx = await getWeather(question, guessCity);
       if (wx?.name) {
         const tMin = wx.tMin!=null?Math.round(wx.tMin):"—";
@@ -122,10 +137,11 @@ export async function handler(event) {
       return json({ ok:true, question, answer:"Most nem sikerült időjárási adatot lekérni. Nézzük meg egy másik városra?", meta:{...ctx,last_intent:"weather"} });
     }
 
-    // --- News / Super mode
+    // News / Super mode
     if (intent === "news" || (SUPER_MODE && intent === "generic")) {
       const wantsList = /\b(résztvevők|nevsor|névsor|versenyzők|versenyzok|szereplők|szereplok)\b/i.test(question);
       const wantsSchedule = /\b(menetrend|időpont|idopont|datum|dátum|mikor|műsor|musor)\b/i.test(question);
+
       const key = `web:${normalizeHu(question)}:${wantsList}:${wantsSchedule}`;
       const cached = cacheGet(key);
       if (cached) return json({ ok:true, question, answer: cached, meta:{...ctx,last_intent:"news",cached:true} });
@@ -148,14 +164,15 @@ export async function handler(event) {
       return json({ ok:true, question, answer:"Most nem találtam elég megbízható forrást. Egy kulcsszóval pontosítod? 🙂", meta:{...ctx,last_intent:"news"} });
     }
 
-    // --- AI-only
+    // --- 4) AI-only
     const text = await answerShortDirect(question);
     const qc = await qualityCheck(question, text);
     return json({ ok:true, question, answer: limitToTwoSentences(mergeQuality(text,qc)), meta:{...ctx,last_intent:"ai-only",suggest:await buildFollowupSuggestion(question)} });
 
   } catch (err) {
-    console.error("[chat] error:", err);
-    return json({ error: err.message || String(err) }, 500);
+    // ide csak programhiba jut el – NEM dobunk fel link-hibát a usernek
+    console.error("[chat] fatal error:", err);
+    return json({ ok:false, answer:"Sajnálom, valami váratlan hiba történt a feldolgozás közben." }, 200);
   }
 }
 
@@ -163,36 +180,38 @@ export async function handler(event) {
 function cors(){ return {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET,POST,OPTIONS","Access-Control-Allow-Headers":"Content-Type"}; }
 function json(body,statusCode=200){ return { statusCode, headers:{ "Content-Type":"application/json; charset=utf-8", ...cors() }, body: JSON.stringify(body,null,2) }; }
 const hostname = (u)=>{ try{ return new URL(u).hostname.replace(/^www\./,""); }catch{ return ""; } };
-function isValidHttpUrl(u){ try{ const x=new URL(u); return x.protocol==="http:"||x.protocol==="https:"; }catch{ return false; } }
 function normalizeHu(s){ return (s||"").toLowerCase().normalize("NFC"); }
 function deburrHu(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ő/g,"o").replace(/ű/g,"u").replace(/Ő/g,"O").replace(/Ű/g,"U"); }
 
-// >>> KEMÉNY URL VALIDÁLÓ (minden fetch előtt használjuk!)
+// --- SZIGORÚ URL-GUARD (minden fetch előtt ezt használjuk)
 function isValidUrl(u){
-  try { const p=new URL(u); return p.protocol==="http:"||p.protocol==="https:"; }
-  catch { return false; }
+  try{
+    const p = new URL(u);
+    return p.protocol === "http:" || p.protocol === "https:";
+  }catch{
+    return false;
+  }
 }
 
-/* ===== intent / jelek ===== */
+/* ===== jelek / intent ===== */
 function intentConfidence(q){
   const s = normalizeHu(q);
   let c = 0;
   if (/\b(árfolyam|eur|euro|eu|usd|gbp|chf|pln|ron|huf|forint)\b/.test(s)) c += 0.6;
   if (/\b(időjárás|idojaras|előrejelzés|elorejelzes|hőmérséklet|homerseklet|eső|eso|holnap|ma)\b/.test(s)) c += 0.6;
-  if (/\b(rtl|sztárbox|sztarbox|x-faktor|xfaktor|ukrajna|oroszország|breaking|friss|menetrend|névsor|nevsor|2025|ma|tegnap|most)\b/.test(s)) c += 0.6;
+  if (/\b(rtl|sztárbox|sztarbox|x-faktor|xfaktor|ukrajna|oroszország|breaking|friss|menetrend|névsor|nevsor|202\d|ma|tegnap|most)\b/.test(s)) c += 0.6;
   if (/\b[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+/.test(q)) c += 0.15;
   if (/\d{4}/.test(q)) c += 0.1;
   return Math.min(1,c);
 }
 function wantsWeb(q){ return /\b(ma|tegnap|most|friss|legújabb|breaking|202\d|menetrend|időpont|dátum|névsor|résztvevők|ki nyert|állás)\b/.test(normalizeHu(q)); }
-function isGreeting(q){ const s=normalizeHu(q).trim(); return ["szia","hali","helló","hello","üdv","jó napot","jó estét","jó reggelt"].some(p=>s===p||s.startsWith(p+"!")||s.startsWith(p+".")); }
+function isGreeting(q){ const s=normalizeHu(q).trim(); return ["szia","hali","helló","hello","üdv","jó napot","jó estét","jó reggelt"].some(p=>s.startsWith(p)); }
 function isSmalltalk(q){ return /\b(mizu|mi újság|miujsag|hogy vagy|csá|csumi|na mi van|na mi ujsag)\b/.test(normalizeHu(q)); }
 function isOwnerQuestion(q){ return /ki készítette|ki csinálta|készítő|fejlesztő|tulaj|kié az oldal|készítetted|horváth tamás/i.test(q); }
 function limitToTwoSentences(t){ const s=(t||"").replace(/\s+/g," ").trim(); return s.split(/(?<=[.!?])\s+/).slice(0,2).join(" "); }
 async function ask(messages){ const r=await openai.chat.completions.create({ model:"gpt-4o-mini", temperature:0.2, messages }); return r.choices?.[0]?.message?.content?.trim()||""; }
 function mergeQuality(a,qc){ const n=(qc||"").trim(); if(!n) return a; if(/bizonytalan|ellentmond|óvatos|változhat/i.test(n)) return `${a}\n\nMegjegyzés: ${n}`; return a; }
 
-/* ===== detect intent ===== */
 function detectIntentRules(q){
   const s = normalizeHu(q);
   const hasArfolyam = /\bárfolyam\b/.test(s);
@@ -209,15 +228,13 @@ function detectIntentRules(q){
 function deburrTokenHu(t){ return (t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ő/g,"o").replace(/ű/g,"u").replace(/(?:nal|nel|ban|ben|ba|be|ra|re|rol|tol|nak|nek|on|en|n|hoz|hez|ig|val|vel|kent)$/,""); }
 function hasStrongNewsSignal(q){ return /\b(sztárbox|sztarbox|x-faktor|xfaktor|rtl|versenyzők|nevsor|névsor|menetrend|202\d|casting|resztvevok|résztvevők)\b/.test(normalizeHu(q)); }
 function hasStrongWeatherSignal(q){ return /\b(időjárás|idojaras|előrejelzés|elorejelzes|hőmérséklet|homerseklet|szél|szel|eső|eso)\b/.test(normalizeHu(q)); }
-function looksFresh(q){ return /\b(ma|tegnap|holnap|most|friss|breaking|legujabb|utolso)\b/.test(normalizeHu(q)); }
-function keywordsForContext(q){ return normalizeHu(q).replace(/[^\p{L}\p{N}\s]/gu," ").split(/\s+/).filter(w=>w&&w.length>=4).slice(0,3).join(" "); }
 function isVagueFollowUp(q){ const s=normalizeHu(q).replace(/[^\p{L}\p{N}\s]/gu," ").trim(); const tokens=s.split(/\s+/).filter(Boolean); const stop=new Set(["ők","ok","azok","ezek","azt","ezt","mert","és","de","vagy","hogy","is","mi","milyen","hogyan","akkor","igen","nem","hadban","állnak","egymással","holnap","ma"]); const content=tokens.filter(t=>!(stop.has(t)||t.length<=2)); const hasEntity=/[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+/.test(q); return content.length===0||(!hasEntity&&tokens.length<=4); }
 function isPersonFactoid(q){ return /\b(hány éves|mikor született|milyen magas|hol játszik|milyen poszt)\b/.test(normalizeHu(q)); }
 
 /* ===== visszakérdezés / javaslat / QC ===== */
-async function buildClarifyingQuestion(u){ try{ return await ask([{role:"system",content:"Fogalmazz 1 rövid, barátságos pontosító kérdést magyarul."},{role:"user",content:`Felhasználó: ${u}` }]); }catch{ return ""; } }
-async function buildFollowupSuggestion(u){ try{ return await ask([{role:"system",content:"Adj 1 rövid javaslatot (max 12 szó), hogy mit kérdezhet legközelebb — magyarul."},{role:"user",content:`Felhasználó kérdése: ${u}` }]); }catch{ return ""; } }
-async function qualityCheck(q, a){ try{ return await ask([{role:"system",content:"Ellenőrizd röviden: a válasz állításai nincsenek-e ellentmondásban a kérdéssel; ha bizonytalan vagy változhat, jelezd 1 rövid mondattal."},{role:"user",content:`Kérdés: ${q}\nVálasz: ${a}`}]); }catch{ return ""; } }
+async function buildClarifyingQuestion(u){ try{ return await ask([{role:"system",content:"Fogalmazz 1 rövid, barátságos pontosító kérdést magyarul."},{role:"user",content:`Felhasználó: ${u}`}]); }catch{ return ""; } }
+async function buildFollowupSuggestion(u){ try{ return await ask([{role:"system",content:"Adj 1 rövid javaslatot (max 12 szó), hogy mit kérdezhet legközelebb — magyarul."},{role:"user",content:`Felhasználó kérdése: ${u}`}]); }catch{ return ""; } }
+async function qualityCheck(q,a){ try{ return await ask([{role:"system",content:"Ellenőrizd röviden: a válasz állításai nincsenek-e ellentmondásban a kérdéssel; ha bizonytalan vagy változhat, jelezd 1 rövid mondattal."},{role:"user",content:`Kérdés: ${q}\nVálasz: ${a}`}]); }catch{ return ""; } }
 
 /* ================= AI-only ================= */
 async function answerShortDirect(question){
@@ -248,7 +265,7 @@ async function safeSearchBest(question){
   const data=await res.json();
   let items=(data.items||[])
     .map(it=>({title:it.title||"",snippet:it.snippet||"",link:it.link||""}))
-    .filter(it=>it.link && isValidUrl(it.link));            // szigorú
+    .filter(it=>it.link && isValidUrl(it.link));      // szigorú guard
   items = items.filter(it=>WL.has(hostname(it.link)));
 
   const kws=extractKeywordsHu(question); const kwSet=new Set(kws);
@@ -259,21 +276,20 @@ async function safeSearchBest(question){
   for(const it of items){
     const hits=kwHits(`${it.title} ${it.snippet}`); if(kws.length&&hits<1) continue;
     const h=hostname(it.link).toLowerCase();
-    let s=({ "rtl.hu":10,"24.hu":9,"index.hu":9,"telex.hu":9,"hvg.hu":9,"portfolio.hu":9,"nemzetisport.hu":8,"nso.hu":8 }[h]||5)
-           + Math.min(hits,3);
+    let s=({ "rtl.hu":10,"24.hu":9,"index.hu":9,"telex.hu":9,"hvg.hu":9,"portfolio.hu":9,"nemzetisport.hu":8,"nso.hu":8,"444.hu":8,"magyarnemzet.hu":8 }[h]||5)+Math.min(hits,3);
     if(it.link.toLowerCase().includes(year)) s+=2;
     if(preferRtl && h==="rtl.hu") s+=5;
     if(s>score){ best=it; score=s; }
   }
+
   if(!best){
     const firstWL=(data.items||[])
       .map(it=>({title:it.title||"",snippet:it.snippet||"",link:it.link||""}))
-      .find(i=>i.link&&isValidUrl(i.link)&&WL.has(hostname(i.link)));
+      .find(i=>i.link && isValidUrl(i.link) && WL.has(hostname(i.link)));
     return firstWL||null;
   }
   return best;
 }
-
 async function answerFromSnippet(question,title,snippet){
   try{
     const txt=await ask([{role:"system",content:"Magyarul válaszolj MAX 2 mondatban, csak a (title+snippet) alapján. Ha nem elég egyértelmű, írd: 'A megadott forrás alapján nem egyértelmű a válasz.'"}, {role:"user",content:`Kérdés: ${question}\nForrás cím: ${title}\nForrás leírás: ${snippet}`}]);
@@ -289,15 +305,15 @@ async function webAnswerAggressive(query,{needList=false,needSchedule=false}={})
 
   const hits=await safeSearch(query);
   const items=(hits||[])
-    .filter(h=>h&&h.link&&isValidUrl(h.link))
+    .filter(h=>h && h.link && isValidUrl(h.link))
     .filter(h=>WL.has(host(h.link)))
     .slice(0,5);
   if(!items.length) return null;
 
   const limit=pLimit(3);
   const pages=(await Promise.all(
-    items.map(it=>limit(async() => {
-      const html = await fetchHtml(it.link);           // bombabiztos
+    items.map(it=>limit(async()=>{
+      const html=await fetchHtml(it.link);    // bombabiztos
       if(!html) return null;
       return {...it, html};
     }))
@@ -342,13 +358,15 @@ async function safeSearch(q){
   const d=await r.json();
   return (d.items||[])
     .map(it=>({title:it.title||"",snippet:it.snippet||"",link:it.link||""}))
-    .filter(it=>it.link && isValidUrl(it.link));          // szigorú
+    .filter(it=>it.link && isValidUrl(it.link));     // szigorú guard
 }
 
 /* ---- bombabiztos fetchHtml ---- */
 async function fetchHtml(url){
+  // csak tiszta http/https URL mehet át
+  if (!url || typeof url !== "string") return null;
+  if (!/^https?:\/\//i.test(url)) { console.warn("[skip fetch] bad url:", url); return null; }
   try{
-    if(!url || !isValidUrl(url)) return null;
     const r=await fetch(url,{ headers:{ "User-Agent":"Mozilla/5.0 TamásAI" }});
     if(!r.ok) return null;
     return await r.text();
