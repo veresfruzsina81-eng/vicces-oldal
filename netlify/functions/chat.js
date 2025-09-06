@@ -84,10 +84,13 @@ function buildQueryVariants(userMsg){
       topic: "sztarbox",
       variants: [
         `Sztárbox ${CURRENT_YEAR} résztvevők hivatalos RTL`,
-        `Sztárbox ${CURRENT_YEAR} párosítások RTL`,
-        `site:rtl.hu Sztárbox ${CURRENT_YEAR}`,
-        `site:news.google.com Sztárbox ${CURRENT_YEAR}`,
-        `Sztárbox ${CURRENT_YEAR} indulók`
+        `Sztárbox ${CURRENT_YEAR} párosítások hivatalos`,
+        `Sztárbox ${CURRENT_YEAR} premier dátum első adás mikor kezdődik`,
+        `site:rtl.hu Sztárbox ${CURRENT_YEAR} párosítás`,
+        `site:rtl.hu Sztárbox ${CURRENT_YEAR} premier dátum`,
+        `site:news.google.com Sztárbox ${CURRENT_YEAR} premier`,
+        `Sztárbox ${CURRENT_YEAR} fight card`,
+        `Sztárbox ${CURRENT_YEAR} meccspárok`
       ],
       preferred: PRIMARY_SOURCES
     };
@@ -190,17 +193,19 @@ function aggregateNames(sourcesContents, year){
   return { allow, raw: agg };
 }
 
-// --- Párosítások
+// --- Párosítások (RTL egyforrás is mehet "trusted-rtl" jelzéssel)
 function extractMatchupsFromText(text){
   if (!text) return [];
   const rxs = [
-    /([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)\s*(?:vs\.?|–|—|-)\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)/gu,
-    /párosítás[a-z]*:\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)\s*(?:–|—|-)\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)/giu
+    /([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.'-]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.'-]+)+)\s*(?:vs\.?|–|—|—|–|-|:)\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.'-]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.'-]+)+)/giu,
+    /„([^”]+)”\s*(?:vs\.?|–|—|-|:)\s*„([^”]+)”/giu,
+    /párosítás(?:ok)?:\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.'-]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.'-]+)+)\s*(?:–|—|-|:)\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.'-]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.'-]+)+)/giu
   ];
   const out = new Set();
   for (const rx of rxs){ let m; while((m=rx.exec(text))!==null){
-    const a=m[1].replace(/\s+/g," ").trim(), b=m[2].replace(/\s+/g," ").trim();
-    if (a && b && a.toLowerCase()!==b.toLowerCase()) out.add(`${a} vs ${b}`);
+    const a = m[1].replace(/\s+/g," ").trim();
+    const b = m[2].replace(/\s+/g," ").trim();
+    if (a && b && a.toLowerCase() !== b.toLowerCase()) out.add(`${a} vs ${b}`);
   }}
   return [...out];
 }
@@ -213,97 +218,135 @@ function aggregateMatchupsFromSources(collected){
   const map = {};
   for (const s of collected){
     const text = s.content || "";
+    the: {
+    }
     const url  = s.url || "";
-    const trusted = isTrustedDomain(url);
+    const host = (()=>{ try{ return new URL(url).hostname.replace(/^www\./,''); }catch{ return ""; } })();
+    const isRtl = /(^|\.)rtl\./i.test(host);
+
     const pairs = extractMatchupsFromText(text);
     for (const p of pairs){
       const m = /^(.+?)\s+vs\s+(.+)$/.exec(p);
       if (!m) continue;
       const key = normPair(m[1], m[2]);
-      if (!map[key]) map[key] = { domains:new Set(), anyTrusted:false, examples:[] };
-      try { map[key].domains.add(new URL(url).hostname.replace(/^www\./,'')); } catch {}
-      map[key].anyTrusted = map[key].anyTrusted || trusted;
-      const idx = text.indexOf(m[0]);
-      const ctx = idx>=0 ? text.slice(Math.max(0,idx-80), idx+80) : "";
-      if (map[key].examples.length < 2) map[key].examples.push({ url, ctx });
+      if (!map[key]) map[key] = { domains:new Set(), hasTrusted:false, hasRTL:false, examples:[] };
+      map[key].domains.add(host);
+      map[key].hasRTL = map[key].hasRTL || isRtl;
+      map[key].hasTrusted = map[key].hasTrusted || isTrustedDomain(url);
+      if (map[key].examples.length < 2){
+        const i = text.indexOf(m[0]);
+        const ctx = i>=0 ? text.slice(Math.max(0,i-80), i+80) : "";
+        map[key].examples.push({ url, ctx });
+      }
     }
   }
+
   const verified = [];
-  for (const [k,v] of Object.entries(map)){
-    if (v.domains.size >= 2 && v.anyTrusted){
-      verified.push({ pair:k, sources:[...v.domains], anyTrusted:v.anyTrusted, examples:v.examples });
+  for (const [pair, v] of Object.entries(map)){
+    const okMulti = v.domains.size >= 2 && v.hasTrusted;
+    const okRtl   = v.hasRTL; // RTL saját felület erős jel
+    if (okMulti || okRtl){
+      verified.push({
+        pair,
+        sources: [...v.domains],
+        mode: okMulti ? "multi" : "trusted-rtl",
+        examples: v.examples
+      });
     }
   }
-  verified.sort((a,b)=> b.sources.length - a.sources.length);
+  verified.sort((a,b)=> (b.sources.length - a.sources.length) || ((a.mode==="multi")? -1 : 1));
   return { verified, raw: map };
 }
 
-// --- Csatorna + kezdés (RTL esetén 1 forrás is elég, „előzetes”)
+// --- Csatorna + kezdés (több formátum, ISO, RTL-egyforrás "trusted")
 function extractBroadcasterAndDate(collected, year){
-  const out = {
-    broadcaster: null,
-    premiereDate: null,
-    premiereConfidence: null, // 'multi' vagy 'trusted'
-    proofs: { broadcaster: [], date: [] }
-  };
+  const out = { broadcaster:null, premiereDate:null, premiereConfidence:null, proofs:{ broadcaster:[], date:[] } };
 
   const CH_RX = /\b(RTL(?:\s*Klub)?|RTL\s*\+|RTL\s*Plusz|RTL\s*csatorna)\b/i;
-  const MONTHS = "jan|febr?|már|mar|ápr|apr|máj|maj|jún|jun|júl|jul|aug|szept?|okt|nov|dec";
-  const DATE_RX = new RegExp(
-    `\\b(20\\d{2}|${year})[\\.\\-/\\s]*(${MONTHS})[\\.]?\\s*(\\d{1,2})\\b|\\b(${MONTHS})[\\.]?\\s*(\\d{1,2})\\b`,
-    "i"
-  );
+  const MONTHS = {
+    jan:1, január:1, február:2, feb:2, febr:2, március:3, mar:3, már:3, április:4, apr:4, ápr:4,
+    május:5, maj:5, máj:5, június:6, jun:6, jún:6, július:7, jul:7, júl:7,
+    augusztus:8, aug:8, szeptember:9, szept:9, szep:9,
+    október:10, okt:10, november:11, nov:11, december:12, dec:12
+  };
+  const MONTH_WORDS = Object.keys(MONTHS).join("|");
+  const RX_WORD = new RegExp(`\\b(20\\d{2}|${year})?\\s*\\.?\\s*(${MONTH_WORDS})\\.?\\s*(\\d{1,2})\\.?\\s*(?:-?án|-?én)?`, "i");
+  const RX_ISO  = /\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/;
+  const RX_ROM  = new RegExp(`\\b(20\\d{2}|${year})?\\s*([IVX]{1,4})\\.\\s*(\\d{1,2})\\b`, "i");
+  const roman = {I:1,II:2,III:3,IV:4,V:5,VI:6,VII:7,VIII:8,IX:9,X:10,XI:11,XII:12};
 
-  const hostOf = (u)=>{ try{ return new URL(u).hostname.replace(/^www\\./,""); }catch{ return ""; } };
-  const isTrusted = (h)=> /rtl\\.|telex\\.hu|index\\.hu|24\\.hu|hvg\\.hu|nemzetisport\\.hu|m4sport\\.hu/i.test(h);
+  const hostOf = (u)=>{ try{ return new URL(u).hostname.replace(/^www\./,""); }catch{ return ""; } };
+  const isTrusted = (h)=> /rtl\./i.test(h) || /telex\.hu|index\.hu|24\.hu|hvg\.hu|nemzetisport\.hu|m4sport\.hu/i.test(h);
 
-  const dateMentions = new Map();
-  let anyTrustedDate = null;
+  const dateMentions = new Map(); // ISO -> Set(hosts)
+  let rtlSingle = null;
+
+  function norm(y,m,d){
+    const yy = Number(y||year); const mm = String(m).padStart(2,"0"); const dd = String(d).padStart(2,"0");
+    if (!yy || !m || !d) return null;
+    return `${yy}-${mm}-${dd}`;
+  }
 
   for (const s of collected){
     const url = s.url || ""; const host = hostOf(url);
-    const text = (s.content || "").slice(0, 6000);
+    const text = (s.content || "").slice(0, 7000);
 
-    if (CH_RX.test(text)) {
-      if (!out.broadcaster && /rtl\\./i.test(host)) out.broadcaster = "RTL";
-      out.proofs.broadcaster.push({ host, url });
+    if (CH_RX.test(text)) out.broadcaster = "RTL";
+
+    let iso = null;
+
+    const w = text.match(RX_WORD);
+    if (w){
+      const yy = w[1] || year;
+      const mon = MONTHS[(w[2]||"").toLowerCase()];
+      const dd  = Number(w[3]);
+      iso = mon ? norm(yy, mon, dd) : null;
+    }
+    if (!iso){
+      const m = text.match(RX_ISO);
+      if (m) iso = norm(m[1], Number(m[2]), Number(m[3]));
+    }
+    if (!iso){
+      const r = text.match(RX_ROM);
+      if (r){
+        const yy = r[1] || year;
+        const mm = roman[(r[2]||"").toUpperCase()];
+        const dd = Number(r[3]);
+        iso = mm ? norm(yy, mm, dd) : null;
+      }
     }
 
-    const dm = text.match(DATE_RX);
-    if (dm){
-      const raw = dm[0];
-      if (!dateMentions.has(raw)) dateMentions.set(raw, new Set());
-      dateMentions.get(raw).add(host);
-      if (!anyTrustedDate && isTrusted(host)) anyTrustedDate = raw;
-      out.proofs.date.push({ host, url, raw });
+    if (iso){
+      if (!dateMentions.has(iso)) dateMentions.set(iso, new Set());
+      dateMentions.get(iso).add(host);
+      out.proofs.date.push({ host, url, iso });
+      if (/rtl\./i.test(host)) rtlSingle = rtlSingle || iso;
     }
   }
 
-  if (!out.broadcaster){
-    for (const s of collected){
-      const h = hostOf(s.url||"");
-      if (/rtl\\./i.test(h)) { out.broadcaster = "RTL"; break; }
-    }
-  }
-
-  let bestMulti = null, bestCount = 0;
-  for (const [raw, hosts] of dateMentions.entries()){
+  let bestIso = null, bestCount = 0;
+  for (const [iso, hosts] of dateMentions.entries()){
     const c = hosts.size;
-    if (c > bestCount){ bestCount = c; bestMulti = raw; }
+    if (c > bestCount) { bestCount = c; bestIso = iso; }
   }
 
-  if (bestMulti && bestCount >= 2){
-    out.premiereDate = bestMulti;
+  if (bestIso && bestCount >= 2){
+    out.premiereDate = bestIso;
     out.premiereConfidence = "multi";
-  } else if (anyTrustedDate){
-    out.premiereDate = anyTrustedDate;
+  } else if (rtlSingle){
+    out.premiereDate = rtlSingle;
+    out.premiereConfidence = "trusted";
+  }
+
+  if (out.broadcaster && !out.premiereConfidence && rtlSingle){
+    out.premiereDate = rtlSingle;
     out.premiereConfidence = "trusted";
   }
 
   return out;
 }
 
-// --- Prompt
+// --- Prompt (ne írja a neved, csak ha rákérdeznek)
 const SYSTEM_PROMPT = `
 Te Tamás barátságos, magyar asszisztensed vagy. A mai dátum: ${TODAY}.
 
@@ -313,12 +356,14 @@ Szabályok:
 - Ha nincs elég jó forrás, mondd ki őszintén és javasolj kulcsszavakat.
 - Ha a Sztárboxról kérdeznek, mindig az aktuális évad (${CURRENT_YEAR}) adatait írd. Régi (2023/2024) nevek felsorolását kerüld.
 - Ha a kontextusban szerepel ELLENŐRZÖTT LISTA (currentSeasonNames), akkor az aktuális évad résztvevőit csak ebből sorold fel.
-- Párosításokat csak akkor sorolj fel, ha a kontextus VERIFIED MATCHUPS listát ad. Ha nincs elég, jelezd.
+- Párosításokat csak a VERIFIED MATCHUPS listából vegyél; ha nincs elég, jelezd.
 - Ha a kontextusban BROADCASTER szerepel, írd ki külön sorban: "Csatorna: <név>".
-- Ha a kontextusban PREMIERE DATE szerepel, írd ki külön sorban: "Kezdés: <dátum>". Ha a bizalmi szint 'trusted', jelezd: "(előzetes)".
+- Ha a kontextusban PREMIERE DATE szerepel, írd ki külön sorban: "Kezdés: <YYYY-MM-DD>". Ha a bizalmi szint 'trusted', tedd utána: "(előzetes)".
 
-Identitás:
-- "Az oldal tulajdonosa és a mesterséges intelligencia 100%-os alkotója-fejlesztője: Horváth Tamás (Szabolcsbáka)."
+Identitás-utasítás:
+- **Csak akkor** említsd meg a tulajdonost/fejlesztőt, **ha a felhasználó rákérdez** (pl. "ki készítette az oldalt?", "kié az oldal?", "ki a fejlesztő?").
+- Ilyenkor válasz: "Az oldal tulajdonosa és a mesterséges intelligencia 100%-os alkotója-fejlesztője: Horváth Tamás (Szabolcsbáka)."
+- Más válaszokban az identitást **ne** ismételgesd.
 
 Stílus:
 - Rövid bevezető → lényegpontok → részletek. Magyarul, tömören.
@@ -426,21 +471,20 @@ export async function handler(event){
 
     // Párosítások
     const { verified: verifiedMatchups, raw: matchupsRaw } = aggregateMatchupsFromSources(collected);
-    const matchups = verifiedMatchups.map(v => v.pair);
 
     // Csatorna + kezdés
     const bd = extractBroadcasterAndDate(collected, CURRENT_YEAR);
     const broadcasterInfo = bd.broadcaster || null;
-    const premiereInfo = bd.premiereDate || null;
+    const premiereIso = bd.premiereDate || null;
     const premiereConf = bd.premiereConfidence || null;
 
     const browserBlock =
       "\n\nForráskivonatok ("+collected.length+" db):\n" +
       collected.map((s,i)=>`[#${i+1}] ${s.title}\nURL: ${s.url}\nRészlet: ${s.content.slice(0,1000)}`).join("\n\n") +
       (currentSeasonNames.length ? `\n\nELLENŐRZÖTT LISTA (aktuális évad ${CURRENT_YEAR}):\n- ${currentSeasonNames.join("\n- ")}` : "") +
-      (matchups.length ? `\n\nVERIFIED MATCHUPS:\n- ${matchups.join("\n- ")}` : `\n\nVERIFIED MATCHUPS: nincs elég.`) +
+      (verifiedMatchups.length ? `\n\nVERIFIED MATCHUPS:\n- ${verifiedMatchups.map(v=>v.pair+" ["+(v.mode||"multi")+"]").join("\n- ")}` : `\n\nVERIFIED MATCHUPS: nincs elég.`) +
       (broadcasterInfo ? `\n\nBROADCASTER (ellenőrzött): ${broadcasterInfo}` : "") +
-      (premiereInfo ? `\n\nPREMIERE DATE (${premiereConf||'unknown'}): ${premiereInfo}` : "");
+      (premiereIso ? `\n\nPREMIERE DATE (${premiereConf||'unknown'}): ${premiereIso}` : "");
 
     const messages = [
       { role:"system", content:SYSTEM_PROMPT },
@@ -456,9 +500,9 @@ export async function handler(event){
       meta:{ ts: Date.now() },
       diagnostics:{ topic:plan.topic, usedRecencyDays: usedTier, sourcesFound: collected.length },
       currentSeasonNames,
-      verifiedMatchups: verifiedMatchups.map(v => ({ pair: v.pair, sources: v.sources.slice(0,5) })),
+      verifiedMatchups: verifiedMatchups.map(v => ({ pair: v.pair, sources: v.sources.slice(0,5), mode: v.mode })),
       broadcaster: broadcasterInfo || null,
-      premiereDate: premiereInfo || null,
+      premiereDate: premiereIso || null,
       premiereConfidence: premiereConf || null
     };
 
