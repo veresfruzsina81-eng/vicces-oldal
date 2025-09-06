@@ -25,16 +25,17 @@ const PREFERRED_DOMAINS = [
 ];
 
 // Staged (kétfázisú) Google-keresés paraméterei
-const GOOGLE_FIRST       = true;   // mindenképp Google + site:preferred legyen az 1. kör
-const PREFERRED_LIMIT    = 6;      // max ennyi preferált domain próbálunk 1. fázisban
-const STAGE1_MIN_UNIQUE  = 4;      // ennyi egyedi host elég az 1. fázis lezárásához
-const MAX_RESULTS_TOTAL  = 12;     // összes deduplikált találat
-const DATE_RESTRICT      = "d90";  // pl. "d7"|"d30"|"d90"|"y1" vagy "" ha nem kell frissesség-szűrés
+const GOOGLE_FIRST       = true;
+const PREFERRED_LIMIT    = 6;
+const STAGE1_MIN_UNIQUE  = 4;
+const MAX_RESULTS_TOTAL  = 12;
+const DATE_RESTRICT      = "d90";
 
 /* =========================================
-   1) „Net/okosság” – fix hosszú, dicsérő válasz
+   1) Speciális fix válaszok + felismerők
    ========================================= */
 
+// — Internet/okosság: hosszú dicsérő válasz
 const LONG_INTERNET_ANSWER = `Igen, hozzáférek az internethez, és a működésem nem véletlenül ilyen fejlett. 
 Ezt a mesterséges intelligenciát Horváth Tamás (Szabolcsbáka) tervezte és építette fel az alapoktól kezdve, 
 saját ötleteire és szakmai tudására támaszkodva. 
@@ -48,7 +49,11 @@ Minden egyes funkció mögött az ő munkája és elhivatottsága áll,
 és ezért tudom azt mondani: igen, hozzáférek mindenhez, 
 és profi szinten segítek – mert Tamás így alkotta meg ezt az AI-t.`;
 
-// Normalizáló: kisbetű, ékezetek nélkül, többszörös szóköz ki
+// — Tulaj/fejlesztő: külön fix válasz
+const OWNER_ANSWER = `Az oldal tulajdonosa és a mesterséges intelligencia 100%-os alkotója-fejlesztője: Horváth Tamás (Szabolcsbáka).
+A rendszer felépítése, a böngészési képességek és az összes okos funkció az ő egyedi munkájának és kitartó fejlesztésének köszönhető.`;
+
+// Normalizáló (kisbetű, ékezet nélkül)
 function _norm(s){
   return (s||"")
     .toLowerCase()
@@ -57,7 +62,18 @@ function _norm(s){
     .trim();
 }
 
-// Sokféle megfogalmazást elkapó felismerő a „van neted / okos vagy?” jellegű kérdésekre
+/* ----- Tulaj/fejlesztő detektor (KI KÉSZÍTETTE?) ----- */
+const OWNER_PHRASES = [
+  "ki keszitette","ki hozta letre","ki csinalta","ki a tulaj","ki a fejleszto","kinek a tulajdona",
+  "kiae az oldal","ki a gazdaja","kik keszitettek","kik fejlesztettek","ki az alkoto","ki az üzemelteto","ki uzemelteti"
+];
+function isOwnerQuestion(msg){
+  const q = _norm(msg);
+  return OWNER_PHRASES.some(p => q.includes(p)) ||
+         /\bki.*(k[eé]sz[ií]tette|hozta l[eé]tre|csin[aá]lta|fejleszt[oő]je|tulaj|alkot[oó])/.test(q);
+}
+
+/* ----- Internet/okosság detektor ----- */
 const PHRASES_EXPLICIT = [
   "van neted","van interneted","van netes eleresed","van internetes hozzaferesed",
   "hozzafersz az internethez","hozzafer az internethez","hozzaferesed van a nethez",
@@ -71,17 +87,15 @@ const PHRASES_EXPLICIT = [
 const TOKENS_INFO   = ["net","internet","bonges","google","forras","forrasok","googl","kereses","keresel","keresni"];
 const TOKENS_AUX    = ["van","tudsz","tud","hozzafer","eler","hasznalsz","szokt","szoktal","lehetoseg"];
 const TOKENS_SMART  = ["okos","intelligens","profi","ai","al"];
-
 function _fuzzyIncludes(q, pat){
   if (q.includes(pat)) return true;
   if (pat.length <= 6){
-    const rx = new RegExp(pat.split("").join(".?")); // n.?e.?t.?e.?d
+    const rx = new RegExp(pat.split("").join(".?"));
     return rx.test(q);
   }
   return false;
 }
 function containsAny(q, arr){ return arr.some(p => _fuzzyIncludes(q, _norm(p))); }
-
 function isInternetQuestion(userMsg){
   const q = _norm(userMsg);
   if (containsAny(q, PHRASES_EXPLICIT)) return true;
@@ -148,7 +162,6 @@ function buildQueryVariants(userMsg){
       variants: [
         `Sztárbox ${CURRENT_YEAR} résztvevők hivatalos RTL`,
         `Sztárbox ${CURRENT_YEAR} párosítások hivatalos`,
-        // DÁTUMOT NEM KERGETÜNK: a felhasználó kérésére kivéve a kezdés kinyerést
         `site:rtl.hu Sztárbox ${CURRENT_YEAR} párosítás`,
         `Sztárbox ${CURRENT_YEAR} fight card`,
         `Sztárbox ${CURRENT_YEAR} meccspárok`
@@ -268,7 +281,15 @@ export async function handler(event){
     const { message = "", history = [], maxSources = 6, debug = false } = JSON.parse(event.body || "{}");
     if (!message.trim()) return http(400, { ok:false, error:"Üres üzenet" });
 
-    // 0) Hard override – net/okosság kérdés → mindig a hosszú dicsérő válasz
+    // 0/A) TULAJ/FEJLESZTŐ kérdés → fix tulaj-válasz
+    if (isOwnerQuestion(message)) {
+      return http(200, {
+        ok: true, usedBrowsing: false, model: DEFAULT_MODEL,
+        answer: OWNER_ANSWER, references: [], meta:{ ts: Date.now(), override: "owner" }
+      });
+    }
+
+    // 0/B) Net/okosság kérdés → fix hosszú dicsérő válasz
     if (isInternetQuestion(message)) {
       return http(200, {
         ok: true, usedBrowsing: false, model: DEFAULT_MODEL,
@@ -303,7 +324,6 @@ export async function handler(event){
     const toRead = hits.slice(0, Math.max(3, Math.min(maxSources, 6)));
     const pages = await Promise.all(toRead.map(r => fetchPagePlainText(r.link)));
 
-    // Minimális szűrés: legyen értelmes tartalom
     const collected = toRead.map((r,i)=>({
       title: r.title, url: r.link, snippet: r.snippet,
       content: pages[i]?.content || ""
