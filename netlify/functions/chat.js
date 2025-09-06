@@ -4,9 +4,9 @@ import { searchGoogle, fetchPagePlainText } from "./google.js";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const DEFAULT_MODEL  = process.env.OPENAI_MODEL || "gpt-4.1";
 const TODAY = new Date().toISOString().slice(0,10);
-const CURRENT_YEAR = new Date().getFullYear(); // pl. 2025
+const CURRENT_YEAR = new Date().getFullYear();
 
-// --- Források priorizálása
+// --- Forrásprior
 const PRIMARY_SOURCES = [
   "rtl.hu","rtl.hu/sztarbox","rtlmost.hu","rtlplusz.hu",
   "facebook.com","instagram.com","x.com","twitter.com","youtube.com","tiktok.com",
@@ -29,27 +29,25 @@ const PREFERRED_DOMAINS = [
   ...PRIMARY_SOURCES
 ];
 
-// ===== Intent: mikor böngésszen
+// --- Intent
 function classifyIntent(msg){
   const q = (msg||"").toLowerCase().trim();
   const greetings = ["szia","hello","helló","hali","hi","csá","jó reggelt","jó napot","jó estét"];
   const followups = ["mesélsz","meselj","bővebben","részletek","és még","még?","oké","köszi","köszönöm","értem","arról","róla"];
-
   const realtime = [
     "most","ma","mai","friss","aktuális","legújabb","percről percre",
-    "árfolyam","időjárás","bejelentett","bejelentés","hírek","ki nyerte","eredmény","élő","live",
+    "árfolyam","időjárás","bejelentett","hírek","ki nyerte","eredmény","élő","live",
     "párosítás","fight card","menetrend",
-    "résztvevő","résztvevők","szereplő","induló","indulók","versenyző","versenyzők",
+    "résztvevő","versenyzők",
     "2024","2025","2026","sztárbox","sztábox","sztarbox"
   ];
-
   if (greetings.some(w => q === w || q.startsWith(w))) return "greeting";
   if (realtime.some(w => q.includes(w))) return "realtime";
   if (followups.some(w => q.includes(w)) || q.split(/\s+/).length <= 3) return "followup";
   return "normal";
 }
 
-// ===== Kereső query variánsok
+// --- Query variánsok
 function buildQueryVariants(userMsg){
   const q = userMsg.toLowerCase();
 
@@ -107,7 +105,7 @@ function buildQueryVariants(userMsg){
   };
 }
 
-// ===== Segédek
+// --- Segédek
 function uniqByUrl(arr){ const s=new Set(); return arr.filter(x=>!s.has(x.url)&&s.add(x.url)); }
 function scoreByPreferred(url, preferred){ return preferred.some(d=>url.includes(d)) ? 1 : 0; }
 function isPrimary(url){ return PRIMARY_SOURCES.some(d => url.includes(d)); }
@@ -120,7 +118,7 @@ function sortPrimaryFirst(items, preferred){
   });
 }
 
-// 2025 fókusz – régi évadok kidobása
+// --- Régi évad törlés
 function removeOldSeasons(text){
   if (!text) return "";
   return text
@@ -135,7 +133,7 @@ function removeOldSeasons(text){
     .trim();
 }
 
-// ===== Névkinyerés (szigorú)
+// --- Névkinyerés
 const NAME_STOPWORDS = new Set([
   "Sztárboxban","Elkezdődött","Reggeli","Házon","Boxing","Kings","Exek",
   "Security","Hell","Adam","Marcsii","Előző","Korábbi","Versenyzők","Lista",
@@ -192,7 +190,7 @@ function aggregateNames(sourcesContents, year){
   return { allow, raw: agg };
 }
 
-// ===== Párosítások
+// --- Párosítások
 function extractMatchupsFromText(text){
   if (!text) return [];
   const rxs = [
@@ -240,25 +238,33 @@ function aggregateMatchupsFromSources(collected){
   return { verified, raw: map };
 }
 
-// ===== Csatorna és dátum kinyerése
+// --- Csatorna + kezdés (RTL esetén 1 forrás is elég, „előzetes”)
 function extractBroadcasterAndDate(collected, year){
-  const out = { broadcaster: null, premiereDate: null, proofs: { broadcaster: [], date: [] } };
+  const out = {
+    broadcaster: null,
+    premiereDate: null,
+    premiereConfidence: null, // 'multi' vagy 'trusted'
+    proofs: { broadcaster: [], date: [] }
+  };
 
   const CH_RX = /\b(RTL(?:\s*Klub)?|RTL\s*\+|RTL\s*Plusz|RTL\s*csatorna)\b/i;
   const MONTHS = "jan|febr?|már|mar|ápr|apr|máj|maj|jún|jun|júl|jul|aug|szept?|okt|nov|dec";
-  const DATE_RX = new RegExp(`\\b(20\\d{2}|${year})[\\.\\-/\\s]*(${MONTHS})[\\.]?\\s*(\\d{1,2})\\b|\\b(${MONTHS})[\\.]?\\s*(\\d{1,2})\\b`, "i");
-  const mentions = { ch: new Map(), date: new Map() };
+  const DATE_RX = new RegExp(
+    `\\b(20\\d{2}|${year})[\\.\\-/\\s]*(${MONTHS})[\\.]?\\s*(\\d{1,2})\\b|\\b(${MONTHS})[\\.]?\\s*(\\d{1,2})\\b`,
+    "i"
+  );
 
-  const hostOf = (u)=>{ try{ return new URL(u).hostname.replace(/^www\./,""); }catch{ return ""; } };
-  const trusted = (h)=> /rtl\\.|telex\\.hu|index\\.hu|24\\.hu|hvg\\.hu|nemzetisport\\.hu|m4sport\\.hu/i.test(h);
+  const hostOf = (u)=>{ try{ return new URL(u).hostname.replace(/^www\\./,""); }catch{ return ""; } };
+  const isTrusted = (h)=> /rtl\\.|telex\\.hu|index\\.hu|24\\.hu|hvg\\.hu|nemzetisport\\.hu|m4sport\\.hu/i.test(h);
+
+  const dateMentions = new Map();
+  let anyTrustedDate = null;
 
   for (const s of collected){
     const url = s.url || ""; const host = hostOf(url);
-    const text = (s.content || "").slice(0, 4000);
+    const text = (s.content || "").slice(0, 6000);
 
-    const ch = text.match(CH_RX)?.[0];
-    if (ch){
-      mentions.ch.set(ch, (mentions.ch.get(ch)||new Set()).add(host));
+    if (CH_RX.test(text)) {
       if (!out.broadcaster && /rtl\\./i.test(host)) out.broadcaster = "RTL";
       out.proofs.broadcaster.push({ host, url });
     }
@@ -266,42 +272,50 @@ function extractBroadcasterAndDate(collected, year){
     const dm = text.match(DATE_RX);
     if (dm){
       const raw = dm[0];
-      mentions.date.set(raw, (mentions.date.get(raw)||new Set()).add(host));
+      if (!dateMentions.has(raw)) dateMentions.set(raw, new Set());
+      dateMentions.get(raw).add(host);
+      if (!anyTrustedDate && isTrusted(host)) anyTrustedDate = raw;
       out.proofs.date.push({ host, url, raw });
     }
   }
 
   if (!out.broadcaster){
-    for (const [val, hosts] of mentions.ch.entries()){
-      if ([...hosts].some(h => /rtl\\./i.test(h))) { out.broadcaster = "RTL"; break; }
+    for (const s of collected){
+      const h = hostOf(s.url||"");
+      if (/rtl\\./i.test(h)) { out.broadcaster = "RTL"; break; }
     }
   }
 
-  let bestDate = null, bestCount = 0, hasTrusted = false;
-  for (const [raw, setHosts] of mentions.date.entries()){
-    const hosts = [...setHosts]; const count = hosts.length; const anyTrusted = hosts.some(trusted);
-    if (count > bestCount || (count === bestCount && anyTrusted && !hasTrusted)){
-      bestDate = raw; bestCount = count; hasTrusted = anyTrusted;
-    }
+  let bestMulti = null, bestCount = 0;
+  for (const [raw, hosts] of dateMentions.entries()){
+    const c = hosts.size;
+    if (c > bestCount){ bestCount = c; bestMulti = raw; }
   }
-  if (bestDate) out.premiereDate = bestDate;
+
+  if (bestMulti && bestCount >= 2){
+    out.premiereDate = bestMulti;
+    out.premiereConfidence = "multi";
+  } else if (anyTrustedDate){
+    out.premiereDate = anyTrustedDate;
+    out.premiereConfidence = "trusted";
+  }
 
   return out;
 }
 
-// ===== Prompt (nincs URL a válaszban)
+// --- Prompt
 const SYSTEM_PROMPT = `
 Te Tamás barátságos, magyar asszisztensed vagy. A mai dátum: ${TODAY}.
 
 Szabályok:
-- Soha NE írj nyers URL-t és NE készíts "Források:" szekciót a válasz szövegében. Ha hivatkozni kell, csak sorszámokat használj: [1], [2], [3]. A linkeket a rendszer külön jeleníti meg.
+- Soha NE írj nyers URL-t és NE készíts "Források:" szekciót a válasz szövegében. Ha hivatkozni kell, csak sorszámokat használj: [1], [2]. A linkeket a rendszer külön jeleníti meg.
 - Ha forráskivonatok érkeznek, kizárólag azokra támaszkodj. Cutoff-ot ne említs.
 - Ha nincs elég jó forrás, mondd ki őszintén és javasolj kulcsszavakat.
-- Ha a Sztárbox résztvevőiről/párosításairól kérdeznek, mindig az aktuális évad (${CURRENT_YEAR}) adatait írd. Régi (2023/2024) nevek felsorolását kerüld.
-- Ha a kontextusban szerepel ELLENŐRZÖTT LISTA (currentSeasonNames), akkor a Sztárbox aktuális évadának résztvevőit csak ebből sorold fel.
-- Sztárbox párosításokat csak akkor sorolj fel, ha azok a kontextusban szereplő VERIFIED MATCHUPS listában szerepelnek. Ha nincs elég, jelezd a bizonytalanságot.
+- Ha a Sztárboxról kérdeznek, mindig az aktuális évad (${CURRENT_YEAR}) adatait írd. Régi (2023/2024) nevek felsorolását kerüld.
+- Ha a kontextusban szerepel ELLENŐRZÖTT LISTA (currentSeasonNames), akkor az aktuális évad résztvevőit csak ebből sorold fel.
+- Párosításokat csak akkor sorolj fel, ha a kontextus VERIFIED MATCHUPS listát ad. Ha nincs elég, jelezd.
 - Ha a kontextusban BROADCASTER szerepel, írd ki külön sorban: "Csatorna: <név>".
-- Ha a kontextusban PREMIERE DATE szerepel, írd ki külön sorban: "Kezdés: <dátum>" (ha nem végleges, jelezd: "előzetes" vagy "várható").
+- Ha a kontextusban PREMIERE DATE szerepel, írd ki külön sorban: "Kezdés: <dátum>". Ha a bizalmi szint 'trusted', jelezd: "(előzetes)".
 
 Identitás:
 - "Az oldal tulajdonosa és a mesterséges intelligencia 100%-os alkotója-fejlesztője: Horváth Tamás (Szabolcsbáka)."
@@ -310,7 +324,7 @@ Stílus:
 - Rövid bevezető → lényegpontok → részletek. Magyarul, tömören.
 `;
 
-// ===== OpenAI hívás
+// --- OpenAI
 async function callOpenAI(messages,{model=DEFAULT_MODEL,temperature=0.3}={}){
   if (!OPENAI_API_KEY) throw new Error("Hiányzik az OPENAI_API_KEY.");
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -327,7 +341,7 @@ function http(statusCode, body){
   return { statusCode, headers:{ "Content-Type":"application/json; charset=utf-8" }, body: JSON.stringify(body) };
 }
 
-// ===== fő handler
+// --- fő handler
 export async function handler(event){
   try{
     const { message = "", history = [], maxSources = 8, recencyDays, forceBrowse = null, debug = false } =
@@ -389,9 +403,7 @@ export async function handler(event){
                      (!s._primary && s.content && s.content.length >= 200));
 
       sources = sortPrimaryFirst(sources, preferred).slice(0, 6);
-      if (sources.length >= (plan.topic==="sztarbox" ? 2 : 2)){
-        collected = sources; usedTier = days; break outer;
-      }
+      if (sources.length >= 2){ collected = sources; usedTier = days; break outer; }
     }
 
     if (!collected.length){
@@ -402,7 +414,7 @@ export async function handler(event){
       });
     }
 
-    // Résztvevők (aktuális évad)
+    // Résztvevők
     let currentSeasonNames = [];
     let namesDiagnostics = null;
     if (plan.topic === "sztarbox"){
@@ -416,14 +428,11 @@ export async function handler(event){
     const { verified: verifiedMatchups, raw: matchupsRaw } = aggregateMatchupsFromSources(collected);
     const matchups = verifiedMatchups.map(v => v.pair);
 
-    // Csatorna + dátum
-    let broadcasterInfo = null;
-    let premiereInfo = null;
-    if (plan.topic === "sztarbox"){
-      const bd = extractBroadcasterAndDate(collected, CURRENT_YEAR);
-      if (bd.broadcaster) broadcasterInfo = bd.broadcaster;      // pl. "RTL"
-      if (bd.premiereDate) premiereInfo = bd.premiereDate;       // pl. "szept. 14."
-    }
+    // Csatorna + kezdés
+    const bd = extractBroadcasterAndDate(collected, CURRENT_YEAR);
+    const broadcasterInfo = bd.broadcaster || null;
+    const premiereInfo = bd.premiereDate || null;
+    const premiereConf = bd.premiereConfidence || null;
 
     const browserBlock =
       "\n\nForráskivonatok ("+collected.length+" db):\n" +
@@ -431,7 +440,7 @@ export async function handler(event){
       (currentSeasonNames.length ? `\n\nELLENŐRZÖTT LISTA (aktuális évad ${CURRENT_YEAR}):\n- ${currentSeasonNames.join("\n- ")}` : "") +
       (matchups.length ? `\n\nVERIFIED MATCHUPS:\n- ${matchups.join("\n- ")}` : `\n\nVERIFIED MATCHUPS: nincs elég.`) +
       (broadcasterInfo ? `\n\nBROADCASTER (ellenőrzött): ${broadcasterInfo}` : "") +
-      (premiereInfo ? `\n\nPREMIERE DATE (valószínű): ${premiereInfo}` : "");
+      (premiereInfo ? `\n\nPREMIERE DATE (${premiereConf||'unknown'}): ${premiereInfo}` : "");
 
     const messages = [
       { role:"system", content:SYSTEM_PROMPT },
@@ -449,7 +458,8 @@ export async function handler(event){
       currentSeasonNames,
       verifiedMatchups: verifiedMatchups.map(v => ({ pair: v.pair, sources: v.sources.slice(0,5) })),
       broadcaster: broadcasterInfo || null,
-      premiereDate: premiereInfo || null
+      premiereDate: premiereInfo || null,
+      premiereConfidence: premiereConf || null
     };
 
     if (debug){
