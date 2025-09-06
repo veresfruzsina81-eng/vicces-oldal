@@ -1,5 +1,5 @@
-// Hibrid asszisztens: AI-only válaszok + friss adatok (időjárás/árfolyam/hírek) + beszélgetés-követés + VISION.
-// Rövid válasz: max 2 mondat, max 1 link. A frontend opcionálisan küld `context`-et, amit frissítve visszaadunk.
+// Hibrid asszisztens: AI-only + friss adatok (időjárás/árfolyam/hírek) + kontextus-követés + vision + visszakérdezés.
+// Frontend küldhet 'context' mezőt; mi frissítve visszaadjuk a meta-ban.
 
 import OpenAI from "openai";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -11,17 +11,16 @@ export async function handler(event) {
     const { message = "", context = {}, image = null } = JSON.parse(event.body || "{}");
     const question = (message || "").trim();
 
-    // engedjük az image-only kérést is
     if (!question && !image) return json({ error: "Üres üzenet." }, 400);
 
-    // Kontextus kezdőértékek
+    // --- perzisztens kontextus (a frontend tartsa meg és küldje vissza) ---
     const ctx = {
       last_intent: context.last_intent || null,
-      last_city: context.last_city || null,
-      last_topic: context.last_topic || null
+      last_city:   context.last_city   || null,
+      last_topic:  context.last_topic  || null
     };
 
-    // ===== 0/a) KÉP-ÁG (ha van kép, előre vesszük) =====
+    /* ========== 0/a) KÉP ========== */
     const MAX_IMAGE_BYTES = 2_000_000; // ~2MB
     if (image) {
       const len = typeof image === "string" ? image.length : 0;
@@ -43,7 +42,6 @@ export async function handler(event) {
           meta: { ...ctx, last_intent: "vision" }
         });
       }
-      // ha nem sikerült a vizuális elemzés, essünk vissza a normál logikára (ha van szöveg)
       if (!question) {
         return json({
           ok: true,
@@ -54,7 +52,7 @@ export async function handler(event) {
       }
     }
 
-    // ===== 0/b) Köszönés / smalltalk =====
+    /* ========== 0/b) Smalltalk / köszönés ========== */
     if (isGreeting(question)) {
       return json({
         ok: true,
@@ -72,7 +70,7 @@ export async function handler(event) {
       });
     }
 
-    // ===== 1) Készítő =====
+    /* ========== 1) Készítő ========== */
     if (isOwnerQuestion(question)) {
       return json({
         ok: true,
@@ -82,7 +80,7 @@ export async function handler(event) {
       });
     }
 
-    // ===== 2) Intent =====
+    /* ========== 2) Intent detektálás (szabály + LLM) ========== */
     let intent = detectIntentRules(question);
     if (intent === "generic") {
       try {
@@ -90,13 +88,35 @@ export async function handler(event) {
         if (llmIntent) intent = llmIntent;
       } catch {}
     }
-    if (isVagueFollowUp(question)) {
-      if (ctx.last_intent === "weather" && ctx.last_city) intent = "weather";
-      else if (ctx.last_intent === "news" && ctx.last_topic) intent = "news";
-      else if (ctx.last_intent === "fx") intent = "fx";
+
+    // Erős témaváltó jelek (ne ragadjon bent az előző intentben)
+    if (hasStrongNewsSignal(question) && intent !== "weather") {
+      ctx.last_city = null;
+      ctx.last_intent = "news";
+      intent = "news";
     }
 
-    // ===== 3) FRISS ADAT =====
+    // Homályos follow-up → próbáljunk kontextusra támaszkodni
+    if (isVagueFollowUp(question)) {
+      if (hasStrongNewsSignal(question)) intent = "news";
+      else if (hasStrongWeatherSignal(question) && ctx.last_city) intent = "weather";
+      else if (ctx.last_intent === "weather" && ctx.last_city) intent = "weather";
+      else if (ctx.last_intent === "news" && ctx.last_topic) intent = "news";
+      else if (ctx.last_intent === "fx") intent = "fx";
+      else {
+        // tényleg homályos → visszakérdezés
+        const cq = await buildClarifyingQuestion(question);
+        return json({
+          ok: true,
+          question,
+          answer: cq || "Nem teljesen világos, mire gondolsz. Egy mondatban pontosítod? 🙂",
+          meta: { ...ctx, last_intent: "clarify" }
+        });
+      }
+    }
+
+    /* ========== 3) FRISS ADAT ÁGAK ========== */
+    // 3/a FX
     if (intent === "fx") {
       const fx = await getFxRate(question);
       ctx.last_intent = "fx";
@@ -111,8 +131,18 @@ export async function handler(event) {
       return json({ ok: true, question, answer: "Most nem érem el az árfolyam API-t. Próbáld később.", meta: ctx });
     }
 
+    // 3/b Weather
     if (intent === "weather") {
       const guessCity = extractCityGuess(question) || ctx.last_city || null;
+      if (!guessCity && !/holnap|ma|weather|időjárás|idojaras/i.test(question)) {
+        // várost sem látunk → visszakérdezés
+        return json({
+          ok: true,
+          question,
+          answer: "Melyik városra nézzük az időjárást? 🙂",
+          meta: { ...ctx, last_intent: "clarify-weather" }
+        });
+      }
       const wx = await getWeather(question, guessCity);
       ctx.last_intent = "weather";
       if (wx?.name) {
@@ -121,14 +151,18 @@ export async function handler(event) {
         const rain = wx.pop != null ? `, csapadék esély ~${wx.pop}%` : "";
         const answer =
           `${wx.name} (${wx.dateLabel}): ${tMin}–${tMax}°C${rain}.\n\n` +
-          `Forrás: open-meteo.com\n${wx.sourceUrl}`;
+          `Forrás: open-meteo.com\nhttps://open-meteo.com/`;
         ctx.last_city = wx.shortName || guessCity || ctx.last_city || null;
         ctx.last_topic = ctx.last_city;
-        return json({ ok: true, question, answer, meta: ctx });
+        return json({
+          ok: true, question, answer,
+          meta: { ...ctx, suggest: "Érdekel az órás bontás is, vagy másik város?" }
+        });
       }
       return json({ ok: true, question, answer: "Most nem sikerült időjárási adatot lekérni. Próbáld később.", meta: ctx });
     }
 
+    // 3/c News
     if (intent === "news" || (intent === "generic" && looksFresh(question))) {
       const best = await safeSearchBest(question);
       ctx.last_intent = "news";
@@ -136,19 +170,27 @@ export async function handler(event) {
       if (best) {
         const text = await answerFromSnippet(question, best.title, best.snippet);
         const answer = `${limitToTwoSentences(text)}\n\nForrás: ${hostname(best.link)}\n${best.link}`;
-        return json({ ok: true, question, answer, meta: { ...ctx, source: best.link } });
+        return json({
+          ok: true, question, answer,
+          meta: { ...ctx, source: best.link, suggest: "Szeretnéd a részleteket vagy másik forrást?" }
+        });
       }
       return json({
         ok: true,
         question,
-        answer: "Most nem találtam elég friss és megbízható forrást. Pontosítsunk egy kicsit? 🙂",
+        answer: "Most nem találtam elég friss és megbízható forrást. Pontosítunk egy kulcsszót? 🙂",
         meta: ctx
       });
     }
 
-    // ===== 4) AI-only =====
+    /* ========== 4) AI-only ========== */
     const text = await answerShortDirect(question);
-    return json({ ok: true, question, answer: limitToTwoSentences(text), meta: { ...ctx, last_intent: "ai-only" } });
+    return json({
+      ok: true,
+      question,
+      answer: limitToTwoSentences(text),
+      meta: { ...ctx, last_intent: "ai-only", suggest: await buildFollowupSuggestion(question) }
+    });
 
   } catch (err) {
     console.error("[chat] error:", err);
@@ -201,7 +243,7 @@ async function ask(messages) {
   return r.choices?.[0]?.message?.content?.trim() || "";
 }
 
-/* ================= Intent ================= */
+/* ================= Intent / jelek ================= */
 function detectIntentRules(q) {
   const s = normalizeHu(q);
 
@@ -222,18 +264,14 @@ function detectIntentRules(q) {
 
   return "generic";
 }
-
-async function classifyIntentLLM(question) {
-  const sys = "Osztályozd a kérdést: fx | weather | news | owner | generic. Csak a címkét add vissza.";
-  const r = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0,
-    messages: [{ role: "system", content: sys }, { role: "user", content: question }]
-  });
-  const label = r.choices?.[0]?.message?.content?.trim().toLowerCase();
-  return ["fx","weather","news","owner","generic"].includes(label) ? label : null;
+function hasStrongNewsSignal(q){
+  const s = normalizeHu(q);
+  return /\b(sztárbox|sztarbox|x-faktor|xfaktor|rtl|versenyzők|nevsor|névsor|menetrend|2025|casting|resztvevok|résztvevők)\b/.test(s);
 }
-
+function hasStrongWeatherSignal(q){
+  const s = normalizeHu(q);
+  return /\b(időjárás|idojaras|előrejelzés|elorejelzes|hőmérséklet|homerseklet|szél|szel|eső|eso)\b/.test(s);
+}
 function looksFresh(q){
   const s = normalizeHu(q);
   return /\b(ma|tegnap|holnap|most|friss|breaking|legujabb|utolso)\b/.test(s);
@@ -242,6 +280,20 @@ function keywordsForContext(q){
   return normalizeHu(q)
     .replace(/[^\p{L}\p{N}\s]/gu," ")
     .split(/\s+/).filter(w => w && w.length >= 4).slice(0,3).join(" ");
+}
+
+/* ================= Visszakérdezés / javaslat ================= */
+async function buildClarifyingQuestion(userText){
+  const sys = "Fogalmazz 1 rövid, barátságos pontosító kérdést magyarul a felhasználónak.";
+  const u   = `Felhasználó: ${userText}`;
+  try { return await ask([{role:"system",content:sys},{role:"user",content:u}]); }
+  catch { return ""; }
+}
+async function buildFollowupSuggestion(userText){
+  const sys = "Adj 1 rövid javaslatot (max 12 szó), hogy mit kérdezhet legközelebb — magyarul.";
+  const u   = `Felhasználó kérdése: ${userText}`;
+  try { return await ask([{role:"system",content:sys},{role:"user",content:u}]); }
+  catch { return ""; }
 }
 
 /* ================= AI-only ================= */
@@ -263,7 +315,6 @@ function extractKeywordsHu(q){
     .split(/\s+/)
     .filter(w => w.length >= 4 && !stop.has(w));
 }
-
 async function safeSearchBest(question) {
   const key = process.env.GOOGLE_API_KEY || process.env.Google_API_KEY;
   const cx  = process.env.GOOGLE_CX      || process.env.Google_CX;
@@ -322,7 +373,6 @@ async function safeSearchBest(question) {
   }
   return best;
 }
-
 async function answerFromSnippet(question, title, snippet) {
   const sys =
     "Magyarul válaszolj MAX 2 mondatban, kizárólag a kapott rövid forrásleírás (title+snippet) alapján. " +
@@ -385,6 +435,8 @@ function extractCityGuess(q) {
     "szabolcsbáka":"Szabolcsbáka",
     "szabolcsbaka":"Szabolcsbáka",
     "szabolcs-baka":"Szabolcsbáka",
+    "szabolcs":"Nyíregyháza",
+    "szabolcs-szatmar-bereg":"Nyíregyháza",
     "bp":"Budapest",
     "pest":"Budapest"
   };
@@ -433,7 +485,7 @@ async function getWeather(q, preferredCity) {
       shortName: loc.name,
       name: `${loc.name}${loc.country ? `, ${loc.country}` : ""}`,
       dateLabel: wantTomorrow ? "holnap" : "ma",
-      sourceUrl: wxUrl.toString()
+      sourceUrl: "https://open-meteo.com/"
     };
     if (!wxres.ok) return { ...baseInfo, tMin: null, tMax: null, pop: null };
 
@@ -468,8 +520,8 @@ async function analyzeImage(imageBase64OrDataUrl, promptText){
     const messages = [{
       role: "user",
       content: [
-        { type: "input_text", text: userPrompt },
-        { type: "input_image", image_url: dataUrl }
+        { type: "text", text: userPrompt },
+        { type: "image_url", image_url: { url: dataUrl } }
       ]
     }];
 
