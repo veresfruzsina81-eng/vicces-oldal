@@ -7,7 +7,7 @@ const OPENAI_API_KEY  = process.env.OPENAI_API_KEY;
 
 const TODAY = new Date().toISOString().slice(0,10);
 
-// Minimális források, de adaptívan lazítjuk
+// Minimális források, adaptív szűréshez
 const MIN_SOURCES_STRICT = 3;
 const MIN_SOURCES_RELAX  = 2;
 
@@ -15,27 +15,34 @@ const MIN_SOURCES_RELAX  = 2;
 const MIN_CHARS_STRICT = 300;
 const MIN_CHARS_RELAX  = 120;
 
-// Preferált domainek (prioritás szerinti rendezéshez)
+// Preferált domainek
 const PREFERRED_DOMAINS = [
   // pénz/árfolyam
-  "mnb.hu","portfolio.hu","bank","otpbank.hu","raiffeisen.hu","erste.hu","granitbank.hu","revolut","wise.com",
+  "mnb.hu","portfolio.hu","otpbank.hu","raiffeisen.hu","erste.hu","granitbank.hu","wise.com","revolut",
   // időjárás
   "met.hu","idokep.hu","koponyeg.hu",
   // hazai hírek / Sztárbox
-  "rtl.hu","rtlmost.hu","telex.hu","index.hu","24.hu","blikk.hu","hirado.hu","hvg.hu"
+  "rtl.hu","rtlmost.hu","telex.hu","index.hu","24.hu","blikk.hu","hirado.hu","hvg.hu","facebook.com","instagram.com","x.com"
 ];
 
-/** ======= Szándékfelismerés – mikor NE böngésszen ======= */
+/** ======= Szándékfelismerés – mikor böngésszen ======= */
 function classifyIntent(msg){
   const q = (msg||"").toLowerCase().trim();
-  const greet = ["szia","hello","helló","hali","hi","csá","jó reggelt","jó napot","jó estét"];
-  const trivial = ["köszönöm","koszi","köszi","hogy vagy","mi újság","mit tudsz","segíts"];
-  if (greet.some(w => q === w || q.startsWith(w))) return "greeting";
-  if (trivial.includes(q) || q.length <= 3) return "smalltalk";
+  const greetings = ["szia","hello","helló","hali","hi","csá","jó reggelt","jó napot","jó estét"];
+  const followups = ["mesélsz róla","meselj rola","bővebben","részletek","és még","még?","oké","köszi","köszönöm","értem","arról","róla"];
+  const realtime  = [
+    "most","ma","mai","friss","aktuális","legújabb","percről percre",
+    "árfolyam","időjárás","bejelentett","bejelentés","hírek","ki nyerte","eredmény","élő","live",
+    "párosítás","fight card","menetrend","ár","akció","készlet",
+    "2024","2025","2026"
+  ];
+  if (greetings.some(w => q === w || q.startsWith(w))) return "greeting";
+  if (followups.some(w => q.includes(w)) || q.split(/\s+/).length <= 3) return "followup";
+  if (realtime.some(w => q.includes(w))) return "realtime";
   return "normal";
 }
 
-/** ======= Vertikális „receptek” – query-expanziók ======= */
+/** ======= Vertikális „receptek” – multi-query variánsok ======= */
 function buildQueryVariants(userMsg){
   const q = userMsg.toLowerCase();
 
@@ -48,13 +55,13 @@ function buildQueryVariants(userMsg){
         `eur huf mai árfolyam ${TODAY}`,
         `euró forint árfolyam élő`,
         `mnb euró hivatalos árfolyam`,
-        `portfolio eurhuf árfolyam`,
+        `portfolio eurhuf árfolyam`
       ],
       preferred: ["mnb.hu","portfolio.hu","otpbank.hu","raiffeisen.hu","erste.hu","wise.com"]
     };
   }
 
-  // Időjárás
+  // Időjárás (Budapest)
   if (q.includes("időjárás") && (q.includes("bp") || q.includes("budapest") || q.includes("budapesten"))) {
     return {
       topic: "weather",
@@ -63,35 +70,35 @@ function buildQueryVariants(userMsg){
         `Budapest weather today hourly`,
         `OMSZ met.hu Budapest előrejelzés ${TODAY}`,
         `Időkép Budapest radar`,
-        `Köpönyeg Budapest ma`,
+        `Köpönyeg Budapest ma`
       ],
       preferred: ["met.hu","idokep.hu","koponyeg.hu"]
     };
   }
 
-  // Sztárbox (több variáció, hogy „sztábox” elgépelést is eltalálja)
+  // Sztárbox (párosítások)
   if (q.includes("sztárbox") || q.includes("sztábox") || q.includes("sztarbox")) {
     return {
       topic: "sztarbox",
       variants: [
-        `Sztárbox 2025 résztvevők bejelentve RTL ${TODAY}`,
-        `Sztárbox 2025 szereplők`,
-        `RTL Sztárbox 2025 hivatalos`,
-        `Sztárbox 2025 indulók lista`,
-        `Sztárbox műsorvezetők 2025`,
+        `Sztárbox 2025 párosítások hivatalos RTL`,
+        `Sztárbox 2025 fight card első meccs`,
+        `Sztárbox 2025 mérkőzések párok`,
+        `Sztárbox 2025 sorsolás sajtótájékoztató`,
+        `RTL Sztárbox 2025 bejelentés párosítás`
       ],
-      preferred: ["rtl.hu","telex.hu","index.hu","24.hu","blikk.hu","hirado.hu","hvg.hu","rtlmost.hu"]
+      preferred: ["rtl.hu","rtlmost.hu","rtl.hu/sztarbox","telex.hu","index.hu","24.hu","hvg.hu","hirado.hu","blikk.hu","facebook.com","instagram.com","x.com"]
     };
   }
 
-  // Alapértelmezett (általános): a felhasználói kérdés és pár variáció
+  // Alapértelmezett: a kérdés és pár általános variáns
   return {
     topic: "general",
     variants: [
       userMsg,
       `${userMsg} ${TODAY}`,
       `${userMsg} magyar hír`,
-      `${userMsg} hivatalos oldal`,
+      `${userMsg} hivatalos oldal`
     ],
     preferred: PREFERRED_DOMAINS
   };
@@ -110,19 +117,39 @@ function sortByPreference(items, preferredDomains){
     scoreByPreferred(b.url, preferredDomains) - scoreByPreferred(a.url, preferredDomains)
   );
 }
+// Párosítások (X vs Y) kinyerése a szövegből
+function extractMatchupsFromText(text){
+  if (!text) return [];
+  const patterns = [
+    /([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)\s*(?:vs\.?|–|—|-)\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)/gu,
+    /párosítás[a-z]*:\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)\s*(?:–|—|-)\s*([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\.]+)+)/giu
+  ];
+  const out = new Set();
+  for (const rx of patterns){
+    let m;
+    while ((m = rx.exec(text)) !== null){
+      const a = m[1].replace(/\s+/g," ").trim();
+      const b = m[2].replace(/\s+/g," ").trim();
+      if (a && b && a.toLowerCase() !== b.toLowerCase()){
+        out.add(`${a} vs ${b}`);
+      }
+    }
+  }
+  return Array.from(out);
+}
 
 /** ======= Rendszerprompt ======= */
 const SYSTEM_PROMPT = `
 Te Tamás barátságos, magyar asszisztensed vagy. A mai dátum: ${TODAY}.
 
 SZABÁLYOK:
-- Ha a kérdéshez mellékelve friss webes forráskivonatok vannak, akkor kizárólag ezekre támaszkodj.
+- Ha a kérdéshez mellékelve friss webes forráskivonatok vannak, kizárólag ezekre támaszkodj.
 - NE említs tréning cutoff-ot. Ne írj "2024 június" jellegű mondatot.
 - Hivatkozásokat a végén sorszámozva add meg: [1], [2], [3].
 - Ha nincs elég jó forrás, mondd ki őszintén és javasolj kulcsszavakat.
 
 Identitás:
-- Ha kérdezik: "Ki készítette az oldalt? Kié az oldal?": 
+- Ha kérdezik: "Ki készítette az oldalt? Kié az oldal?":
   "Az oldal tulajdonosa és a mesterséges intelligencia 100%-os alkotója-fejlesztője: Horváth Tamás (Szabolcsbáka)."
 - Tamásról mindig pozitív, tiszteletteljes hangon beszélj.
 
@@ -154,14 +181,27 @@ function http(statusCode, body){
 /** ======= Fő handler ======= */
 export async function handler(event){
   try{
-    const { message = "", maxSources = 8, recencyDays } = JSON.parse(event.body || "{}");
-    const intent = classifyIntent(message);
+    const {
+      message = "",
+      history = [],          // [{role:"user"|"assistant", content:"..."}]
+      maxSources = 8,
+      recencyDays,
+      forceBrowse = null     // true/false: kézi felülírás
+    } = JSON.parse(event.body || "{}");
+
     if (!message.trim()) return http(400, { ok:false, error:"Üres üzenet" });
 
-    // 0) Köszönés / small talk → NEM böngészünk
-    if (intent === "greeting" || intent === "smalltalk"){
+    const intent = classifyIntent(message);
+    const isRealtime = (intent === "realtime");
+    const shouldBrowse = (forceBrowse === true) ? true
+                        : (forceBrowse === false) ? false
+                        : isRealtime;
+
+    // 0) Ha NEM kell böngészni → csak beszélgetés, a history-val együtt
+    if (!shouldBrowse){
       const msgs = [
         { role: "system", content: SYSTEM_PROMPT },
+        ...history.slice(-8).map(m => ({ role: m.role, content: m.content })),
         { role: "user",   content: message },
       ];
       const { text, model } = await callOpenAI(msgs, {});
@@ -172,19 +212,18 @@ export async function handler(event){
     const plan = buildQueryVariants(message);
     const preferred = plan.preferred?.length ? plan.preferred : PREFERRED_DOMAINS;
 
-    // 2) Adaptív időablakok (szűktől a tágabbig)
+    // 2) Adaptív időablakok
     const tiers = typeof recencyDays === "number"
       ? [recencyDays, Math.max(30, recencyDays), Math.max(90, recencyDays), Math.max(365, recencyDays)]
-      : [7, 30, 90, 365];
+      : (plan.topic === "sztarbox" ? [7, 30, 180, 365] : [7, 30, 90, 365]);
 
     let collected = [];
     let usedTier   = null;
-    let queriesTried = [];
+    const queriesTried = [];
 
     // 3) Fokozatos keresés: több query × több idősáv
     outer:
     for (const days of tiers){
-      // Párhuzamos keresések az adott idősávban
       const batch = await Promise.all(
         plan.variants.map(vq => (queriesTried.push({ q:vq, days }), searchGoogle(vq, {
           num: Math.min(Math.max(maxSources, MIN_SOURCES_STRICT), 10),
@@ -192,28 +231,24 @@ export async function handler(event){
         })))
       );
 
-      // Eredmények összegyűjtése és deduplikálása
       let flat = batch.flat().map(it => ({ title: it.title, url: it.link, snippet: it.snippet }));
       flat = uniqByUrl(flat);
-
-      // Előresorolás preferált domainek szerint
       flat = sortByPreference(flat, preferred);
 
-      // Oldalak letöltése és kivonat
       const pages = await Promise.all(flat.map(r => fetchPagePlainText(r.url)));
 
-      // Kétlépcsős szűrés: szigorú → lazább
+      // Szigorú szűrés
       let strict = flat.map((r,i)=>({ ...r, content: pages[i]?.content || "" }))
                        .filter(s => s.content && s.content.length >= MIN_CHARS_STRICT);
 
       let sources = strict;
       if (sources.length < MIN_SOURCES_STRICT){
-        // lazítás
+        // Lazítás
         sources = flat.map((r,i)=>({ ...r, content: pages[i]?.content || "" }))
                       .filter(s => s.content && s.content.length >= MIN_CHARS_RELAX);
       }
 
-      // Ismét preferencia szerinti rendezés és vágás
+      // Rendezés és vágás
       sources = sortByPreference(sources, preferred).slice(0, Math.max(MIN_SOURCES_STRICT, 6));
 
       if (sources.length >= MIN_SOURCES_RELAX){
@@ -223,7 +258,6 @@ export async function handler(event){
       }
     }
 
-    // 4) Ha még mindig kevés forrás → őszinte jelzés
     if (!collected.length){
       return http(200, {
         ok:false,
@@ -233,13 +267,22 @@ export async function handler(event){
       });
     }
 
-    // 5) Összeállítás a modellnek
+    // Párosítások kinyerése (ha releváns)
+    let matchups = [];
+    for (const s of collected){
+      matchups.push(...extractMatchupsFromText(s.content));
+    }
+    matchups = Array.from(new Set(matchups));
+
+    // 4) Kontextus összeállítása a modellnek (history + forráskivonatok)
     const browserBlock =
       "\n\nForráskivonatok ("+collected.length+" db):\n" +
-      collected.map((s,idx) => `[#${idx+1}] ${s.title}\nURL: ${s.url}\nRészlet: ${s.content.slice(0, 1000)}`).join("\n\n");
+      collected.map((s,idx) => `[#${idx+1}] ${s.title}\nURL: ${s.url}\nRészlet: ${s.content.slice(0, 1000)}`).join("\n\n") +
+      (matchups.length ? `\n\nAutomatikusan felismert párosítások:\n- ${matchups.join("\n- ")}` : "");
 
     const msgs = [
       { role: "system", content: SYSTEM_PROMPT },
+      ...history.slice(-6).map(m => ({ role: m.role, content: m.content })), // kontextus
       { role: "user",   content: `Felhasználói kérés:\n${message}\n${browserBlock}` },
     ];
 
@@ -252,7 +295,13 @@ export async function handler(event){
       model,
       answer,
       references,
-      diagnostics: { topic: plan.topic, queriesTried, usedRecencyDays: usedTier, sourcesFound: collected.length }
+      diagnostics: {
+        topic: plan.topic,
+        queriesTried,
+        usedRecencyDays: usedTier,
+        sourcesFound: collected.length
+      },
+      matchups
     });
 
   }catch(e){
