@@ -177,6 +177,22 @@ function similarity(a,b){
   return 1 - dist/maxLen; // 0..1
 }
 
+/* ----- PAULINA: névfelismerés + fix válasz ----- */
+function mentionsPaulina(raw){
+  const t = _norm(raw);
+  // Követelmény: a "horvath" és a "paulina" együtt szerepeljen (bármilyen sorrendben)
+  return t.includes("horvath") && t.includes("paulina");
+}
+
+const PAULINA_REPLY =
+  "Horváth Paulina Horváth Tamás (oldal tulajdonosa) testvére. " +
+  "20 éves. Demecserben él, Nyíregyházán tanul a Wesselényi Gimnáziumban, " +
+  "fodrásznak tanul. Kedves, szorgalmas és kreatív fiatal – büszkék vagyunk rá.";
+
+/* =======================
+   2) Intent és lekérdezés-logika
+   ========================== */
+
 async function callOpenAI(messages,{model=DEFAULT_MODEL,temperature=0.3}={}){
   if (!OPENAI_API_KEY) throw new Error("Hiányzik az OPENAI_API_KEY.");
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -215,10 +231,6 @@ Fontos: ne legyen obszcén vagy érzékeny téma; a válasz legyen egyszerű (pl
     return { riddle:"Mi az: este jön, reggel megy, de sosem alszik?", answer:"nap", hint:"Égi jelenség." };
   }
 }
-
-/* ==========================
-   2) Intent és lekérdezés-logika
-   ========================== */
 
 function classifyIntent(msg){
   const q = (msg||"").toLowerCase().trim();
@@ -386,6 +398,15 @@ export async function handler(event){
     // Kontextus (pl. aktív találós kérdés)
     let meta = context || {};
     const activeRiddle = meta?.riddle || null;
+
+    /* 0) PAULINA: ha a név szerepel, azonnali fix válasz (nem hívunk AI-t/böngészést) */
+    if (mentionsPaulina(message)) {
+      return http(200, {
+        ok:true, usedBrowsing:false, model: "fixed",
+        answer: PAULINA_REPLY, references: [],
+        meta: { ...meta, riddle:null, override:"paulina", ts: Date.now() }
+      });
+    }
 
     // 1) Tulaj/fejlesztő kérdés
     if (isOwnerQuestion(message)) {
